@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CFBench - Platform Guide</title>
+    <link rel="stylesheet" href="../css/styles.css">
+    <style>
+        /* Image Bubble Button */
+        .img-bubble {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 22px;
+            height: 22px;
+            background: var(--accent);
+            border-radius: 50%;
+            cursor: pointer;
+            margin-left: 8px;
+            vertical-align: middle;
+            transition: all 0.2s;
+            position: relative;
+        }
+        .img-bubble:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 12px rgba(59, 130, 246, 0.5);
+        }
+        .img-bubble svg {
+            width: 12px;
+            height: 12px;
+            stroke: white;
+            fill: none;
+        }
+
+        /* Floating Image Panel */
+        .floating-image {
+            position: fixed;
+            top: 70px;
+            right: 20px;
+            width: 55vw;
+            max-width: 900px;
+            max-height: calc(100vh - 100px);
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+            z-index: 1000;
+            display: none;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        .floating-image.expanded {
+            width: 70vw;
+            max-width: 1100px;
+            top: 60px;
+            max-height: calc(100vh - 80px);
+        }
+        .floating-image.visible {
+            display: block;
+            animation: slideIn 0.2s ease;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        .floating-image-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            background: var(--bg-tertiary);
+            border-bottom: 1px solid var(--border);
+        }
+        .floating-image-title {
+            font-weight: 600;
+            font-size: 13px;
+            color: var(--text);
+        }
+        .floating-image-actions {
+            display: flex;
+            gap: 8px;
+        }
+        .floating-image-btn {
+            width: 28px;
+            height: 28px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        .floating-image-btn:hover {
+            background: var(--accent);
+            border-color: var(--accent);
+        }
+        .floating-image-btn svg {
+            width: 14px;
+            height: 14px;
+            stroke: var(--text-muted);
+        }
+        .floating-image-btn:hover svg {
+            stroke: white;
+        }
+        .floating-image-close:hover {
+            background: #ef4444;
+            border-color: #ef4444;
+        }
+        .floating-image-content {
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            max-height: calc(100vh - 160px);
+            overflow: hidden;
+        }
+        .floating-image-content img {
+            max-width: 100%;
+            max-height: calc(100vh - 220px);
+            width: auto;
+            height: auto;
+            object-fit: contain;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            cursor: zoom-in;
+        }
+        .floating-image-content img:hover {
+            opacity: 0.95;
+        }
+        .floating-image-desc {
+            margin-top: 12px;
+            font-size: 12px;
+            color: var(--text-muted);
+            text-align: center;
+        }
+
+        /* Platform Section */
+        .platform-block {
+            margin-bottom: 40px;
+            padding-bottom: 32px;
+            border-bottom: 1px solid var(--border);
+        }
+        .platform-block:last-of-type {
+            border-bottom: none;
+        }
+        .platform-header {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 16px;
+        }
+        .platform-icon {
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(135deg, var(--accent) 0%, #1d4ed8 100%);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+        .platform-header h2 {
+            margin: 0;
+            font-size: 18px;
+            color: var(--text);
+        }
+        .platform-header p {
+            margin: 2px 0 0;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+        .platform-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            color: var(--accent);
+            padding: 8px 14px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 500;
+            margin-bottom: 16px;
+            transition: all 0.2s;
+        }
+        .platform-link:hover {
+            border-color: var(--accent);
+            background: rgba(59, 130, 246, 0.1);
+        }
+        .platform-link svg {
+            width: 12px;
+            height: 12px;
+        }
+
+        /* Steps List */
+        .steps-list {
+            counter-reset: step;
+        }
+        .step-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 12px 0;
+            border-bottom: 1px dashed var(--border);
+        }
+        .step-item:last-child {
+            border-bottom: none;
+        }
+        .step-num {
+            counter-increment: step;
+            width: 24px;
+            height: 24px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 11px;
+            color: var(--text-muted);
+            flex-shrink: 0;
+        }
+        .step-num::before {
+            content: counter(step);
+        }
+        .step-content {
+            flex: 1;
+        }
+        .step-title {
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--text);
+            display: inline;
+        }
+        .step-desc {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+            line-height: 1.5;
+        }
+
+        /* Info boxes */
+        .info-tip {
+            background: rgba(34, 197, 94, 0.1);
+            border-left: 3px solid #22c55e;
+            padding: 10px 14px;
+            border-radius: 0 6px 6px 0;
+            margin: 12px 0;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        .info-tip strong { color: #4ade80; }
+        .info-warn {
+            background: rgba(239, 68, 68, 0.1);
+            border-left: 3px solid #ef4444;
+            padding: 10px 14px;
+            border-radius: 0 6px 6px 0;
+            margin: 12px 0;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        .info-warn strong { color: #f87171; }
+        .info-note {
+            background: rgba(234, 179, 8, 0.1);
+            border-left: 3px solid #eab308;
+            padding: 10px 14px;
+            border-radius: 0 6px 6px 0;
+            margin: 12px 0;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        .info-note strong { color: #facc15; }
+
+        /* Clickable filter items */
+        .filter-items {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 8px 0 4px 0;
+        }
+        .filter-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            color: var(--text);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .filter-item:hover {
+            border-color: var(--accent);
+            background: rgba(59, 130, 246, 0.1);
+            color: var(--accent);
+        }
+        .filter-item .click-hint {
+            font-size: 10px;
+            color: var(--text-muted);
+            font-style: italic;
+        }
+
+        /* Sub-step (indented) */
+        .sub-step {
+            margin-left: 36px;
+            padding: 8px 0;
+            border-left: 2px solid var(--border);
+            padding-left: 16px;
+        }
+        .sub-step-title {
+            font-size: 13px;
+            color: var(--text);
+            margin-bottom: 4px;
+        }
+        .sub-step-desc {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        /* Outcome box */
+        .outcome-box {
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(59, 130, 246, 0.1) 100%);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .outcome-box h4 {
+            color: #4ade80;
+            font-size: 14px;
+            margin: 0 0 12px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .outcome-box p {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin: 8px 0;
+            line-height: 1.5;
+        }
+        .outcome-box a {
+            color: var(--accent);
+            text-decoration: underline;
+        }
+
+        /* Quick nav */
+        .quick-nav {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+        .quick-nav a {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            padding: 10px 14px;
+            border-radius: 8px;
+            text-decoration: none;
+            color: var(--text);
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .quick-nav a:hover {
+            border-color: var(--accent);
+            background: rgba(59, 130, 246, 0.1);
+        }
+        .quick-nav a span {
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+
+<nav class="nav">
+    <a href="../index.html" class="nav-brand">CFBench Docs</a>
+    <div class="search-wrapper">
+        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input type="text" class="search-input" placeholder="Search..." id="searchInput">
+        <div class="search-results" id="searchResults"></div>
+    </div>
+    <div class="nav-links">
+        <a href="platform.html" class="nav-link active">Platform</a>
+        <a href="structure.html" class="nav-link">Structure</a>
+        <a href="practical.html" class="nav-link">Practical</a>
+        <a href="review.html" class="nav-link">Review</a>
+    </div>
+    <div class="nav-actions">
+        <a href="how-to-task.html" class="help-link" title="Interactive tutorial">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            Struggling? Walkthrough
+        </a>
+        <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">
+            <svg id="sunIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+            <svg id="moonIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+    </div>
+</nav>
+
+<div class="layout">
+    <aside class="sidebar">
+        <div class="sidebar-section">
+            <div class="sidebar-label">Platforms</div>
+            <nav class="sidebar-nav">
+                <a href="#lt" class="sidebar-link">Labeling Tool</a>
+                <a href="#chathub" class="sidebar-link">ChatHub</a>
+                <a href="#validator" class="sidebar-link">Validator Tool</a>
+                <a href="#validator-assistant" class="sidebar-link" style="padding-left: 24px; font-size: 12px;">↳ Validator Assistant</a>
+            </nav>
+        </div>
+        <div class="sidebar-section">
+            <div class="sidebar-label">Quick Access</div>
+            <nav class="sidebar-nav">
+                <a href="https://labeling.turing.com/" target="_blank" class="sidebar-link">Open LT</a>
+                <a href="https://chathub.turing.com/" target="_blank" class="sidebar-link">Open ChatHub</a>
+                <a href="https://multi-lang-nvidia.streamlit.app/" target="_blank" class="sidebar-link">Open Validator</a>
+            </nav>
+        </div>
+        <div class="sidebar-section">
+            <div class="sidebar-label">Resources</div>
+            <nav class="sidebar-nav">
+                <a href="word_count.html" class="sidebar-link">Word Counter</a>
+            </nav>
+        </div>
+        <p class="sidebar-credit">Made by Gabriel Glock - Italian pod lead</p>
+    </aside>
+
+    <main class="main">
+        <section class="section">
+            <h1>Platform Guide</h1>
+            <p class="subtitle">How to use each platform. Click the <span class="img-bubble" style="pointer-events:none;"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></span> icons to see screenshots.</p>
+
+            <div class="quick-nav">
+                <a href="#lt"><span>📋</span> Labeling Tool</a>
+                <a href="#chathub"><span>💬</span> ChatHub</a>
+                <a href="#validator"><span>✅</span> Validator</a>
+            </div>
+
+            <!-- Labeling Tool -->
+            <div class="platform-block" id="lt">
+                <div class="platform-header">
+                    <div class="platform-icon">📋</div>
+                    <div>
+                        <h2>Labeling Tool</h2>
+                        <p>Claim tasks, manage queue, submit work</p>
+                    </div>
+                </div>
+
+                <a href="https://labeling.turing.com/" target="_blank" class="platform-link">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                    labeling.turing.com
+                </a>
+
+                <div class="steps-list">
+                    <!-- Step 1: Login -->
+                    <div class="step-item">
+                        <div class="step-num"></div>
+                        <div class="step-content">
+                            <span class="step-title">Login</span>
+                            <span class="img-bubble" onclick="showImg('login_labeling_tool', 'Login Screen', 'Click to login with your Turing Gmail account')"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></span>
+                            <p class="step-desc">Access labeling.turing.com and login with your Turing Gmail account.</p>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Use Filters -->
+                    <div class="step-item">
+                        <div class="step-num"></div>
+                        <div class="step-content">
+                            <span class="step-title">Use Filters</span>
+                            <span class="img-bubble" onclick="showImg('dashboard', 'Dashboard Overview', 'Overview of the filter dashboard')"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></span>
+                            <p class="step-desc">Use the filter fields to find available tasks. Click each filter below to see details:</p>
+                            <div class="filter-items">
+                                <span class="filter-item" onclick="showImg('language', 'Language Filter', 'Select your signed language')">Language <span class="click-hint">(click to see)</span></span>
+                                <span class="filter-item" onclick="showImg('project', 'Project Filter', 'Select SFT-CFBench project')">Project <span class="click-hint">(click to see)</span></span>
+                                <span class="filter-item" onclick="showImg('batch', 'Batch Filter', 'Select the current batch')">Batch <span class="click-hint">(click to see)</span></span>
+                                <span class="filter-item" onclick="showImg('unclaimed_and_view', 'Unclaimed Tasks', 'View unclaimed tasks list')">Unclaimed Tasks <span class="click-hint">(click to see)</span></span>
+                            </div>
+                            <div class="info-note">
+                                <strong>Current Batch:</strong> We are currently working on <strong>Batch 2</strong>. Make sure to select this batch in the filter.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 3: View Task -->
+                    <div class="step-item">
+                        <div class="step-num"></div>
+                        <div class="step-content">
+                            <span class="step-title">View Task</span>
+                            <span class="img-bubble" onclick="showImg('unclaimed_and_view', 'View Button', 'Click View to see task details')"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></span>
+                            <p class="step-desc">Click the "View" button on a task to see its details and basic information before claiming.</p>
+                        </div>
+                    </div>
+
+                    <!-- Step 4: Claim Task -->
+                    <div class="step-item">
+                        <div class="step-num"></div>
+                        <div class="step-content">
+                            <span class="step-title">Claim Task</span>
+                            <span class="img-bubble" onclick="showImg('claim_and_instructions', 'Claim Button', 'Click Claim to assign the task to yourself')"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></span>
+                            <p class="step-desc">Click the "Claim" button to assign the task to yourself. The "Instructions" section shows basic task guidelines.</p>
+                            <div class="info-warn">
+                                <strong>Important:</strong> Always verify that the task language matches your signed language before claiming!
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 5: Confirm Claim -->
+                    <div class="step-item">
+                        <div class="step-num"></div>
+                        <div class="step-content">
+                            <span class="step-title">Confirm Claim</span>
+                            <span class="img-bubble" onclick="showImg('unclaim_button_confirmation', 'Unclaim Confirmation', 'Button changes from Claim to Unclaim')"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></span>
+                            <p class="step-desc">Confirm that the button changes from "Claim" to "Unclaim". This indicates the task is now assigned to you.</p>
+                        </div>
+                    </div>
+
+                    <!-- Step 6: Open Colab Link -->
+                    <div class="step-item">
+                        <div class="step-num"></div>
+                        <div class="step-content">
+                            <span class="step-title">Open Colab Link</span>
+                            <span class="img-bubble" onclick="showImg('colab_link_button', 'Colab Link', 'Click the Colab link to open the notebook')"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></span>
+                            <p class="step-desc">A new tab with the Colab link should open automatically. If not, click the Colab link on the same page to open the associated notebook.</p>
+                        </div>
+                    </div>
+
+                    <!-- Step 7: Handle Error (if appears) -->
+                    <div class="step-item">
+                        <div class="step-num"></div>
+                        <div class="step-content">
+                            <span class="step-title">Handle Error (if appears)</span>
+                            <span class="img-bubble" onclick="showImg('open_with_error_solution', 'Error Solution', 'Click Open with Google Colaboratory')"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></span>
+                            <p class="step-desc">You might see an error page after clicking the Colab link. Don't worry - just click "Open with Google Colaboratory" to proceed.</p>
+                        </div>
+                    </div>
+
+                    <!-- Step 8: Notebook Opens -->
+                    <div class="step-item">
+                        <div class="step-num"></div>
+                        <div class="step-content">
+                            <span class="step-title">Notebook Opens</span>
+                            <span class="img-bubble" onclick="showImg('google_colab_page', 'Google Colab', 'The notebook is now open in Colab')"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></span>
+                            <p class="step-desc">The notebook will open in Google Colab, where you will make changes as you produce a final and complete deliverable task.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Outcome Box -->
+                <div class="outcome-box">
+                    <h4>✅ Outcome</h4>
+                    <p>You have successfully claimed a task and opened its associated Colab notebook to commence the task.</p>
+                    <p><strong>Next steps:</strong></p>
+                    <p>• Copy the labeling link of the task to your tracker sheet</p>
+                    <p>• Fill your tracker sheet with: Parent, Task_ID, URL, Turns, Batch</p>
+                    <p>• Select "Pending" under Redo status to show you have started working on this task</p>
+                    <p style="margin-top: 12px;"><strong>Access your team tracker:</strong> <a href="https://docs.google.com/spreadsheets/d/1Ax-3UtMzT19irT9qRbAL8IQioCiQJVaVtxyebreTjXM/edit?gid=0#gid=0" target="_blank">Italian Pod Tracker Sheet</a></p>
+                </div>
+                <div class="info-tip">
+                    <strong>What's next?</strong> For detailed information about notebook structure, cell naming conventions, and task requirements, see the <a href="practical.html">Practical Guide</a>.
+                </div>
+            </div>
+
+            <!-- ChatHub -->
+            <div class="platform-block" id="chathub">
+                <div class="platform-header">
+                    <div class="platform-icon">💬</div>
+                    <div>
+                        <h2>ChatHub</h2>
+                        <p>Generate model responses (DeepSeek R1, Nemotron, Qwen3)</p>
+                    </div>
+                </div>
+
+                <a href="https://chathub.turing.com/" target="_blank" class="platform-link">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                    chathub.turing.com
+                </a>
+
+                <div class="steps-list">
+                    <!-- Step 1: Login -->
+                    <div class="step-item">
+                        <div class="step-num"></div>
+                        <div class="step-content">
+                            <span class="step-title">Login</span>
+                            <span class="img-bubble" onclick="showImg('chathub_initial_screen', 'ChatHub Initial Screen', 'Initial screen after logging in with your Turing Gmail')"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></span>
+                            <p class="step-desc">Access chathub.turing.com and login with your Turing Gmail account. You will see the initial screen.</p>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Click Edit System Prompt -->
+                    <div class="step-item">
+                        <div class="step-num"></div>
+                        <div class="step-content">
+                            <span class="step-title">Edit System Prompt</span>
+                            <span class="img-bubble" onclick="showImg('chathub_edit_system_prompt', 'Edit System Prompt Button', 'Click to open the system prompt editor')"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></span>
+                            <p class="step-desc">Click the button to edit the system prompt. This opens the system prompt editor.</p>
+                        </div>
+                    </div>
+
+                    <!-- Step 3: Paste System Prompt -->
+                    <div class="step-item">
+                        <div class="step-num"></div>
+                        <div class="step-content">
+                            <span class="step-title">Paste System Prompt</span>
+                            <span class="img-bubble" onclick="showImg('CHATHUB_PASTE_SYSTEM_prompt_here', 'Paste System Prompt', 'Paste your system prompt in this field and save')"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></span>
+                            <p class="step-desc">Paste your system prompt in the dedicated field and save it. You must do this for ALL 5 tabs.</p>
+                            <div class="info-warn">
+                                <strong>Critical:</strong> The system prompt MUST be added in this dedicated field, NOT in the chat input!
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 4: Verify System Prompt -->
+                    <div class="step-item">
+                        <div class="step-num"></div>
+                        <div class="step-content">
+                            <span class="step-title">Verify System Prompt</span>
+                            <span class="img-bubble" onclick="showImg('chathub_view_system_prompt', 'View System Prompt', 'Click to see your system prompt displayed at the top')"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></span>
+                            <p class="step-desc">You can view your system prompt displayed at the top of the screen by clicking on it. This is crucial to confirm it was inserted correctly.</p>
+                        </div>
+                    </div>
+
+                    <!-- Step 5: Select Model -->
+                    <div class="step-item">
+                        <div class="step-num"></div>
+                        <div class="step-content">
+                            <span class="step-title">Select Model</span>
+                            <span class="img-bubble" onclick="showImg('chathub_select_model', 'Select Model', 'Choose the appropriate model from the dropdown')"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></span>
+                            <p class="step-desc">Select the model from the dropdown. Use <strong>DeepSeek R1</strong> for golden response and intermediate turns. For the 4 model passes, use either <strong>Nemotron</strong> or <strong>Qwen3</strong> (one model per task).</p>
+                            <div class="info-note">
+                                <strong>Model Setup:</strong> Open 5 tabs total - 1 for DeepSeek R1 (golden), 4 for the test model (all Nemotron OR all Qwen3). Add the system prompt to all 5 tabs. <br><strong>Distribution:</strong> Every 5 tasks, use Qwen3 for 3 and Nemotron for 2 (60:40 ratio).
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 6: Send Conversation -->
+                    <div class="step-item">
+                        <div class="step-num"></div>
+                        <div class="step-content">
+                            <span class="step-title">Send Conversation</span>
+                            <p class="step-desc">For model testing (Nemotron/Qwen3 tabs), paste the entire conversation to test the model with your final user query. Type your message and click Send or press Enter.</p>
+                        </div>
+                    </div>
+
+                    <!-- Step 7: Copy Thinking Traces -->
+                    <div class="step-item">
+                        <div class="step-num"></div>
+                        <div class="step-content">
+                            <span class="step-title">Copy Thinking Traces</span>
+                            <span class="img-bubble" onclick="showImg('chathub_thinking_traces', 'Copy Thinking Traces', 'Open reasoning and click copy button to get thinking traces')"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></span>
+                            <p class="step-desc">Open the "Reasoning" section, then click the copy button in the upper right corner of the cell to copy the thinking traces for your [thinking] cell in the notebook.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="info-tip">
+                    <strong>Alternative:</strong> You can also use DeepSeek externally (with DeepThink enabled) to help create the system prompt, intermediate turns, and the golden response.
+                </div>
+
+                <div class="info-warn">
+                    <strong>For the 4 model passes:</strong> Always copy the actual thinking traces from the model. Never fabricate thinking for these test responses. (Note: For golden response and intermediate turns, you write the thinking yourself - see <a href="practical.html">Practical Guide</a>)
+                </div>
+            </div>
+
+            <!-- Validator -->
+            <div class="platform-block" id="validator">
+                <div class="platform-header">
+                    <div class="platform-icon">✅</div>
+                    <div>
+                        <h2>Validator Tool</h2>
+                        <p>Create turn_metadata, validate responses</p>
+                    </div>
+                </div>
+
+                <a href="https://multi-lang-nvidia.streamlit.app/" target="_blank" class="platform-link">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                    multi-lang-nvidia.streamlit.app
+                </a>
+
+                <div class="steps-list">
+                    <!-- Step 1: Open Tool and Select Language -->
+                    <div class="step-item">
+                        <div class="step-num"></div>
+                        <div class="step-content">
+                            <span class="step-title">Open Tool and Select Language</span>
+                            <span class="img-bubble" onclick="showImg('validtor_metadata_language', 'Validator - Metadata Generator', 'Select language and go to Metadata generator tab')"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></span>
+                            <p class="step-desc">Click the Validator Tool link and select your signed language under "Validation language". Then go to the <strong>Metadata generator</strong> tab - this is where the turn_metadata JSON will be generated.</p>
+                        </div>
+                    </div>
+                    <!-- Step 2: Add Constraints -->
+                    <div class="step-item">
+                        <div class="step-num"></div>
+                        <div class="step-content">
+                            <span class="step-title">Add Constraints</span>
+                            <span class="img-bubble" onclick="showImg('add_new_constraint', 'Add New Constraint', 'Tick Add and select instructions from dropdown')"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></span>
+                            <p class="step-desc">Tick <strong>Add</strong> beneath "Metadata Changes" and select your instructions from the dropdown under "Select Item to Add". You can add <strong>IF instructions</strong>, <strong>LLM Eval</strong> (stylistic, linguistic, situation), or <strong>llm_judge</strong> here.</p>
+                        </div>
+                    </div>
+
+                    <!-- Step 3: Fill Values and Add IF -->
+                    <div class="step-item">
+                        <div class="step-num"></div>
+                        <div class="step-content">
+                            <span class="step-title">Fill Values and Add IF</span>
+                            <span class="img-bubble" onclick="showImg('add_IF', 'Add IF Instruction', 'Fill string/integer values and click Add instruction')"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></span>
+                            <p class="step-desc">Include relevant string and integer values if prompted, then click <strong>Add instruction</strong>. The added instruction will appear in the JSON Preview Box.</p>
+                        </div>
+                    </div>
+
+                    <!-- Step 4: IF Instructions Requirement -->
+                    <div class="step-item">
+                        <div class="step-num"></div>
+                        <div class="step-content">
+                            <span class="step-title">IF Instructions (min. 4)</span>
+                            <span class="img-bubble" onclick="showImg('exclusive_IF_4_instructions', 'IF Instructions', 'Add at least 4 heterogeneous IF instructions')"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></span>
+                            <p class="step-desc">Add the required number of <strong>heterogeneous IF instructions</strong> (at least 4). Make sure they are diverse and test different aspects.</p>
+                        </div>
+                    </div>
+
+                    <!-- Step 5: Add LLM Eval -->
+                    <div class="step-item">
+                        <div class="step-num"></div>
+                        <div class="step-content">
+                            <span class="step-title">LLM Eval (min. 1)</span>
+                            <span class="img-bubble" onclick="showImg('add_llm_eval_instruction', 'Add LLM Eval', 'Add at least 1 LLM Eval instruction')"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></span>
+                            <p class="step-desc">Add the required number of <strong>LLM Eval instructions</strong> (at least 1). These include stylistic, linguistic, and situation instructions.</p>
+                        </div>
+                    </div>
+
+                    <!-- Step 6: Add llm_judge -->
+                    <div class="step-item">
+                        <div class="step-num"></div>
+                        <div class="step-content">
+                            <span class="step-title">llm_judge (min. 1)</span>
+                            <span class="img-bubble" onclick="showImg('add_llm_judge_instruction', 'Add llm_judge', 'Add at least 1 llm_judge question')"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></span>
+                            <p class="step-desc">Add the required number of <strong>llm_judge</strong> questions provided by trainer (at least 1). Each new line can host a new llm_judge question.</p>
+                        </div>
+                    </div>
+
+                    <!-- Step 7: Copy JSON -->
+                    <div class="step-item">
+                        <div class="step-num"></div>
+                        <div class="step-content">
+                            <span class="step-title">Copy JSON</span>
+                            <span class="img-bubble" onclick="showImg('copy_the_json_constraint_format', 'Copy JSON', 'Hover on JSON Preview Box and click Copy icon')"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></span>
+                            <p class="step-desc">When criteria is met, hover on the <strong>JSON Preview Box</strong> to find and click on the <strong>Copy icon</strong>.</p>
+                        </div>
+                    </div>
+
+                    <!-- Step 8: Paste in Notebook -->
+                    <div class="step-item">
+                        <div class="step-num"></div>
+                        <div class="step-content">
+                            <span class="step-title">Paste in Notebook</span>
+                            <span class="img-bubble" onclick="showImg('paste_on_colab_notebook_json_strings', 'Paste JSON', 'Paste between the JSON triple backticks')"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></span>
+                            <p class="step-desc">Paste the copied JSON instructions into the <strong>[turn_metadata]</strong> cell in your Colab notebook between the 2 sets of JSON triple backticks.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Outcome Box -->
+                <div class="outcome-box">
+                    <h4>✅ Outcome</h4>
+                    <p>You have successfully generated the turn_metadata in JSON format with at least <strong>6 instructions</strong> according to the criteria in the Turing [Nvidia]:: CF_Bench - Data Generation Guidelines:</p>
+                    <p>• At least 4 heterogeneous IF instructions</p>
+                    <p>• At least 1 LLM Eval instruction</p>
+                    <p>• At least 1 llm_judge question</p>
+                    <p style="margin-top: 12px;">These customized set of instructions have been copied to your Colab notebook.</p>
+                </div>
+
+                <div class="info-tip">
+                    <strong>What's next?</strong> For detailed information about instruction types, see the <a href="structure.html">Structure Guide</a>. For practical writing guidelines, see the <a href="practical.html">Practical Guide</a>.
+                </div>
+
+                <!-- Validator Assistant Sub-section -->
+                <div id="validator-assistant" style="margin-top: 32px; padding-top: 24px; border-top: 1px dashed var(--border);">
+                    <h3 style="font-size: 16px; color: var(--text); margin-bottom: 16px;">Validator Assistant</h3>
+                    <p class="step-desc" style="margin-bottom: 16px;">Create <strong>[validator_assistant]</strong> cell for all 5 Final assistant responses (Golden response + 4 passes of model response). For more information, see Turing [Nvidia]:: CF_Bench - Data Generation Guidelines.</p>
+
+                    <div class="info-note" style="margin-bottom: 16px;">
+                        <strong>Checks before validating:</strong><br>
+                        • Ensure turn_metadata instructions synchronize with Final User Prompt<br>
+                        • At least 4 IF instructions<br>
+                        • At least 1 LLM Eval instruction<br>
+                        • At least 1 llm_judge instruction
+                    </div>
+
+                    <div class="steps-list">
+                        <!-- Step 1: Go to Validation Tab and Paste -->
+                        <div class="step-item">
+                            <div class="step-num"></div>
+                            <div class="step-content">
+                                <span class="step-title">Go to Validation Tab and Paste</span>
+                                <span class="img-bubble" onclick="showImg('validation_single_turn_validate_cell', 'Validation Single Turn', 'Paste metadata and response, then click Validate')"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></span>
+                                <p class="step-desc">Go to the <strong>Validation (Single Turn)</strong> tab. Copy-paste your final <strong>turn_metadata</strong> into the "Instructions JSON" box, and the <strong>assistant response</strong> into the "Assistant Response" box. Click <strong>Validate Cell</strong> and wait for results.</p>
+                                <div class="info-note">
+                                    <strong>Repeat for all 5 responses:</strong> You will validate the Golden response first, then each of the 4 model responses (Nemotron/Qwen3) one at a time.
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Step 2: Confirm Results -->
+                        <div class="step-item">
+                            <div class="step-num"></div>
+                            <div class="step-content">
+                                <span class="step-title">Confirm Results</span>
+                                <span class="img-bubble" onclick="showImg('result_validator_tool_all_pass', 'Validation Results', 'Check pass/fail status for each response')"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></span>
+                                <p class="step-desc">Confirm results meet the Validator Failure Rules:</p>
+                                <div class="info-warn">
+                                    <strong>Golden Response:</strong> MUST pass 100% of all instructions. If you have 7 instructions, it must be 7/7 PASSED.
+                                </div>
+                                <div class="info-note" style="margin-top: 8px;">
+                                    <strong>4 Model Passes:</strong> At least 3 out of 4 responses must FAIL at least 50% of instructions. Only 1 of the 4 model passes can pass all instructions.
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Step 3: Copy JSON Results -->
+                        <div class="step-item">
+                            <div class="step-num"></div>
+                            <div class="step-content">
+                                <span class="step-title">Copy JSON Results</span>
+                                <span class="img-bubble" onclick="showImg('json_validator_result_copy', 'Copy Results', 'Open JSON dropdown and copy using copy icon')"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></span>
+                                <p class="step-desc">Open the <strong>JSON dropdown</strong> and copy the results using the copy icon. The results are in JSON format and must be preserved exactly.</p>
+                            </div>
+                        </div>
+
+                        <!-- Step 4: Paste in Notebook -->
+                        <div class="step-item">
+                            <div class="step-num"></div>
+                            <div class="step-content">
+                                <span class="step-title">Paste in Notebook</span>
+                                <span class="img-bubble" onclick="showImg('colab_ntebook_validator_assistant_result', 'Paste in Cell', 'Paste between JSON triple backticks')"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></span>
+                                <p class="step-desc">Ensure you have the cell structure with 2 sets of JSON triple backticks, then paste the validator results properly into the <strong>[validator_assistant]</strong> cell.</p>
+                            </div>
+                        </div>
+
+                        <!-- Step 5: Repeat for Model Passes -->
+                        <div class="step-item">
+                            <div class="step-num"></div>
+                            <div class="step-content">
+                                <span class="step-title">Repeat for 4 Model Passes</span>
+                                <p class="step-desc">Repeat the steps above (copy-paste each model response one at a time) until these 4 cells are filled:</p>
+                                <div style="margin-top: 8px; font-family: monospace; font-size: 12px; color: var(--text-muted);">
+                                    • [validator_assistant_nemotron_1] OR [validator_assistant_qwen3_1]<br>
+                                    • [validator_assistant_nemotron_2] OR [validator_assistant_qwen3_2]<br>
+                                    • [validator_assistant_nemotron_3] OR [validator_assistant_qwen3_3]<br>
+                                    • [validator_assistant_nemotron_4] OR [validator_assistant_qwen3_4]
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Outcome Box -->
+                    <div class="outcome-box" style="margin-top: 20px;">
+                        <h4>✅ Outcome</h4>
+                        <p>You have successfully copy-pasted the JSON validator results for all assistant responses from the Validator Tool into the respective [validator_assistant] cells in your Colab notebook.</p>
+                    </div>
+
+                    <div class="info-tip" style="margin-top: 16px;">
+                        <strong>Tip:</strong> If you use the <a href="practical.html">Practical Guide</a> to organize your task first, when you copy cells from there, the title (<code>**[cell_name]**</code>) and JSON wrappers (<code>```json ... ```</code>) are automatically included - just paste directly into your notebook!
+                    </div>
+
+                    <div class="info-warn" style="margin-top: 16px;">
+                        <strong>Do Not Edit:</strong> Never modify validator_assistant output. Copy exactly as generated by the tool.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="footer">
+                <p>CFBench Platform Guide</p>
+                <a href="structure.html">Continue to Structure Guide →</a>
+            </div>
+        </section>
+    </main>
+</div>
+
+<!-- Floating Image Panel -->
+<div class="floating-image" id="floatingImage">
+    <div class="floating-image-header">
+        <span class="floating-image-title" id="floatingTitle">Screenshot</span>
+        <div class="floating-image-actions">
+            <div class="floating-image-btn" onclick="toggleExpand()" title="Expand/Collapse">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+            </div>
+            <div class="floating-image-btn floating-image-close" onclick="hideImg()" title="Close">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </div>
+        </div>
+    </div>
+    <div class="floating-image-content">
+        <img id="floatingImg" src="" alt="Screenshot" onclick="toggleExpand()">
+        <p class="floating-image-desc" id="floatingDesc"></p>
+    </div>
+</div>
+
+<script src="../js/main.js"></script>
+<script>
+function showImg(imgId, title, desc) {
+    const panel = document.getElementById('floatingImage');
+    const img = document.getElementById('floatingImg');
+    const titleEl = document.getElementById('floatingTitle');
+    const descEl = document.getElementById('floatingDesc');
+
+    img.src = '../img/' + imgId + '.png';
+    titleEl.textContent = title;
+    descEl.textContent = desc;
+    panel.classList.add('visible');
+}
+
+function hideImg() {
+    const panel = document.getElementById('floatingImage');
+    panel.classList.remove('visible');
+    panel.classList.remove('expanded');
+}
+
+function toggleExpand() {
+    document.getElementById('floatingImage').classList.toggle('expanded');
+}
+
+// Close on click outside
+document.addEventListener('click', function(e) {
+    const panel = document.getElementById('floatingImage');
+    const isClickInside = panel.contains(e.target) || e.target.closest('.img-bubble') || e.target.closest('.filter-item');
+    if (!isClickInside && panel.classList.contains('visible')) {
+        hideImg();
+    }
+});
+
+// Close on Escape
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') hideImg();
+});
+</script>
+</body>
+</html>

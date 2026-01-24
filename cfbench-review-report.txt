@@ -1,0 +1,70 @@
+════════════════════════════════════════════════════════════
+CFBench Task Review Report
+════════════════════════════════════════════════════════════
+
+Domain: Society, Lifestyle & Community
+Language: Italian (it)
+Turns: 1
+Model Passes: 4
+
+OVERALL STATUS: MINOR_REVISION
+
+────────────────────────────────────────────────────────────
+PHASE 1: STRUCTURE
+────────────────────────────────────────────────────────────
+[PASS] 1.1 - Cell Structure
+
+[PASS] 1.2 - Language Consistency
+
+[PASS] 1.3 - Thinking Cells
+
+[PASS] 1.4 - Model Passes Structure
+
+[PASS] 1.5 - Golden Response Sanity
+
+────────────────────────────────────────────────────────────
+PHASE 2: CONTENT
+────────────────────────────────────────────────────────────
+[PASS] 2.1 - System Prompt
+
+[PASS] 2.3 - Value Consistency
+    ! [linguistic:grammatical_mood] LLM Eval "" may not be explicit in query (could be implicit)
+
+[SKIP] 2.4 - Prompt Length Validation
+    ! No prompt length metadata found in notebook metadata cell
+
+────────────────────────────────────────────────────────────
+PHASE 3: METADATA
+────────────────────────────────────────────────────────────
+[PASS] 3.1 - IF Instructions Count
+
+[PASS] 3.2 - LLM Eval Instruction
+
+[PASS] 3.3 - LLM Judge
+
+[FAIL] 3.5 - Constraints in Query
+    - punctuation:no_comma: "no comma" constraint not mentioned in query
+
+[PASS] 3.6 - Keyword Explicitness
+
+────────────────────────────────────────────────────────────
+PHASE 4: MODEL PASSES
+────────────────────────────────────────────────────────────
+[PASS] 4.2 - Pass/Fail Distribution
+    ! All model passes have identical results for every instruction (no variation detected)
+
+[PASS] 4.3 - Validator Human Manual
+    ! validator_human contains llm_judge (should be renamed to human_judge)
+
+[PASS] 4.4 - Validator-Content Match
+
+────────────────────────────────────────────────────────────
+AI ANALYSIS
+────────────────────────────────────────────────────────────
+Query Structure Score: N/A/10
+
+
+════════════════════════════════════════════════════════════
+FEEDBACK
+════════════════════════════════════════════════════════════
+Task looks good! No issues found.

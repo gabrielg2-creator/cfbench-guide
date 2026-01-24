@@ -1,0 +1,1096 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CFBench - Structure Guide</title>
+    <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+
+<nav class="nav">
+    <a href="../index.html" class="nav-brand">CFBench Docs</a>
+    <div class="search-wrapper">
+        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input type="text" class="search-input" placeholder="Search..." id="searchInput">
+        <div class="search-results" id="searchResults"></div>
+    </div>
+    <div class="nav-links">
+        <a href="platform.html" class="nav-link">Platform</a>
+        <a href="structure.html" class="nav-link active">Structure</a>
+        <a href="practical.html" class="nav-link">Practical</a>
+        <a href="review.html" class="nav-link">Review</a>
+    </div>
+    <div class="nav-actions">
+        <a href="how-to-task.html" class="help-link" title="Interactive tutorial">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            Struggling? Walkthrough
+        </a>
+        <button class="print-btn" onclick="window.print()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            Print
+        </button>
+        <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">
+            <svg id="sunIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+            <svg id="moonIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+    </div>
+</nav>
+
+<div class="layout">
+    <aside class="sidebar">
+        <div class="sidebar-section">
+            <div class="sidebar-label">On this page</div>
+            <nav class="sidebar-nav">
+                <a href="#overview" class="sidebar-link active">Overview</a>
+                <a href="#pre-checks" class="sidebar-link">1. Pre-Checks</a>
+                <a href="#cell-structure" class="sidebar-link">2. Cell Structure</a>
+                <a href="#pass-structure" class="sidebar-link">3. PASS@1-4 Structure</a>
+                <a href="#validators" class="sidebar-link">4. Validators</a>
+                <a href="#llm-eval" class="sidebar-link">5. LLM Eval Categories</a>
+                <a href="#golden-validation" class="sidebar-link">6. Golden Validation</a>
+                <a href="#failure-rule" class="sidebar-link">7. Challenge Level</a>
+                <a href="#constraints" class="sidebar-link">8. Constraints</a>
+                <a href="#checklist" class="sidebar-link">9. Quality Checklist</a>
+            </nav>
+        </div>
+        <div class="sidebar-section">
+            <div class="sidebar-label">Resources</div>
+            <nav class="sidebar-nav">
+                <a href="https://multi-lang-nvidia.streamlit.app/" target="_blank" class="sidebar-link">Validator Tool</a>
+                <a href="https://chathub.turing.com/" target="_blank" class="sidebar-link">ChatHub</a>
+                <a href="https://docs.google.com/spreadsheets/d/1WRa_83_uvk5pBfDdnFTMMiIsDEVMkU2d_r53Oot4Wh8" target="_blank" class="sidebar-link">Constraints Sheet</a>
+                <a href="word_count.html" class="sidebar-link">Word Counter</a>
+            </nav>
+        </div>
+        <p style="font-size: 8px; color: rgba(128,128,128,0.25); text-align: center; margin-top: auto; padding-top: 20px; letter-spacing: 0.3px;">Made by Gabriel Glock · Italian pod lead</p>
+    </aside>
+
+    <main class="main">
+
+        <!-- Overview -->
+        <section class="section" id="overview">
+            <div class="help-wrapper">
+                <h1>Structure Guide</h1>
+                <span class="help-bubble" onclick="toggleHelp(this)">?</span>
+                <div class="help-popup">
+                    <div class="help-popup-header">
+                        <span class="help-popup-title">About this guide</span>
+                        <button class="help-popup-close" onclick="closeHelp(this)">✕</button>
+                    </div>
+                    <div class="help-popup-content">
+                        <p>This guide explains the <strong>structure</strong> of a CFBench notebook: what each cell represents, why it exists, and how they connect.</p>
+                        <p>For step-by-step creation instructions, see the <a href="practical.html">Practical Guide</a>.</p>
+                    </div>
+                </div>
+            </div>
+            <p class="subtitle">Understanding the components and flow of a CFBench task.</p>
+
+            <h3>The Goal</h3>
+            <p>A CFBench task is a multi-turn conversation where:</p>
+            <ol>
+                <li><strong>A Golden response exists that passes ALL constraints</strong> — proving the task is achievable</li>
+                <li><strong>Alternative models fail at least 50% of constraints</strong> — proving the task is challenging</li>
+                <li><strong>Everything is documented in a Colab notebook</strong> — with specific cells and naming conventions</li>
+            </ol>
+        </section>
+
+        <!-- Pre-Checks -->
+        <section class="section" id="pre-checks">
+            <div class="help-wrapper">
+                <h2 style="margin:0;padding:0;border:none;">1. Pre-Checks Before Starting</h2>
+                <span class="help-bubble" onclick="toggleHelp(this)">?</span>
+                <div class="help-popup">
+                    <div class="help-popup-header">
+                        <span class="help-popup-title">Why this matters</span>
+                        <button class="help-popup-close" onclick="closeHelp(this)">✕</button>
+                    </div>
+                    <div class="help-popup-content">
+                        <p>The number of turns determines the <strong>entire notebook structure</strong>. Changing this later means restructuring everything.</p>
+                        <p>Five minutes of planning saves hours of rework.</p>
+                    </div>
+                </div>
+            </div>
+
+            <h3>Number of Turns</h3>
+            <p>Your metadata specifies the number of turns. This determines how many cells you'll create:</p>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Total Turns</th>
+                        <th>Intermediate</th>
+                        <th>Final</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>2 turns</td><td>1</td><td>1</td></tr>
+                    <tr><td>3 turns</td><td>2</td><td>1</td></tr>
+                    <tr><td>4 turns</td><td>3</td><td>1</td></tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- Cell Structure -->
+        <section class="section" id="cell-structure">
+            <div class="help-wrapper">
+                <h2 style="margin:0;padding:0;border:none;">2. Notebook Cell Structure</h2>
+                <span class="help-bubble" onclick="toggleHelp(this)">?</span>
+                <div class="help-popup">
+                    <div class="help-popup-header">
+                        <span class="help-popup-title">Why structure matters</span>
+                        <button class="help-popup-close" onclick="closeHelp(this)">✕</button>
+                    </div>
+                    <div class="help-popup-content">
+                        <p>The validation pipeline reads cells <strong>by name</strong>. Wrong names or wrong order means broken validation and rejected tasks.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="alert alert-info">
+                <strong>Cell Naming Format in Colab</strong>
+                Each cell must start with the name in bold brackets on the first line, followed by an empty line, then the content:
+                <pre style="margin-top: 12px; background: var(--bg-tertiary);">**[cell_name]**
+
+Your content goes here...</pre>
+                <div class="help-wrapper" style="margin-top: 12px;">
+                    <span style="font-size: 12px; color: var(--text-muted);">Why the asterisks?</span>
+                    <span class="help-bubble" onclick="toggleHelp(this)" style="width: 16px; height: 16px; font-size: 10px;">?</span>
+                    <div class="help-popup">
+                        <div class="help-popup-header">
+                            <span class="help-popup-title">Note</span>
+                            <button class="help-popup-close" onclick="closeHelp(this)">✕</button>
+                        </div>
+                        <div class="help-popup-content">
+                            <p>The double asterisks <code>**</code> are Markdown syntax for <strong>bold text</strong>.</p>
+                            <p>Colab uses Markdown formatting, so <code>**[system]**</code> renders as bold <strong>[system]</strong> in the notebook.</p>
+                            <p>This formatting is required for the validation pipeline to correctly identify cell names.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <h3>System Cell</h3>
+            <p>Appears <strong>only once</strong> at the very beginning. Defines who the AI is and how it behaves.</p>
+            <div class="tools">
+                <span class="tool primary">External LLM</span>
+            </div>
+
+            <h3>Intermediate Turns</h3>
+            <p>For each intermediate turn (all except the last):</p>
+            <pre>**[user]**
+
+**[thinking]**
+
+**[assistant]**</pre>
+
+            <div class="dropdown">
+                <div class="dropdown-header" onclick="toggleDropdown(this)">
+                    <span>Cell details</span>
+                    <span class="dropdown-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></span>
+                </div>
+                <div class="dropdown-content">
+                    <div class="dropdown-inner">
+                        <table>
+                            <tr>
+                                <td><code>user</code></td>
+                                <td>Simple queries for building conversation context</td>
+                            </tr>
+                            <tr>
+                                <td><code>thinking</code></td>
+                                <td>Internal reasoning. Created AFTER the response using external LLM</td>
+                            </tr>
+                            <tr>
+                                <td><code>assistant</code></td>
+                                <td>The AI's response</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <h3>Final Turn</h3>
+            <p>The challenging turn with constraints:</p>
+            <pre>**[user]**
+
+**[thinking]**
+
+**[turn_metadata]**
+
+**[assistant]**
+
+**[validator_assistant]**
+
+**[validator_human]**</pre>
+
+            <div class="dropdown open">
+                <div class="dropdown-header" onclick="toggleDropdown(this)">
+                    <span>Cell details</span>
+                    <span class="dropdown-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></span>
+                </div>
+                <div class="dropdown-content">
+                    <div class="dropdown-inner">
+                        <table>
+                            <tr>
+                                <td><code>user</code></td>
+                                <td>The challenging query: 70% content + 30% constraints as natural language</td>
+                            </tr>
+                            <tr>
+                                <td><code>thinking</code></td>
+                                <td>Internal reasoning (2.5x-3x response length). Created AFTER the response</td>
+                            </tr>
+                            <tr>
+                                <td><code>turn_metadata</code></td>
+                                <td>JSON with constraint definitions. Created with Validator Tool. Min: 4 IF + 1 LLM Eval + 1 LLM Judge!</td>
+                            </tr>
+                            <tr>
+                                <td><code>assistant</code></td>
+                                <td>The Golden response. Generated with external LLM, refined until it passes 100%</td>
+                            </tr>
+                            <tr>
+                                <td><code>validator_assistant</code></td>
+                                <td>Validation results generated from turn_metadata. Must show ALL PASS</td>
+                            </tr>
+                            <tr>
+                                <td><code>validator_human</code></td>
+                                <td>Human judgment for LLM-based constraints (llm_judge, etc.). JSON with id, status, message</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="help-wrapper">
+                <h3 style="margin:0;">Alternative Model Blocks (PASS@1-4)</h3>
+                <span class="help-bubble" onclick="toggleHelp(this)">?</span>
+                <div class="help-popup">
+                    <div class="help-popup-header">
+                        <span class="help-popup-title">Purpose</span>
+                        <button class="help-popup-close" onclick="closeHelp(this)">✕</button>
+                    </div>
+                    <div class="help-popup-content">
+                        <p>These prove the task is <strong>challenging</strong>. Real LLMs should struggle with the constraints.</p>
+                        <p><strong>Responses:</strong> Generate using ChatHub</p>
+                        <p><strong>Thinking:</strong> Copy directly from ChatHub's thinking output (NOT fabricated!)</p>
+                        <p><strong>Editing:</strong> Do NOT edit responses!</p>
+                    </div>
+                </div>
+            </div>
+            <p>After the Golden response, include 4 responses (PASS@1-4) from <strong>Nemotron</strong> OR <strong>Qwen3</strong>:</p>
+
+            <div class="alert alert-info">
+                <strong>Model Distribution Ratio</strong>
+                <p style="margin: 8px 0 0;">qwen3 : nemotron = <strong>60:40</strong> (3:2 ratio across all tasks)</p>
+                <p style="margin: 4px 0 0; font-size: 12px; color: var(--text-muted);">Pick ONE model per task. Across your task pool, 60% should use Qwen3, 40% should use Nemotron.</p>
+            </div>
+
+            <pre>**[thinking_nemotron_1]**
+
+**[assistant_nemotron_1]**
+
+**[validator_assistant_nemotron_1]**
+
+**[validator_human_nemotron_1]**
+
+**[thinking_nemotron_2]**
+
+**[assistant_nemotron_2]**
+
+**[validator_assistant_nemotron_2]**
+
+**[validator_human_nemotron_2]**
+
+... (repeat for 3, 4)</pre>
+
+            <h3>Complete Structure</h3>
+            <div class="diagram">COLAB NOTEBOOK
+│
+├── **[metadata]** (task metadata)
+├── **[system]** (once at the beginning)
+│
+├── TURN 1..N-1 (Intermediate)
+│   ├── **[user]**
+│   ├── **[thinking]**
+│   └── **[assistant]**
+│
+└── FINAL TURN
+    ├── **[user]** (70% content + 30% constraints)
+    ├── **[thinking]**
+    ├── **[turn_metadata]**
+    ├── **[assistant]** (Golden)
+    ├── **[validator_assistant]**
+    ├── **[validator_human]**
+    │
+    ├── PASS@1: [thinking_{model}_1] → [assistant_{model}_1] → [validator_assistant_{model}_1] → [validator_human_{model}_1]
+    ├── PASS@2: [thinking_{model}_2] → [assistant_{model}_2] → [validator_assistant_{model}_2] → [validator_human_{model}_2]
+    ├── PASS@3: [thinking_{model}_3] → [assistant_{model}_3] → [validator_assistant_{model}_3] → [validator_human_{model}_3]
+    └── PASS@4: [thinking_{model}_4] → [assistant_{model}_4] → [validator_assistant_{model}_4] → [validator_human_{model}_4]</div>
+        </section>
+
+        <!-- PASS@1-4 Structure -->
+        <section class="section" id="pass-structure">
+            <div class="help-wrapper">
+                <h2 style="margin:0;padding:0;border:none;">3. PASS@1-4 Structure</h2>
+                <span class="help-bubble" onclick="toggleHelp(this)">?</span>
+                <div class="help-popup">
+                    <div class="help-popup-header">
+                        <span class="help-popup-title">What is PASS@1-4?</span>
+                        <button class="help-popup-close" onclick="closeHelp(this)">✕</button>
+                    </div>
+                    <div class="help-popup-content">
+                        <p>PASS@1-4 represents 4 independent attempts by a model to solve the task. Each pass is generated separately in ChatHub.</p>
+                        <p>This tests consistency: a good benchmark task should see varied results across passes.</p>
+                    </div>
+                </div>
+            </div>
+
+            <p>Each task requires <strong>4 model passes</strong> to test instruction following consistency:</p>
+
+            <div class="alert alert-warning">
+                <strong>Critical: Each pass has 4 cells</strong>
+                <p style="margin: 8px 0 0;">For each pass (1-4), you must include:</p>
+                <ol style="margin: 8px 0 0;">
+                    <li><code>[thinking_{model_name}_N]</code> - Model's reasoning (copy from ChatHub)</li>
+                    <li><code>[assistant_{model_name}_N]</code> - Model's response (copy from ChatHub)</li>
+                    <li><code>[validator_assistant_{model_name}_N]</code> - System validation results</li>
+                    <li><code>[validator_human_{model_name}_N]</code> - Human evaluation for LLM-judged items</li>
+                </ol>
+            </div>
+
+            <h3>Pass Structure Template</h3>
+            <pre>**[thinking_qwen3_1]**
+(Copy thinking from ChatHub - DO NOT modify)
+
+**[assistant_qwen3_1]**
+(Copy response from ChatHub - DO NOT modify)
+
+**[validator_assistant_qwen3_1]**
+(Run validation tool - DO NOT modify output)
+
+**[validator_human_qwen3_1]**
+(Manually evaluate stylistic/linguistic/llm_judge items)</pre>
+
+            <h3>Model Naming</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Model</th>
+                        <th>Cell Name Format</th>
+                        <th>Task Distribution</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Qwen3</td>
+                        <td><code>*_qwen3_N</code></td>
+                        <td>60% of tasks</td>
+                    </tr>
+                    <tr>
+                        <td>Nemotron</td>
+                        <td><code>*_nemotron_N</code></td>
+                        <td>40% of tasks</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="tip">
+                <div class="tip-title">Consistency is Key</div>
+                <p>Use the <strong>same model</strong> for all 4 passes in a single task. Don't mix Qwen3 and Nemotron within the same notebook.</p>
+            </div>
+        </section>
+
+        <!-- Validators -->
+        <section class="section" id="validators">
+            <div class="help-wrapper">
+                <h2 style="margin:0;padding:0;border:none;">4. Validator Cells</h2>
+                <span class="help-bubble" onclick="toggleHelp(this)">?</span>
+                <div class="help-popup">
+                    <div class="help-popup-header">
+                        <span class="help-popup-title">Two types of validation</span>
+                        <button class="help-popup-close" onclick="closeHelp(this)">✕</button>
+                    </div>
+                    <div class="help-popup-content">
+                        <p><strong>validator_assistant</strong> = Machine-generated, checks programmatic constraints</p>
+                        <p><strong>validator_human</strong> = Human-written, evaluates subjective/stylistic elements</p>
+                    </div>
+                </div>
+            </div>
+
+            <h3>validator_assistant</h3>
+            <p>This is the <strong>system-generated evaluation output</strong> for the assistant's response.</p>
+
+            <div class="alert alert-danger">
+                <strong>DO NOT EDIT THIS JSON</strong>
+                <p style="margin: 8px 0 0;">Trainers must NOT edit or rewrite validator_assistant. It's auto-generated by the validation tool and used for automated scoring and internal audits.</p>
+            </div>
+
+            <p>It checks:</p>
+            <ul>
+                <li><strong>IF instructions</strong> - Deterministic constraints (word count, keywords, formatting)</li>
+                <li><strong>Stylistic/linguistic/situational rules</strong></li>
+                <li><strong>llm_judge evaluations</strong></li>
+            </ul>
+
+            <h4>Structure</h4>
+            <pre>{
+  "results": [
+    {
+      "id": "keywords:frequency",
+      "status": "Passed",
+      "message": "Found 'innovation' 5 times (required: at least 5)"
+    },
+    {
+      "id": "llm_judge_1",
+      "status": "Failed",
+      "message": "Tone does not feel consistently professional"
+    }
+  ]
+}</pre>
+
+            <h4>How to Generate</h4>
+            <ol>
+                <li>Go to <a href="https://multi-lang-nvidia.streamlit.app/" target="_blank">Turing Nvidia Task Parser</a></li>
+                <li>Select "Validation (Single Turn)" tab</li>
+                <li>Paste assistant response in "Assistant Response" field</li>
+                <li>Paste turn_metadata JSON (only the {...} part) in "Instructions JSON" field</li>
+                <li>Click "Validate"</li>
+                <li>Expand "JSON" section and copy the entire output</li>
+                <li>Paste directly under validator_assistant cell</li>
+            </ol>
+
+            <h3>validator_human</h3>
+            <p>This is a <strong>human-evaluation template</strong> for subjective checks that require judgment.</p>
+
+            <div class="alert alert-danger">
+                <strong>MUST BE MANUALLY WRITTEN</strong>
+                <p style="margin: 8px 0 0;">Trainers must NOT copy-paste validator_assistant status/message. You must fully read the response and provide your own verdict with evidence-based justification.</p>
+            </div>
+
+            <h4>What to Include</h4>
+            <p>Keep ONLY these instruction types from validator_assistant:</p>
+            <ul>
+                <li><code>stylistic:*</code> - Tone, style, voice evaluations</li>
+                <li><code>linguistic:*</code> - Grammar patterns, speech acts</li>
+                <li><code>situation:*</code> - Role-based, audience, context evaluations</li>
+                <li><code>llm_judge_*</code> - Subjective quality checks</li>
+            </ul>
+
+            <h4>Steps to Create</h4>
+            <ol>
+                <li>Copy the full JSON from validator_assistant</li>
+                <li><strong>Remove</strong> all IF instruction entries (keyword frequency, word count, casing, formatting)</li>
+                <li><strong>Keep only</strong>: stylistic:*, linguistic:*, situation:*, llm_judge_*</li>
+                <li><strong>Rename</strong>: <code>llm_judge_N</code> → <code>human_judge_N</code></li>
+                <li><strong>Replace</strong> each status with your verdict: <code>Passed</code> or <code>Failed</code></li>
+                <li><strong>Replace</strong> each message with your justification referencing evidence from the response</li>
+            </ol>
+
+            <h4>Example</h4>
+            <pre>{
+  "results": [
+    {
+      "id": "stylistic:tone_formality",
+      "status": "Passed",
+      "message": "Response maintains formal tone throughout. Uses professional vocabulary like 'furthermore', 'consequently', and avoids contractions."
+    },
+    {
+      "id": "human_judge_1",
+      "status": "Failed",
+      "message": "Keywords are clustered in paragraphs 2-3 rather than evenly distributed. First and last paragraphs contain none of the required terms."
+    }
+  ]
+}</pre>
+
+            <div class="alert alert-warning">
+                <strong>Critical Warnings</strong>
+                <ul style="margin: 8px 0 0;">
+                    <li>Each validator_human must be written fresh - no reusing from other passes</li>
+                    <li>Generic or template-style justifications are NOT acceptable</li>
+                    <li>Always reference specific evidence from the response</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- LLM Eval Categories -->
+        <section class="section" id="llm-eval">
+            <div class="help-wrapper">
+                <h2 style="margin:0;padding:0;border:none;">5. LLM Eval Categories</h2>
+                <span class="help-bubble" onclick="toggleHelp(this)">?</span>
+                <div class="help-popup">
+                    <div class="help-popup-header">
+                        <span class="help-popup-title">Two types of constraints</span>
+                        <button class="help-popup-close" onclick="closeHelp(this)">✕</button>
+                    </div>
+                    <div class="help-popup-content">
+                        <p><strong>IF instructions</strong> = Programmatically checkable (regex, counters, schema)</p>
+                        <p><strong>LLM Eval / llm_judge</strong> = Requires human/LLM judgment (style, quality, semantics)</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="alert alert-danger">
+                <strong>MINIMUM 6 CONSTRAINTS per task</strong>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 12px;">
+                    <div style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 6px; border-left: 3px solid #3b82f6;">
+                        <div style="font-weight: 600; color: #3b82f6; font-size: 13px;">4+ IF Instructions</div>
+                        <p style="font-size: 11px; color: var(--text-muted); margin: 4px 0 0;">Programmatically checkable</p>
+                    </div>
+                    <div style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 6px; border-left: 3px solid #f59e0b;">
+                        <div style="font-weight: 600; color: #f59e0b; font-size: 13px;">1+ LLM Eval</div>
+                        <p style="font-size: 11px; color: var(--text-muted); margin: 4px 0 0;">Stylistic/linguistic/situational</p>
+                    </div>
+                    <div style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 6px; border-left: 3px solid #a855f7;">
+                        <div style="font-weight: 600; color: #a855f7; font-size: 13px;">1+ LLM Judge</div>
+                        <p style="font-size: 11px; color: var(--text-muted); margin: 4px 0 0;">Subjective quality checks</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tip" style="margin-top: 16px;">
+                <div class="tip-title">Understanding the 3 Instruction Types</div>
+                <p><strong style="color: #3b82f6;">IF Instructions:</strong> Verified automatically by code (regex, counters, format checkers). Examples: <code>keywords:existence</code>, <code>sentence_count</code>, <code>forbidden_words</code></p>
+                <p style="margin-top: 10px;"><strong style="color: #f59e0b;">LLM Eval:</strong> Structured constraints about style, linguistics, or situation. Require human judgment but follow defined categories. Examples: <code>stylistic:tone_formality</code>, <code>linguistic:grammatical_mood</code>, <code>situation:role_based</code></p>
+                <p style="margin-top: 10px;"><strong style="color: #a855f7;">LLM Judge:</strong> Completely subjective natural-language evaluations. Use for requirements like "sounds organic", "conclusion ties back to intro", "argument is persuasive".</p>
+            </div>
+
+            <h3>llm_judge - Subjective Evaluations</h3>
+            <p><code>llm_judge</code> is a natural-language evaluation check that <strong>cannot be verified by deterministic code</strong> (regex, counters, schema checks).</p>
+
+            <div class="tip">
+                <div class="tip-title">When to use llm_judge</div>
+                <p>Use for subjective or interpretation-based requirements:</p>
+                <ul>
+                    <li>"evenly and naturally distributed"</li>
+                    <li>"sounds organic, not forced"</li>
+                    <li>"tone feels professional"</li>
+                    <li>"the conclusion ties back to the intro"</li>
+                    <li>"facts are consistent and not contradictory"</li>
+                    <li>"argument is persuasive"</li>
+                </ul>
+            </div>
+
+            <h3>Stylistic Instructions</h3>
+            <p>Control the style, tone, and voice of the response:</p>
+
+            <div class="dropdown">
+                <div class="dropdown-header" onclick="toggleDropdown(this)">
+                    <span>View all stylistic instructions</span>
+                    <span class="dropdown-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></span>
+                </div>
+                <div class="dropdown-content">
+                    <div class="dropdown-inner">
+                        <table>
+                            <tr><td><code>stylistic:tone_formality</code></td><td>formal, informal, neutral</td></tr>
+                            <tr><td><code>stylistic:emotional_tone</code></td><td>positive, negative, neutral, motivational, empathetic, sarcastic, humorous</td></tr>
+                            <tr><td><code>stylistic:politeness</code></td><td>polite, neutral, impolite</td></tr>
+                            <tr><td><code>stylistic:literary_style</code></td><td>poetic, narrative, dramatic, persuasive, expository, journalistic</td></tr>
+                            <tr><td><code>stylistic:sentence_tone_consistency</code></td><td>formal, informal, positive, negative, neutral</td></tr>
+                            <tr><td><code>stylistic:voice</code></td><td>active, passive, mixed</td></tr>
+                            <tr><td><code>stylistic:figurative_language</code></td><td>simile, metaphor, personification, hyperbole, idiom (with count)</td></tr>
+                            <tr><td><code>stylistic:tone_transition</code></td><td>from_tone → to_tone at position (beginning/middle/end)</td></tr>
+                            <tr><td><code>stylistic:emotive_adjectives</code></td><td>Count of emotional adjectives</td></tr>
+                            <tr><td><code>stylistic:sensory_detail</code></td><td>visual, auditory, tactile, olfactory, gustatory (with count)</td></tr>
+                            <tr><td><code>stylistic:rhythm_pattern</code></td><td>short, balanced, long sentences</td></tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <h3>Linguistic Instructions</h3>
+            <p>Control grammatical and linguistic patterns:</p>
+
+            <div class="dropdown">
+                <div class="dropdown-header" onclick="toggleDropdown(this)">
+                    <span>View all linguistic instructions</span>
+                    <span class="dropdown-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></span>
+                </div>
+                <div class="dropdown-content">
+                    <div class="dropdown-inner">
+                        <table>
+                            <tr><td><code>linguistic:pragmatic_context</code></td><td>formal_discourse, dialogue, dialect, sociolect, classical, policy_style</td></tr>
+                            <tr><td><code>linguistic:speech_act</code></td><td>declarative, interrogative, imperative, exclamatory, conditional, suggestive</td></tr>
+                            <tr><td><code>linguistic:syntactic_pattern</code></td><td>compound_sentence, complex_sentence, subordinate_clause, passive_construction, parallel_structure</td></tr>
+                            <tr><td><code>linguistic:grammatical_mood</code></td><td>indicative, subjunctive, imperative, interrogative</td></tr>
+                            <tr><td><code>linguistic:morphological_form</code></td><td>inflectional, derivational, compound, reduplicated</td></tr>
+                            <tr><td><code>linguistic:phonological_pattern</code></td><td>alliteration, rhyme, rhythm, assonance, consonance</td></tr>
+                            <tr><td><code>linguistic:sound_symbolism</code></td><td>Count of sound symbolic words</td></tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <h3>Situation Instructions</h3>
+            <p>Control the context, role, and audience of the response:</p>
+
+            <div class="dropdown">
+                <div class="dropdown-header" onclick="toggleDropdown(this)">
+                    <span>View all situation instructions</span>
+                    <span class="dropdown-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></span>
+                </div>
+                <div class="dropdown-content">
+                    <div class="dropdown-inner">
+                        <table>
+                            <tr><td><code>situation:role_based</code></td><td>teacher, doctor, lawyer, engineer, journalist, scientist, historian, politician, etc.</td></tr>
+                            <tr><td><code>situation:task_specific</code></td><td>consultation, recommendation, instruction, analysis, diagnosis, debate, summary, etc.</td></tr>
+                            <tr><td><code>situation:audience_alignment</code></td><td>children, students, experts, general_public, policymakers, professionals, etc.</td></tr>
+                            <tr><td><code>situation:contextual_scenario</code></td><td>business_meeting, academic_lecture, courtroom, therapy_session, news_report, etc.</td></tr>
+                            <tr><td><code>situation:perspective</code></td><td>first_person, second_person, third_person, mixed</td></tr>
+                            <tr><td><code>situation:emotional_alignment</code></td><td>sympathetic, neutral, optimistic, serious, cautious, motivational, respectful</td></tr>
+                            <tr><td><code>situation:cultural_context</code></td><td>western, eastern, global, local, specific_region (implicit/explicit)</td></tr>
+                            <tr><td><code>situation:temporal_context</code></td><td>past, present, future, mixed</td></tr>
+                            <tr><td><code>situation:environment_setting</code></td><td>urban, rural, digital, natural, professional, academic, cultural</td></tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="alert alert-warning">
+                <strong>IF vs LLM Eval - Key Distinction</strong>
+                <table style="margin-top: 12px; width: 100%;">
+                    <tr>
+                        <td style="width: 50%; vertical-align: top;">
+                            <strong>IF Instructions</strong><br>
+                            <span style="font-size: 12px; color: var(--text-muted);">Programmatically checkable</span>
+                            <ul style="font-size: 13px; margin-top: 8px;">
+                                <li>keyword frequency</li>
+                                <li>exact word count</li>
+                                <li>casing rules</li>
+                                <li>format structure</li>
+                            </ul>
+                        </td>
+                        <td style="width: 50%; vertical-align: top;">
+                            <strong>LLM Eval / llm_judge</strong><br>
+                            <span style="font-size: 12px; color: var(--text-muted);">Requires human judgment</span>
+                            <ul style="font-size: 13px; margin-top: 8px;">
+                                <li>style/quality requirements</li>
+                                <li>semantic consistency</li>
+                                <li>tone appropriateness</li>
+                                <li>natural distribution</li>
+                            </ul>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </section>
+
+        <!-- Golden Validation -->
+        <section class="section" id="golden-validation">
+            <div class="help-wrapper">
+                <h2 style="margin:0;padding:0;border:none;">6. Golden Assistant Validation</h2>
+                <span class="help-bubble" onclick="toggleHelp(this)">?</span>
+                <div class="help-popup">
+                    <div class="help-popup-header">
+                        <span class="help-popup-title">What is the Golden response?</span>
+                        <button class="help-popup-close" onclick="closeHelp(this)">✕</button>
+                    </div>
+                    <div class="help-popup-content">
+                        <p>The Golden response <strong>proves the task is achievable</strong>. It must pass 100% of constraints.</p>
+                        <p>You generate it with an external LLM, and if it fails any constraint, you emphasize those constraints and regenerate.</p>
+                        <p>Manual editing is only for small final adjustments.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="alert alert-danger">
+                <strong>Critical Rule</strong>
+                The <code>validator_assistant</code> must show ALL PASS. If any constraint fails, refine the prompt emphasizing the failed constraints and regenerate.
+            </div>
+
+            <h3>Creating the Golden Response</h3>
+            <ol>
+                <li>Generate response with LLM (Nemo, Qwen, or DeepSeek)</li>
+                <li>Run validation against turn_metadata</li>
+                <li>If constraints fail: emphasize those constraints in your prompt and regenerate</li>
+                <li>Repeat until all pass</li>
+                <li>Only make small manual edits as a last resort</li>
+            </ol>
+
+            <div class="tip">
+                <div class="tip-title">About validator_assistant</div>
+                <p>This cell is generated as a result of running your turn_metadata configuration against the assistant response. It's not auto-generated from nothing—it's the output of the validation process based on your defined constraints.</p>
+            </div>
+        </section>
+
+        <!-- Task Challenge Level -->
+        <section class="section" id="failure-rule">
+            <div class="help-wrapper">
+                <h2 style="margin:0;padding:0;border:none;">7. Task Challenge Level</h2>
+                <span class="help-bubble" onclick="toggleHelp(this)">?</span>
+                <div class="help-popup">
+                    <div class="help-popup-header">
+                        <span class="help-popup-title">Why we want failures</span>
+                        <button class="help-popup-close" onclick="closeHelp(this)">✕</button>
+                    </div>
+                    <div class="help-popup-content">
+                        <p>CFBench measures how well models follow complex instructions. If all models pass easily, the benchmark is useless.</p>
+                        <p>You're creating tasks that <strong>ARE solvable</strong> (Golden proves it) but <strong>ARE challenging</strong> (alternatives fail).</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="alert alert-danger">
+                <strong>Critical Requirements</strong>
+                <ul style="margin: 8px 0 0;">
+                    <li>At most <strong>50% of 4 passes can PASS</strong> all instructions (max 2 passes)</li>
+                    <li>At least <strong>1 check must have both a PASS and FAIL</strong> across the 4 responses</li>
+                </ul>
+            </div>
+
+            <h3>Pass Distribution Example</h3>
+            <p>For a task with 5-8 IF instructions:</p>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Response</th>
+                        <th>Requirement</th>
+                        <th>Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>[assistant]</strong> (Golden)</td>
+                        <td>Pass ALL instructions</td>
+                        <td>Proves task is achievable</td>
+                    </tr>
+                    <tr>
+                        <td>[assistant_{model}_1]</td>
+                        <td>Fail at least 3 instructions</td>
+                        <td>Shows difficulty</td>
+                    </tr>
+                    <tr>
+                        <td>[assistant_{model}_2]</td>
+                        <td>Fail at least 1 instruction</td>
+                        <td>Some struggle</td>
+                    </tr>
+                    <tr>
+                        <td>[assistant_{model}_3]</td>
+                        <td>Can pass all (optional)</td>
+                        <td>Only 1 among 4 allowed to pass 100%</td>
+                    </tr>
+                    <tr>
+                        <td>[assistant_{model}_4]</td>
+                        <td>Pass at least 1 that failed elsewhere</td>
+                        <td>Shows variability</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="alert alert-info">
+                <strong>Key Rule: Mixed Results Required</strong>
+                <p style="margin: 8px 0 0;">At least 1 instruction must have <strong>both a PASS and a FAIL</strong> across the 4 model responses. This proves the task has appropriate difficulty - not too easy, not impossible.</p>
+            </div>
+
+            <h3>If Models Pass Too Much</h3>
+            <ul>
+                <li>Add more constraints to turn_metadata</li>
+                <li>Use exact counts ("equal to 5" instead of "at least 5")</li>
+                <li>Combine conflicting constraints</li>
+                <li>Update final user query to match new constraints</li>
+                <li>Regenerate alternatives (no need to restart everything)</li>
+            </ul>
+
+            <h3>If Models Fail Everything</h3>
+            <ul>
+                <li>Simplify some constraints</li>
+                <li>Use "at least" instead of "equal to"</li>
+                <li>Remove conflicting constraint combinations</li>
+                <li>Ensure Golden can still pass all with the changes</li>
+            </ul>
+        </section>
+
+        <!-- Constraints -->
+        <section class="section" id="constraints">
+            <div class="help-wrapper">
+                <h2 style="margin:0;padding:0;border:none;">8. Creating Effective Constraints</h2>
+                <span class="help-bubble" onclick="toggleHelp(this)">?</span>
+                <div class="help-popup">
+                    <div class="help-popup-header">
+                        <span class="help-popup-title">The balance</span>
+                        <button class="help-popup-close" onclick="closeHelp(this)">✕</button>
+                    </div>
+                    <div class="help-popup-content">
+                        <p>Good constraints are <strong>achievable with careful attention</strong> but easy to fail if the model isn't paying attention.</p>
+                        <p>Too easy = useless benchmark.<br>Too hard = impossible Golden response.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="alert alert-danger">
+                <strong>CONSTRAINTS: 6 to 15 per task</strong>
+                You can add between 6 and 15 constraints to increase complexity. Focus on making models FAIL, not just pass.
+            </div>
+
+            <div class="alert alert-info">
+                <strong>LLM Eval Instructions</strong>
+                At least 20% of your instructions should be LLM Evaluations. Check the <a href="https://docs.google.com/spreadsheets/d/1WRa_83_uvk5pBfDdnFTMMiIsDEVMkU2d_r53Oot4Wh8" target="_blank">Constraints Sheet</a>.
+            </div>
+
+            <div class="alert alert-warning">
+                <strong>20% LIMIT: Word Count Constraints</strong>
+                <p style="margin: 8px 0 6px;">These constraints should appear in <strong>at most 1 out of 5 tasks (20%)</strong>:</p>
+                <code>number_words</code> · <code>unique_words</code> · <code>number_characters</code> · <code>word_repetition</code> · <code>capital_word_frequency</code> · <code>lower_word_frequency</code> · <code>vowel_count</code> · <code>consonant_count</code>
+            </div>
+
+            <h3>High Failure Rate Constraints</h3>
+            <p>These frequently trip up LLMs:</p>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Constraint</th>
+                        <th>Why it fails</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td><code>sentence_count</code> (exact)</td><td>Hard to hit exact number</td></tr>
+                    <tr><td><code>word_length</code> (min/max)</td><td>Short/long words slip through</td></tr>
+                    <tr><td><code>alliteration</code></td><td>Hard to maintain pattern</td></tr>
+                    <tr><td><code>positioning</code></td><td>Exact word position is tricky</td></tr>
+                    <tr><td><code>no_comma</code></td><td>Commas are habitual</td></tr>
+                    <tr><td><code>avg_word_length</code></td><td>Precise averages are difficult</td></tr>
+                </tbody>
+            </table>
+
+            <h4>LLM Eval Constraints (High Failure)</h4>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Constraint</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td><code>tone_consistency</code></td><td>Maintain specific tone throughout</td></tr>
+                    <tr><td><code>reasoning_quality</code></td><td>Evaluate logical coherence</td></tr>
+                    <tr><td><code>style_adherence</code></td><td>Follow specific writing style</td></tr>
+                    <tr><td><code>audience_appropriateness</code></td><td>Match content to target audience</td></tr>
+                    <tr><td><code>coherence_flow</code></td><td>Smooth transitions between ideas</td></tr>
+                    <tr><td><code>formality_level</code></td><td>Maintain specific formality</td></tr>
+                </tbody>
+            </table>
+
+            <div class="help-wrapper">
+                <h3 style="margin:0;">Simpler Constraints — Make Them Challenging</h3>
+                <span class="help-bubble" onclick="toggleHelp(this)">?</span>
+                <div class="help-popup">
+                    <div class="help-popup-header">
+                        <span class="help-popup-title">Creative strategy</span>
+                        <button class="help-popup-close" onclick="closeHelp(this)">✕</button>
+                    </div>
+                    <div class="help-popup-content">
+                        <p>Constraints like <code>keywords:existence</code> or <code>startend:start_checker</code> seem easy, but you can make them challenging with context.</p>
+                        <p>The key is <strong>creative constraint design</strong>.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tip">
+                <div class="tip-title">Strategy: Force creative limits</div>
+                <p><strong>Example with <code>keywords:existence</code>:</strong></p>
+                <ul>
+                    <li>Ask the model to explain a topic but require unusual/unrelated words to appear</li>
+                    <li>Require technical jargon in a casual explanation</li>
+                    <li>Combine with <code>forbidden_words</code> to ban obvious synonyms</li>
+                </ul>
+                <p style="margin-top: 16px;"><strong>Example:</strong> "Explain how coffee is made" but require the words "algorithm", "symphony", and "velocity" while forbidding "brew", "grind", and "water". This forces creativity and often causes failures.</p>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Constraint</th>
+                        <th>How to make it challenging</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>keywords:existence</code></td>
+                        <td>Require words unrelated to the topic, forcing creative integration</td>
+                    </tr>
+                    <tr>
+                        <td><code>detectable_format:title</code></td>
+                        <td>Combine with specific title format or word requirements</td>
+                    </tr>
+                    <tr>
+                        <td><code>startend:start_checker</code></td>
+                        <td>Require unusual starting phrases that conflict with natural openings</td>
+                    </tr>
+                    <tr>
+                        <td><code>forbidden_words</code></td>
+                        <td>Ban common words essential to the topic</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- Checklist -->
+        <section class="section" id="checklist">
+            <div class="help-wrapper">
+                <h2 style="margin:0;padding:0;border:none;">9. Quality Checklist</h2>
+                <span class="help-bubble" onclick="toggleHelp(this)">?</span>
+                <div class="help-popup">
+                    <div class="help-popup-header">
+                        <span class="help-popup-title">Before submitting</span>
+                        <button class="help-popup-close" onclick="closeHelp(this)">✕</button>
+                    </div>
+                    <div class="help-popup-content">
+                        <p>Read your <strong>entire notebook</strong>. Don't trust what you think you wrote—verify it.</p>
+                        <p>10 minutes of checking saves days of revision.</p>
+                    </div>
+                </div>
+            </div>
+
+            <h3>Structure</h3>
+            <div class="checklist">
+                <div class="check-item">
+                    <div class="check-box" onclick="toggleCheck(this)"></div>
+                    <span class="check-text">Correct number of cells for each turn</span>
+                </div>
+                <div class="check-item">
+                    <div class="check-box" onclick="toggleCheck(this)"></div>
+                    <span class="check-text">Correct cell naming</span>
+                </div>
+                <div class="check-item">
+                    <div class="check-box" onclick="toggleCheck(this)"></div>
+                    <span class="check-text">System cell appears only once at the beginning</span>
+                </div>
+            </div>
+
+            <h3>Golden Response</h3>
+            <div class="checklist">
+                <div class="check-item">
+                    <div class="check-box" onclick="toggleCheck(this)"></div>
+                    <span class="check-text">Passes 100% of constraints</span>
+                </div>
+                <div class="check-item">
+                    <div class="check-box" onclick="toggleCheck(this)"></div>
+                    <span class="check-text">validator_assistant shows ALL PASS</span>
+                </div>
+                <div class="check-item">
+                    <div class="check-box" onclick="toggleCheck(this)"></div>
+                    <span class="check-text">Natural language, no hallucinations</span>
+                </div>
+            </div>
+
+            <h3>Alternative Models</h3>
+            <div class="checklist">
+                <div class="check-item">
+                    <div class="check-box" onclick="toggleCheck(this)"></div>
+                    <span class="check-text">4 responses from ONE model: Nemotron OR Qwen3</span>
+                </div>
+                <div class="check-item">
+                    <div class="check-box" onclick="toggleCheck(this)"></div>
+                    <span class="check-text">Maximum 1 with 100% PASS</span>
+                </div>
+                <div class="check-item">
+                    <div class="check-box" onclick="toggleCheck(this)"></div>
+                    <span class="check-text">At least 3 with 50%+ FAIL</span>
+                </div>
+                <div class="check-item">
+                    <div class="check-box" onclick="toggleCheck(this)"></div>
+                    <span class="check-text">Thinking cells for all 4 responses</span>
+                </div>
+            </div>
+
+            <h3>Metadata</h3>
+            <div class="checklist">
+                <div class="check-item">
+                    <div class="check-box" onclick="toggleCheck(this)"></div>
+                    <span class="check-text">Valid JSON syntax</span>
+                </div>
+                <div class="check-item">
+                    <div class="check-box" onclick="toggleCheck(this)"></div>
+                    <span class="check-text">User query reflects all constraints naturally</span>
+                </div>
+                <div class="check-item">
+                    <div class="check-box" onclick="toggleCheck(this)"></div>
+                    <span class="check-text">At least 20% LLM Eval instructions</span>
+                </div>
+            </div>
+
+            <div class="footer">
+                <p>CFBench Documentation</p>
+                <p><a href="practical.html">Continue to Practical Guide →</a></p>
+            </div>
+        </section>
+
+        <!-- FAQ Section -->
+        <section class="faq-section">
+            <h2>Common Questions & Troubleshooting</h2>
+
+            <div class="faq-item">
+                <div class="faq-question" onclick="toggleFaq(this)">My Golden response fails validation — what now?</div>
+                <div class="faq-answer">
+                    <div class="faq-answer-inner">
+                        <p><strong>Don't manually edit the response.</strong> Instead:</p>
+                        <ol>
+                            <li>Identify which constraints failed</li>
+                            <li>Go back to the external LLM and emphasize those specific constraints in your prompt</li>
+                            <li>Regenerate the response</li>
+                            <li>Repeat until all constraints pass</li>
+                        </ol>
+                        <p>Manual editing should only be a last resort for small adjustments.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question" onclick="toggleFaq(this)">All alternative models are passing — what do I do?</div>
+                <div class="faq-answer">
+                    <div class="faq-answer-inner">
+                        <p>Your constraints are too easy. Try these strategies:</p>
+                        <ul>
+                            <li>Use <strong>"equal to"</strong> instead of "at least" for counts</li>
+                            <li>Add more constraints (especially high-failure ones like <code>sentence_count</code>, <code>alliteration</code>, <code>positioning</code>)</li>
+                            <li>Combine conflicting constraints (e.g., "many words" + "short sentences")</li>
+                            <li>Require unusual keywords unrelated to the topic</li>
+                        </ul>
+                        <p>Remember to update your final user query to reflect the new constraints!</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question" onclick="toggleFaq(this)">What if I can't reach 50% failure rate?</div>
+                <div class="faq-answer">
+                    <div class="faq-answer-inner">
+                        <p>Keep adding complexity until models struggle. High-failure constraints include:</p>
+                        <ul>
+                            <li><code>sentence_count</code> with "equal to" (exact counts are hard)</li>
+                            <li><code>word_length</code> with min/max (short or long words slip through)</li>
+                            <li><code>alliteration</code> (maintaining patterns is difficult)</li>
+                            <li><code>positioning</code> (exact word positions)</li>
+                            <li><code>no_comma</code> (commas are habitual)</li>
+                            <li><code>forbidden_words</code> (banning common words related to the topic)</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question" onclick="toggleFaq(this)">My task was rejected — common reasons</div>
+                <div class="faq-answer">
+                    <div class="faq-answer-inner">
+                        <p>Check these common issues:</p>
+                        <ul>
+                            <li><strong>Cell naming:</strong> Must use <code>**[cell_name]**</code> format</li>
+                            <li><strong>Invalid JSON:</strong> Validate your turn_metadata JSON syntax</li>
+                            <li><strong>Missing 20% LLM Eval:</strong> At least 20% of instructions must be LLM Evaluations</li>
+                            <li><strong>Wrong cell order:</strong> Follow the exact structure from the tutorial</li>
+                            <li><strong>Golden not 100%:</strong> validator_assistant must show ALL PASS</li>
+                            <li><strong>50% rule not met:</strong> At least 3 of 4 alternatives must fail 50%+ constraints</li>
+                            <li><strong>Missing thinking cells:</strong> All 5 responses need thinking cells</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+</div>
+
+<script src="../js/main.js"></script>
+
+</body>
+</html>

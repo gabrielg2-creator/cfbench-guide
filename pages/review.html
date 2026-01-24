@@ -1,0 +1,2575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CFBench - Review Guide (Pod Lead)</title>
+    <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="nav">
+        <a href="../index.html" class="nav-brand">CFBench Tutorials</a>
+        <div class="search-wrapper">
+            <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            <input type="text" class="search-input" placeholder="Search..." id="searchInput">
+            <div class="search-results" id="searchResults"></div>
+        </div>
+        <div class="nav-links">
+            <a href="platform.html" class="nav-link">Platform</a>
+            <a href="structure.html" class="nav-link">Structure</a>
+            <a href="practical.html" class="nav-link">Practical</a>
+            <a href="review.html" class="nav-link active">Review<span class="nav-badge">Lead</span></a>
+        </div>
+        <div class="nav-actions">
+            <a href="how-to-task.html" class="help-link" title="Interactive tutorial">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                Struggling? Walkthrough
+            </a>
+            <button class="print-btn" onclick="window.print()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                Print
+            </button>
+            <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">
+                <svg id="sunIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+                <svg id="moonIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Popup Modal -->
+    <div class="popup-overlay" id="popup-overlay">
+        <div class="popup-modal">
+            <div class="popup-icon" id="popup-icon">⚠️</div>
+            <div class="popup-title" id="popup-title">Attention Required</div>
+            <div class="popup-message" id="popup-message">Message here</div>
+            <button class="popup-btn" onclick="closePopup()">Understood</button>
+        </div>
+    </div>
+
+    <div class="layout">
+        <!-- Left Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-section">
+                <div class="sidebar-label">Review Phases</div>
+                <nav class="sidebar-nav">
+                    <a href="#overview" class="sidebar-link">
+                        <span class="step-num">0</span>
+                        Getting Started
+                    </a>
+                    <a href="#quick-review" class="sidebar-link" style="background: rgba(220, 38, 38, 0.1); border-left: 3px solid #dc2626;">
+                        <span class="step-num" style="background: #dc2626;">⚡</span>
+                        Quick Review
+                        <span class="phase-tag" style="background: #dc2626;">START</span>
+                    </a>
+                    <a href="#phase-pre" class="sidebar-link">
+                        <span class="step-num">1</span>
+                        Pre-Checks
+                        <span class="phase-tag pre">PRE</span>
+                    </a>
+                    <a href="#phase-llm" class="sidebar-link">
+                        <span class="step-num">2</span>
+                        LLM Review
+                        <span class="phase-tag llm">LLM</span>
+                    </a>
+                    <a href="#phase-human" class="sidebar-link">
+                        <span class="step-num">3</span>
+                        Human Review
+                        <span class="phase-tag human">HUMAN</span>
+                    </a>
+                </nav>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-label">Resources</div>
+                <nav class="sidebar-nav">
+                    <a href="https://labeling-n.turing.com/" target="_blank" class="sidebar-link">Labeling Tool</a>
+                    <a href="https://multi-lang-nvidia.streamlit.app/" target="_blank" class="sidebar-link">Validator Tool</a>
+                    <a href="https://chat.deepseek.com/" target="_blank" class="sidebar-link">DeepSeek Chat</a>
+                    <a href="https://jsonlint.com/" target="_blank" class="sidebar-link">JSON Validator</a>
+                    <a href="https://www.invertexto.com/contador-caracteres" target="_blank" class="sidebar-link">Character Counter</a>
+                    <a href="word_count.html" class="sidebar-link">Word Counter</a>
+                </nav>
+            </div>
+            <p class="sidebar-credit">Made by Gabriel Glock · Italian pod lead</p>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main">
+            <!-- Overview -->
+            <section class="section" id="overview">
+                <div class="help-wrapper">
+                    <h1>Task Review Guide</h1>
+                    <span class="help-bubble" onclick="toggleHelp(this)">?</span>
+                    <div class="help-popup">
+                        <div class="help-popup-header">
+                            <span class="help-popup-title">About This Guide</span>
+                            <button class="help-popup-close" onclick="closeHelp(this)">×</button>
+                        </div>
+                        <div class="help-popup-content">
+                            <p>This guide is designed for <strong>Pod Leads</strong> who review CFBench tasks created by their team members.</p>
+                            <p>As a reviewer, your job is to ensure every task meets quality standards before it's submitted to the client.</p>
+                            <p>Use the right panel to track your decisions and take notes that you can copy directly into the Labeling Tool.</p>
+                        </div>
+                    </div>
+                </div>
+                <p class="subtitle">Complete checklist for Pod Leads reviewing CFBench tasks</p>
+
+                <!-- Workflow -->
+                <div class="workflow-box">
+                    <div class="help-wrapper" style="margin-bottom: 16px;">
+                        <strong style="font-size: 14px;">Review Workflow</strong>
+                        <span class="help-bubble" onclick="toggleHelp(this)">?</span>
+                        <div class="help-popup">
+                            <div class="help-popup-header">
+                                <span class="help-popup-title">How Review Works</span>
+                                <button class="help-popup-close" onclick="closeHelp(this)">×</button>
+                            </div>
+                            <div class="help-popup-content">
+                                <p>Tasks go through this cycle:</p>
+                                <p><strong>1.</strong> Tasker creates and marks as "Complete"</p>
+                                <p><strong>2.</strong> You review using this guide</p>
+                                <p><strong>3.</strong> If issues found → Request Changes</p>
+                                <p><strong>4.</strong> Tasker fixes → marks Complete again</p>
+                                <p><strong>5.</strong> You re-review until approved</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="workflow-step">
+                        <span class="workflow-num">1</span>
+                        <div class="workflow-content">
+                            <strong>Open Labeling Tool</strong>
+                            <p>Go to <a href="https://labeling-n.turing.com/" target="_blank">labeling-n.turing.com</a> and find tasks from your team with status <code>Complete</code></p>
+                        </div>
+                    </div>
+                    <div class="workflow-step">
+                        <span class="workflow-num">2</span>
+                        <div class="workflow-content">
+                            <strong>Evaluate with Review Button</strong>
+                            <p>Click <strong>"Review"</strong> in Labeling Tool to evaluate each criterion. Use this guide to check each aspect.</p>
+                        </div>
+                    </div>
+                    <div class="workflow-step">
+                        <span class="workflow-num">3</span>
+                        <div class="workflow-content">
+                            <strong>Submit Feedback</strong>
+                            <p>If issues found, click <strong>"Request Changes"</strong> and paste your notes from the right panel.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="alert alert-danger">
+                    <strong>Validator Tool Issues - Report Immediately!</strong>
+                    If any validator shows incorrect results (false PASS or false FAIL), report it immediately to the <strong>Calibrator (Gabriel Glock)</strong>. This may indicate a bug that needs investigation.
+                </div>
+
+                <div class="alert alert-info">
+                    <strong>How to Use This Guide</strong>
+                    Click on each check to expand it. Mark items as PASS or FAIL. Your decisions appear in the right panel where you can add notes. Copy all notes to paste into "Request Changes".
+                </div>
+            </section>
+
+            <!-- QUICK REVIEW SECTION -->
+            <section class="section" id="quick-review">
+                <div class="phase-header" style="border-left: 4px solid #dc2626; padding-left: 16px; margin-bottom: 24px;">
+                    <div class="phase-icon" style="background: linear-gradient(135deg, #dc2626, #991b1b);">⚡</div>
+                    <div class="phase-meta">
+                        <h2 style="margin:0;padding:0;border:none;">Quick Review - The Cascade Check</h2>
+                        <p>Start here! Validate the core flow before detailed checks.</p>
+                    </div>
+                </div>
+
+                <div class="alert alert-danger" style="margin-bottom: 20px;">
+                    <strong>⚠️ THE CASCADE - What You MUST Check First</strong>
+                    <div style="display: flex; align-items: center; gap: 12px; margin-top: 12px; font-size: 14px;">
+                        <span style="background: #1e40af; color: white; padding: 6px 12px; border-radius: 6px; font-weight: 600;">turn_metadata</span>
+                        <span>→</span>
+                        <span style="background: #7c3aed; color: white; padding: 6px 12px; border-radius: 6px; font-weight: 600;">user query</span>
+                        <span>→</span>
+                        <span style="background: #059669; color: white; padding: 6px 12px; border-radius: 6px; font-weight: 600;">golden response</span>
+                    </div>
+                    <p style="margin-top: 12px; font-size: 13px;">Every constraint in turn_metadata (with source: user) must appear naturally in user query. The golden response must follow ALL constraints perfectly.</p>
+                </div>
+
+                <div class="alert alert-warning" style="margin-bottom: 20px;">
+                    <strong>⚠️ ALWAYS VERIFY HUMANLY!</strong>
+                    <p style="margin-top: 8px; font-size: 13px;">Use LLM prompts to speed up review, but <strong>NEVER trust them blindly</strong>. Always read the actual content yourself and confirm the LLM's analysis is correct. External LLMs can miss things or make mistakes!</p>
+                </div>
+
+                <!-- Master Review Prompt -->
+                <div class="check-card" id="quick-master" style="border: 2px solid #dc2626;">
+                    <div class="check-header" onclick="toggleCheck('quick-master')" style="background: rgba(220, 38, 38, 0.1);">
+                        <span class="check-number" style="background: #dc2626;">★</span>
+                        <span class="check-title">Master Review Prompt (Use This First!)</span>
+                        <span class="check-chevron">▼</span>
+                    </div>
+                    <div class="check-content">
+                        <div class="check-inner">
+                            <p style="margin-bottom: 12px; color: var(--text-secondary);">This single prompt validates the entire cascade. Copy and use with DeepSeek/GPT/Claude.</p>
+
+                            <div class="prompt-box" style="border-color: #dc2626;">
+                                <div class="prompt-header" style="background: rgba(220, 38, 38, 0.1);">
+                                    <span class="prompt-label" style="color: #dc2626;">Master Review Prompt</span>
+                                    <button class="copy-btn" onclick="copyPrompt(this)">Copy</button>
+                                </div>
+                                <div class="prompt-content">You are a CFBench task reviewer. Analyze this task in 3 steps:
+
+**STEP 1: METADATA → SYSTEM PROMPT ALIGNMENT**
+Check if the system prompt correctly reflects the metadata (domain, use case, task type).
+- Does the system prompt define a role matching the domain?
+- Are there any metadata terms (L1, L2, use case, taxonomy) visible in the system prompt? (They should NOT appear)
+- Does it contain at least 1 LLM Eval constraint (tone, style, behavior)?
+
+**STEP 2: TURN_METADATA → USER QUERY ALIGNMENT**
+For each constraint in turn_metadata with "source": "user", verify it appears naturally in the user query.
+- List each user-source constraint
+- For each one, quote where it appears in the user query
+- Flag any MISSING constraints
+
+**STEP 3: GOLDEN RESPONSE VERIFICATION**
+Check if the golden response follows ALL constraints:
+- Does it pass every IF instruction? (word count, forbidden words, format, etc.)
+- Does it follow LLM Eval requirements? (tone, style)
+- Does it satisfy LLM Judge requirements? (factual accuracy, logical connections)
+- Any formatting issues? (emojis, em-dash, currency symbols, LaTeX)
+
+**OUTPUT FORMAT:**
+For each step, give: ✅ PASS or ❌ FAIL with specific issues found.
+
+---
+**METADATA:**
+```
+<span class="placeholder">//PASTE TASK METADATA JSON</span>
+```
+
+**SYSTEM PROMPT:**
+```
+<span class="placeholder">//PASTE SYSTEM PROMPT</span>
+```
+
+**TURN_METADATA (constraints):**
+```
+<span class="placeholder">//PASTE TURN_METADATA JSON</span>
+```
+
+**LAST USER QUERY:**
+```
+<span class="placeholder">//PASTE FINAL USER QUERY</span>
+```
+
+**GOLDEN RESPONSE:**
+```
+<span class="placeholder">//PASTE GOLDEN ASSISTANT RESPONSE</span>
+```</div>
+                            </div>
+
+                            <div class="alert alert-info" style="margin-top: 16px;">
+                                <strong>After LLM Analysis:</strong> Read the golden response yourself! Confirm each constraint the LLM checked. Don't blindly trust the verdict.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- JSON Validator -->
+                <div class="check-card" id="quick-json">
+                    <div class="check-header" onclick="toggleCheck('quick-json')">
+                        <span class="check-number">J</span>
+                        <span class="check-title">JSON Validation (Quick Check)</span>
+                        <span class="check-chevron">▼</span>
+                    </div>
+                    <div class="check-content">
+                        <div class="check-inner">
+                            <p style="margin-bottom: 12px;">Verify all JSON blocks are syntactically valid.</p>
+
+                            <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                                <a href="https://jsonlint.com/" target="_blank" style="display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 8px; text-decoration: none; color: var(--text); font-size: 13px; transition: all 0.2s;">
+                                    <span>🔗</span> JSONLint Validator
+                                </a>
+                                <a href="https://jsonformatter.org/" target="_blank" style="display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 8px; text-decoration: none; color: var(--text); font-size: 13px; transition: all 0.2s;">
+                                    <span>🔗</span> JSON Formatter
+                                </a>
+                            </div>
+
+                            <ul class="checklist" style="margin-top: 16px;">
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">turn_metadata JSON is valid</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">validator_human JSON is valid (all cells)</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">Task metadata JSON is valid</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Criteria Table -->
+                <div class="check-card" id="quick-criteria">
+                    <div class="check-header" onclick="toggleCheck('quick-criteria')">
+                        <span class="check-number">C</span>
+                        <span class="check-title">Review Criteria (Official Ratings - Full Detail)</span>
+                        <span class="check-chevron">▼</span>
+                    </div>
+                    <div class="check-content">
+                        <div class="check-inner">
+                            <p style="margin-bottom: 16px; color: var(--text-secondary);">Each criterion has a minimum rating to pass. Click each criterion to expand rating definitions.</p>
+
+                            <!-- Criterion 1: Problem Framing -->
+                            <details class="criteria-detail" style="margin-bottom: 12px; border: 1px solid var(--border); border-radius: 8px;">
+                                <summary style="padding: 12px; background: var(--bg-tertiary); cursor: pointer; display: flex; align-items: center; gap: 12px;">
+                                    <span style="background: #fef2f2; color: #dc2626; padding: 4px 8px; border-radius: 4px; font-weight: 700; font-size: 11px;">MIN: 5</span>
+                                    <strong>CFBench Problem Framing and Motivation</strong>
+                                </summary>
+                                <div style="padding: 12px; font-size: 12px;">
+                                    <p style="margin-bottom: 8px; color: var(--text-muted);">Clarity of why constraint-following matters and why CFBench style data/evaluation matches user perception.</p>
+                                    <div style="display: grid; gap: 6px;">
+                                        <div style="padding: 8px; background: #dcfce7; border-radius: 4px; color: #14532d;"><strong>5:</strong> Motivation clear, specific, grounded in concrete gaps. Explains how CFBench addresses via real-world instructions, broad scenario coverage, systematic taxonomy.</div>
+                                        <div style="padding: 8px; background: #fef9c3; border-radius: 4px; color: #713f12;"><strong>4:</strong> Clear and linked to known gaps, but one element underdeveloped.</div>
+                                        <div style="padding: 8px; background: #fed7aa; border-radius: 4px; color: #7c2d12;"><strong>3:</strong> Present but mostly generic. Weakly justifies CFBench design.</div>
+                                        <div style="padding: 8px; background: #fecaca; border-radius: 4px; color: #7f1d1d;"><strong>2:</strong> Vague, restates benchmark description. Weak contrast with prior benchmarks.</div>
+                                        <div style="padding: 8px; background: #fca5a5; border-radius: 4px; color: #7f1d1d;"><strong>1:</strong> No meaningful motivation. No gap, no rationale.</div>
+                                    </div>
+                                </div>
+                            </details>
+
+                            <!-- Criterion 2: Dialogue Realisticness -->
+                            <details class="criteria-detail" style="margin-bottom: 12px; border: 1px solid var(--border); border-radius: 8px;">
+                                <summary style="padding: 12px; background: var(--bg-tertiary); cursor: pointer; display: flex; align-items: center; gap: 12px;">
+                                    <span style="background: #fef2f2; color: #dc2626; padding: 4px 8px; border-radius: 4px; font-weight: 700; font-size: 11px;">MIN: 5</span>
+                                    <strong>Dialogue Realisticness</strong>
+                                </summary>
+                                <div style="padding: 12px; font-size: 12px;">
+                                    <p style="margin-bottom: 8px; color: var(--text-muted);">Dialogues should avoid bizarre, artificial, or unrealistic content.</p>
+                                    <div style="display: grid; gap: 6px;">
+                                        <div style="padding: 8px; background: #dcfce7; border-radius: 4px; color: #14532d;"><strong>5:</strong> Fully realistic, natural, contextually appropriate. Reflects plausible human interactions without artificial elements.</div>
+                                        <div style="padding: 8px; background: #fef9c3; border-radius: 4px; color: #713f12;"><strong>4:</strong> Generally realistic with only minor unnatural phrasing or slightly contrived scenarios.</div>
+                                        <div style="padding: 8px; background: #fed7aa; border-radius: 4px; color: #7c2d12;"><strong>3:</strong> Somewhat believable but noticeable artificial/overly formal elements. Some turns feel scripted.</div>
+                                        <div style="padding: 8px; background: #fecaca; border-radius: 4px; color: #7f1d1d;"><strong>2:</strong> Unrealistic/awkward exchanges. Scenarios feel artificial or disconnected.</div>
+                                        <div style="padding: 8px; background: #fca5a5; border-radius: 4px; color: #7f1d1d;"><strong>1:</strong> Entirely unrealistic, bizarre, implausible. Unnatural phrasing, nonsensical turns.</div>
+                                    </div>
+                                </div>
+                            </details>
+
+                            <!-- Criterion 3: System Message Correctness -->
+                            <details class="criteria-detail" style="margin-bottom: 12px; border: 1px solid var(--border); border-radius: 8px;">
+                                <summary style="padding: 12px; background: var(--bg-tertiary); cursor: pointer; display: flex; align-items: center; gap: 12px;">
+                                    <span style="background: #fef9c3; color: #a16207; padding: 4px 8px; border-radius: 4px; font-weight: 700; font-size: 11px;">MIN: 4</span>
+                                    <strong>System Message Correctness</strong>
+                                </summary>
+                                <div style="padding: 12px; font-size: 12px;">
+                                    <p style="margin-bottom: 8px; color: var(--text-muted);">Internally consistent, contradiction-free, enforceable, aligned with metadata, suitable for checklist-based evaluation.</p>
+                                    <div style="display: grid; gap: 6px;">
+                                        <div style="padding: 8px; background: #dcfce7; border-radius: 4px; color: #14532d;"><strong>5:</strong> Fully explicit, precise, consistent, following metadata. No contradictions. Priority ordering explicit. Every constraint checklist-verifiable. No vague terms without definition.</div>
+                                        <div style="padding: 8px; background: #fef9c3; border-radius: 4px; color: #713f12;"><strong>4:</strong> Mostly explicit and enforceable. One minor ambiguity that doesn't affect evaluation. Priority mostly clear.</div>
+                                        <div style="padding: 8px; background: #fed7aa; border-radius: 4px; color: #7c2d12;"><strong>3:</strong> Understandable but loosely worded rules, slight misalignment with metadata. Minor internal tension.</div>
+                                        <div style="padding: 8px; background: #fecaca; border-radius: 4px; color: #7f1d1d;"><strong>2:</strong> Vague, conflicting, or partially unenforceable rules. Priority ordering missing/inconsistent.</div>
+                                        <div style="padding: 8px; background: #fca5a5; border-radius: 4px; color: #7f1d1d;"><strong>1:</strong> Contradictory, non-enforceable, incompatible with metadata. Rules cannot be evaluated reliably.</div>
+                                    </div>
+                                </div>
+                            </details>
+
+                            <!-- Criterion 4: Instruction Alignment -->
+                            <details class="criteria-detail" style="margin-bottom: 12px; border: 1px solid var(--border); border-radius: 8px;">
+                                <summary style="padding: 12px; background: var(--bg-tertiary); cursor: pointer; display: flex; align-items: center; gap: 12px;">
+                                    <span style="background: #fef9c3; color: #a16207; padding: 4px 8px; border-radius: 4px; font-weight: 700; font-size: 11px;">MIN: 4</span>
+                                    <strong>Instruction Alignment and Conflict Coverage</strong>
+                                </summary>
+                                <div style="padding: 12px; font-size: 12px;">
+                                    <p style="margin-bottom: 8px; color: var(--text-muted);">Whether aligned vs misaligned instructions are correctly labeled and conflicts meaningfully test priority handling.</p>
+                                    <div style="display: grid; gap: 6px;">
+                                        <div style="padding: 8px; background: #dcfce7; border-radius: 4px; color: #14532d;"><strong>5:</strong> Every instruction correctly labeled. Conflicts intentionally constructed to force priority resolution. Same instruction shows PASS in some, FAIL in others.</div>
+                                        <div style="padding: 8px; background: #fef9c3; border-radius: 4px; color: #713f12;"><strong>4:</strong> Labels mostly correct. Conflict cases meaningful but one is weak/redundant. One minor mislabeling.</div>
+                                        <div style="padding: 8px; background: #fed7aa; border-radius: 4px; color: #7c2d12;"><strong>3:</strong> Labels exist but conflict construction shallow. 1-2 instructions mislabeled or weakly justified.</div>
+                                        <div style="padding: 8px; background: #fecaca; border-radius: 4px; color: #7f1d1d;"><strong>2:</strong> Labels inconsistent/incorrect in several places. Conflicts trivial or don't test priorities.</div>
+                                        <div style="padding: 8px; background: #fca5a5; border-radius: 4px; color: #7f1d1d;"><strong>1:</strong> No meaningful alignment logic. Labels wrong/missing. Conflicts absent or irrelevant.</div>
+                                    </div>
+                                </div>
+                            </details>
+
+                            <!-- Criterion 5: Metadata Accuracy -->
+                            <details class="criteria-detail" style="margin-bottom: 12px; border: 1px solid var(--border); border-radius: 8px;">
+                                <summary style="padding: 12px; background: var(--bg-tertiary); cursor: pointer; display: flex; align-items: center; gap: 12px;">
+                                    <span style="background: #fef9c3; color: #a16207; padding: 4px 8px; border-radius: 4px; font-weight: 700; font-size: 11px;">MIN: 4</span>
+                                    <strong>Metadata Accuracy and Taxonomy Alignment</strong>
+                                </summary>
+                                <div style="padding: 12px; font-size: 12px;">
+                                    <p style="margin-bottom: 8px; color: var(--text-muted);">Whether metadata correctly matches prompt, task type, domain, use case, categories, and CFBench taxonomy.</p>
+                                    <div style="display: grid; gap: 6px;">
+                                        <div style="padding: 8px; background: #dcfce7; border-radius: 4px; color: #14532d;"><strong>5:</strong> All fields exactly match prompt's intent/structure. No taxonomy terms (L1, L2, use case) appear in user-visible prompt. Fully compatible with CFBench tooling.</div>
+                                        <div style="padding: 8px; background: #fef9c3; border-radius: 4px; color: #713f12;"><strong>4:</strong> One minor field slightly imprecise (e.g., overly broad category) but doesn't affect classification.</div>
+                                        <div style="padding: 8px; background: #fed7aa; border-radius: 4px; color: #7c2d12;"><strong>3:</strong> Generally matches but noticeable looseness. 1-2 fields require interpretation to justify.</div>
+                                        <div style="padding: 8px; background: #fecaca; border-radius: 4px; color: #7f1d1d;"><strong>2:</strong> Multiple fields mismatched/ambiguous. Reviewers would likely disagree on taxonomy fit.</div>
+                                        <div style="padding: 8px; background: #fca5a5; border-radius: 4px; color: #7f1d1d;"><strong>1:</strong> Metadata missing, fundamentally incorrect, or violates taxonomy boundaries.</div>
+                                    </div>
+                                </div>
+                            </details>
+
+                            <!-- Criterion 6: Cell Tags -->
+                            <details class="criteria-detail" style="margin-bottom: 12px; border: 1px solid var(--border); border-radius: 8px;">
+                                <summary style="padding: 12px; background: var(--bg-tertiary); cursor: pointer; display: flex; align-items: center; gap: 12px;">
+                                    <span style="background: #fef2f2; color: #dc2626; padding: 4px 8px; border-radius: 4px; font-weight: 700; font-size: 11px;">MIN: 5</span>
+                                    <strong>Cell Tags - Spelling, Format, and Order</strong>
+                                </summary>
+                                <div style="padding: 12px; font-size: 12px;">
+                                    <p style="margin-bottom: 8px; color: var(--text-muted);">All notebook cell tags spelled correctly, formatted correctly, in exact required sequential order.</p>
+                                    <div style="display: grid; gap: 6px;">
+                                        <div style="padding: 8px; background: #dcfce7; border-radius: 4px; color: #14532d;"><strong>5:</strong> All tags exact match. Correct spelling, formatting, square brackets. All required cells in mandated order. No extra/missing/duplicated/misplaced tags.</div>
+                                        <div style="padding: 8px; background: #fef9c3; border-radius: 4px; color: #713f12;"><strong>4:</strong> 1-2 cosmetic spelling/formatting errors. Tag order still correct. Easily correctable.</div>
+                                        <div style="padding: 8px; background: #fed7aa; border-radius: 4px; color: #7c2d12;"><strong>3:</strong> Several spelling/formatting errors. 1-2 minor ordering issues, but structure recognizable.</div>
+                                        <div style="padding: 8px; background: #fecaca; border-radius: 4px; color: #7f1d1d;"><strong>2:</strong> Multiple tags misspelled, incorrectly formatted, or out of order. Structure affected.</div>
+                                        <div style="padding: 8px; background: #fca5a5; border-radius: 4px; color: #7f1d1d;"><strong>1:</strong> Tags missing, largely incorrect, order completely broken. Requires full rework.</div>
+                                    </div>
+                                </div>
+                            </details>
+
+                            <!-- Criterion 7: Factual Accuracy -->
+                            <details class="criteria-detail" style="margin-bottom: 12px; border: 1px solid var(--border); border-radius: 8px;">
+                                <summary style="padding: 12px; background: var(--bg-tertiary); cursor: pointer; display: flex; align-items: center; gap: 12px;">
+                                    <span style="background: #fef2f2; color: #dc2626; padding: 4px 8px; border-radius: 4px; font-weight: 700; font-size: 11px;">MIN: 5</span>
+                                    <strong>Factual Accuracy and Hallucination</strong>
+                                </summary>
+                                <div style="padding: 12px; font-size: 12px;">
+                                    <p style="margin-bottom: 8px; color: var(--text-muted);">Whether any content fabricates facts, makes assumptions, or introduces unverifiable/invented claims.</p>
+                                    <div style="display: grid; gap: 6px;">
+                                        <div style="padding: 8px; background: #dcfce7; border-radius: 4px; color: #14532d;"><strong>5:</strong> All statements factually accurate and verifiable. No hallucinations, fabrications, assumptions. Uncertainty explicitly acknowledged. No invented entities/formats/tools/rules.</div>
+                                        <div style="padding: 8px; background: #fef9c3; border-radius: 4px; color: #713f12;"><strong>4:</strong> Response adds unverifiable data not in user queries, but doesn't affect overall flow/quality.</div>
+                                        <div style="padding: 8px; background: #fed7aa; border-radius: 4px; color: #7c2d12;"><strong>3:</strong> 1-2 factual inaccuracies that don't materially change task logic or evaluation.</div>
+                                        <div style="padding: 8px; background: #fecaca; border-radius: 4px; color: #7f1d1d;"><strong>2:</strong> Several inaccuracies or implicit assumptions. Some content unverifiable/weakly grounded.</div>
+                                        <div style="padding: 8px; background: #fca5a5; border-radius: 4px; color: #7f1d1d;"><strong style="color: #dc2626;">1: ANY hallucination, invented fact, or fabricated rule = AUTO-FAIL</strong></div>
+                                    </div>
+                                </div>
+                            </details>
+
+                            <!-- Criterion 8: JSON Formatting -->
+                            <details class="criteria-detail" style="margin-bottom: 12px; border: 1px solid var(--border); border-radius: 8px;">
+                                <summary style="padding: 12px; background: var(--bg-tertiary); cursor: pointer; display: flex; align-items: center; gap: 12px;">
+                                    <span style="background: #fef2f2; color: #dc2626; padding: 4px 8px; border-radius: 4px; font-weight: 700; font-size: 11px;">MIN: 5</span>
+                                    <strong>JSON Correct Formatting and turn_metadata Accuracy</strong>
+                                </summary>
+                                <div style="padding: 12px; font-size: 12px;">
+                                    <p style="margin-bottom: 8px; color: var(--text-muted);">All JSON valid. turn_metadata correctly encodes all instruction types, labels, arguments. <strong>Required: 4+ IF, 1+ LLM Eval, 1+ LLM Judge. One LLM Eval must come from System Instructions!</strong></p>
+                                    <div style="display: grid; gap: 6px;">
+                                        <div style="padding: 8px; background: #dcfce7; border-radius: 4px; color: #14532d;"><strong>5:</strong> All JSON valid. No missing brackets/commas/quotes. All instruction types/labels/arguments correctly encoded. JSON exactly matches user-visible instructions. No extra/missing keys.</div>
+                                        <div style="padding: 8px; background: #fef9c3; border-radius: 4px; color: #713f12;"><strong>4:</strong> One minor non-breaking formatting issue. All keys/values correct. No llm_judge (only 2 llm eval).</div>
+                                        <div style="padding: 8px; background: #fed7aa; border-radius: 4px; color: #7c2d12;"><strong>3:</strong> Several formatting issues needing correction. No semantic/schema errors. Less than 4 IF and/or 2 llm eval.</div>
+                                        <div style="padding: 8px; background: #fecaca; border-radius: 4px; color: #7f1d1d;"><strong>2:</strong> Broken JSON, missing keys, mislabeled fields. More than 2 constraints of same domain or 2 from 2 domains.</div>
+                                        <div style="padding: 8px; background: #fca5a5; border-radius: 4px; color: #7f1d1d;"><strong>1:</strong> Invalid JSON, missing major sections, or fundamentally incorrect schema.</div>
+                                    </div>
+                                </div>
+                            </details>
+
+                            <!-- Criterion 9: Formatting Compliance -->
+                            <details class="criteria-detail" style="margin-bottom: 12px; border: 1px solid var(--border); border-radius: 8px;">
+                                <summary style="padding: 12px; background: var(--bg-tertiary); cursor: pointer; display: flex; align-items: center; gap: 12px;">
+                                    <span style="background: #fef2f2; color: #dc2626; padding: 4px 8px; border-radius: 4px; font-weight: 700; font-size: 11px;">MIN: 5</span>
+                                    <strong>Formatting and Compliance (No Emoji, Currency Symbols, Em-Dash, LaTeX)</strong>
+                                </summary>
+                                <div style="padding: 12px; font-size: 12px;">
+                                    <p style="margin-bottom: 8px; color: var(--text-muted);">All formatting bans and cleanup rules followed across entire notebook.</p>
+                                    <div style="display: grid; gap: 6px;">
+                                        <div style="padding: 8px; background: #dcfce7; border-radius: 4px; color: #14532d;"><strong>5:</strong> No emojis anywhere. No em-dash (only hyphens). No currency symbols ($, €, £) - use ISO codes. No LaTeX. No unsupported Markdown. No preambles/closures in responses. Clean JSON.</div>
+                                        <div style="padding: 8px; background: #fef9c3; border-radius: 4px; color: #713f12;"><strong>4:</strong> One very minor compliance slip (e.g., one stray hyphen style, one unnecessary space).</div>
+                                        <div style="padding: 8px; background: #fed7aa; border-radius: 4px; color: #7c2d12;"><strong>3:</strong> Several small formatting violations but don't break evaluation tooling or readability.</div>
+                                        <div style="padding: 8px; background: #fecaca; border-radius: 4px; color: #7f1d1d;"><strong>2:</strong> Frequent violations that degrade cleanliness or consistency.</div>
+                                        <div style="padding: 8px; background: #fca5a5; border-radius: 4px; color: #7f1d1d;"><strong>1:</strong> Major formatting violations appear throughout the notebook.</div>
+                                    </div>
+                                </div>
+                            </details>
+
+                            <!-- Criterion 10: Model Breaking Success -->
+                            <details class="criteria-detail" style="margin-bottom: 12px; border: 1px solid var(--border); border-radius: 8px;">
+                                <summary style="padding: 12px; background: var(--bg-tertiary); cursor: pointer; display: flex; align-items: center; gap: 12px;">
+                                    <span style="background: #fef9c3; color: #a16207; padding: 4px 8px; border-radius: 4px; font-weight: 700; font-size: 11px;">MIN: 4</span>
+                                    <strong>Model Breaking Success</strong>
+                                </summary>
+                                <div style="padding: 12px; font-size: 12px;">
+                                    <p style="margin-bottom: 8px; color: var(--text-muted);"><strong>Rule:</strong> In at least 3 of 4 responses, PASS must be ≤50% (FAIL ≥50%). At least one instruction must show both PASS and FAIL across responses. Failures must be from real instruction conflicts, not trivial formatting.</p>
+                                    <div style="display: grid; gap: 6px;">
+                                        <div style="padding: 8px; background: #dcfce7; border-radius: 4px; color: #14532d;"><strong>5 (Perfect trap):</strong> All 4/4 have FAIL ≥50%. At least one instruction flips PASS/FAIL across responses. Failures from real conflicts/priority violations.</div>
+                                        <div style="padding: 8px; background: #fef9c3; border-radius: 4px; color: #713f12;"><strong>4 (Strong trap):</strong> Exactly 3/4 have FAIL ≥50%, 1/4 has FAIL &lt;50%. At least one instruction flips. Mostly real conflicts.</div>
+                                        <div style="padding: 8px; background: #fed7aa; border-radius: 4px; color: #7c2d12;"><strong>3 (Weak trap):</strong> Only 2/4 meet FAIL ≥50%. Some model breaking but weak failure consistency.</div>
+                                        <div style="padding: 8px; background: #fecaca; border-radius: 4px; color: #7f1d1d;"><strong>2 (Too easy):</strong> 3/4 or 4/4 have FAIL &lt;50%. Violations are minor, rare, cosmetic, or arguable.</div>
+                                        <div style="padding: 8px; background: #fca5a5; border-radius: 4px; color: #7f1d1d;"><strong>1 (Failed trap):</strong> All 4/4 have FAIL &lt;50% (PASS &gt;50% in every response). No instruction meaningfully flips.</div>
+                                    </div>
+                                </div>
+                            </details>
+
+                            <!-- Criterion 11: Golden Response Perfection -->
+                            <details class="criteria-detail" style="margin-bottom: 12px; border: 1px solid var(--border); border-radius: 8px;">
+                                <summary style="padding: 12px; background: var(--bg-tertiary); cursor: pointer; display: flex; align-items: center; gap: 12px;">
+                                    <span style="background: #fef2f2; color: #dc2626; padding: 4px 8px; border-radius: 4px; font-weight: 700; font-size: 11px;">MIN: 5</span>
+                                    <strong>Golden Response Perfection</strong>
+                                </summary>
+                                <div style="padding: 12px; font-size: 12px;">
+                                    <p style="margin-bottom: 8px; color: var(--text-muted);">Human-written golden response is a flawless success case under full CFBench evaluation - canonical example of perfect instruction following.</p>
+                                    <div style="display: grid; gap: 6px;">
+                                        <div style="padding: 8px; background: #dcfce7; border-radius: 4px; color: #14532d;"><strong>5:</strong> Passes every single turn_metadata instruction, all checklist items, all verifiers - ZERO exceptions. All IF instructions satisfied exactly. All LLM judge/eval checks pass. All formatting rules satisfied. No factual errors/hallucinations. <strong>Reference-grade perfect solution.</strong></div>
+                                        <div style="padding: 8px; background: #fef9c3; border-radius: 4px; color: #713f12;"><strong>4:</strong> One tiny typo, spacing, or cosmetic imperfection that doesn't affect any validator/checklist result. All constraints still fully satisfied.</div>
+                                        <div style="padding: 8px; background: #fed7aa; border-radius: 4px; color: #7c2d12;"><strong>3:</strong> Minor awkward phrasing or stylistic weakness, but all constraints/checklist items/verifiers technically satisfied. No validator failures.</div>
+                                        <div style="padding: 8px; background: #fecaca; border-radius: 4px; color: #7f1d1d;"><strong>2:</strong> Exactly ONE constraint violation (one IF not met, one formatting rule violated, one checklist item fails). Close but not perfect.</div>
+                                        <div style="padding: 8px; background: #fca5a5; border-radius: 4px; color: #7f1d1d;"><strong>1:</strong> Multiple constraint violations OR at least one factual error/hallucination. Cannot be used as valid reference solution.</div>
+                                    </div>
+                                </div>
+                            </details>
+
+                            <div class="alert alert-danger" style="margin-top: 16px;">
+                                <strong>Key Requirements Reminder:</strong>
+                                <ul style="margin: 8px 0 0 16px; font-size: 12px;">
+                                    <li>At least <strong>1 LLM Eval must be in the system prompt</strong></li>
+                                    <li><strong>llm_judge</strong> and <strong>validator_human</strong> cells must be in <strong>ENGLISH</strong></li>
+                                    <li>At least <strong>3 of 4</strong> model passes must fail <strong>≥50%</strong> of constraints</li>
+                                    <li>Any hallucination or fabricated fact = <strong>AUTO-FAIL</strong></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- PHASE 1: PRE-CHECKS -->
+            <section class="section" id="phase-pre">
+                <div class="phase-header">
+                    <div class="phase-icon pre">🔍</div>
+                    <div class="phase-meta">
+                        <div class="help-wrapper">
+                            <h2 style="margin:0;padding:0;border:none;">Phase 1: Pre-Checks</h2>
+                            <span class="help-bubble" onclick="toggleHelp(this)">?</span>
+                            <div class="help-popup">
+                                <div class="help-popup-header">
+                                    <span class="help-popup-title">About Pre-Checks</span>
+                                    <button class="help-popup-close" onclick="closeHelp(this)">×</button>
+                                </div>
+                                <div class="help-popup-content">
+                                    <p><strong>Pre-Checks</strong> are structural validations you do before diving into content quality.</p>
+                                    <p>These verify that the task has the correct format, cell names, and passes basic rules like the 50% failure requirement.</p>
+                                    <p>If any pre-check fails, the task needs revision before you review content.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <p>Structural validation before deep review</p>
+                    </div>
+                </div>
+
+                <!-- Check 1.1 -->
+                <div class="check-card" id="check-1-1">
+                    <div class="check-header" onclick="toggleCheck('check-1-1')">
+                        <span class="check-number">1.1</span>
+                        <span class="check-title">Cell Names & Structure</span>
+                        <div class="check-status">
+                            <button class="status-btn pass" onclick="event.stopPropagation(); setCheckStatus('check-1-1', 'pass')">PASS</button>
+                            <button class="status-btn fail" onclick="event.stopPropagation(); setCheckStatus('check-1-1', 'fail')">FAIL</button>
+                        </div>
+                        <span class="check-chevron">▼</span>
+                    </div>
+                    <div class="check-content">
+                        <div class="check-inner">
+                            <div class="help-wrapper">
+                                <p>Verify cell names match the expected structure.</p>
+                                <span class="help-bubble" onclick="toggleHelp(this)">?</span>
+                                <div class="help-popup">
+                                    <div class="help-popup-header">
+                                        <span class="help-popup-title">Why Cell Names Matter</span>
+                                        <button class="help-popup-close" onclick="closeHelp(this)">×</button>
+                                    </div>
+                                    <div class="help-popup-content">
+                                        <p>Cell names must be <strong>exactly</strong> as specified because the automated pipeline reads them by name.</p>
+                                        <p>Wrong names = pipeline errors = rejected task.</p>
+                                        <p>Common mistakes: typos, wrong numbering, mixing nemotron/qwen3.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="input-group">
+                                <label class="input-label">Number of Turns</label>
+                                <input type="number" class="input-field" id="num-turns" value="2" min="2" max="6" onchange="updateCellStructure()" style="width: 80px;">
+                            </div>
+
+                            <h3>Intermediate Turn Cells</h3>
+                            <div class="cell-structure" id="intermediate-cells"></div>
+
+                            <h3>Final Turn Cells</h3>
+                            <div class="cell-grid">
+                                <div class="cell-item">user</div>
+                                <div class="cell-item">thinking</div>
+                                <div class="cell-item golden">turn_metadata</div>
+                                <div class="cell-item golden">assistant</div>
+                                <div class="cell-item validator">validator_assistant</div>
+                                <div class="cell-item validator">validator_human</div>
+                            </div>
+
+                            <h3>Alternative Blocks (×4)</h3>
+                            <div class="cell-grid">
+                                <div class="cell-item alternative">thinking_nemotron_1</div>
+                                <div class="cell-item alternative">assistant_nemotron_1</div>
+                                <div class="cell-item validator">validator_assistant_nemotron_1</div>
+                                <div class="cell-item validator">validator_human_nemotron_1</div>
+                            </div>
+                            <p style="font-size: 12px; color: var(--text-muted);">Repeat for _2, _3, _4. Use nemotron OR qwen3 (not mixed).</p>
+
+                            <ul class="checklist">
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">All cell names exactly match format</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">Correct number of intermediate turns</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">All 4 alternative blocks present (with validator_human for each)</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">Thinking cells are 2.5x-3x length of corresponding assistant</span>
+                                </li>
+                            </ul>
+
+                            <div class="alert alert-warning" style="margin-top: 12px;">
+                                <strong>THINKING CELLS - Required for ALL Turns</strong>
+                                <p style="margin-top: 8px; font-size: 12px;">Every turn must have a thinking cell:</p>
+                            </div>
+                            <ul class="checklist">
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">Turn 1 has thinking cell</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">All intermediate turns have thinking cells</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">Final turn (golden) has thinking cell</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">All 4 model passes have thinking_{model}_N cells</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Check 1.2 -->
+                <div class="check-card" id="check-1-2">
+                    <div class="check-header" onclick="toggleCheck('check-1-2')">
+                        <span class="check-number">1.2</span>
+                        <span class="check-title">Golden Assistant = 100% PASS</span>
+                        <div class="check-status">
+                            <button class="status-btn pass" onclick="event.stopPropagation(); setCheckStatus('check-1-2', 'pass')">PASS</button>
+                            <button class="status-btn fail" onclick="event.stopPropagation(); setCheckStatus('check-1-2', 'fail')">FAIL</button>
+                        </div>
+                        <span class="check-chevron">▼</span>
+                    </div>
+                    <div class="check-content">
+                        <div class="check-inner">
+                            <div class="alert alert-danger">
+                                <strong>CRITICAL RULE</strong>
+                                The Golden Assistant MUST pass ALL instructions. Any failure = task rejection.
+                            </div>
+
+                            <div class="help-wrapper">
+                                <p>Open <code>validator_assistant</code> and verify all show PASS.</p>
+                                <span class="help-bubble" onclick="toggleHelp(this)">?</span>
+                                <div class="help-popup">
+                                    <div class="help-popup-header">
+                                        <span class="help-popup-title">What is Golden Assistant?</span>
+                                        <button class="help-popup-close" onclick="closeHelp(this)">×</button>
+                                    </div>
+                                    <div class="help-popup-content">
+                                        <p>The <strong>Golden Assistant</strong> is the "perfect" response in the final turn that demonstrates how to correctly follow all constraints.</p>
+                                        <p>It serves as the benchmark - all instructions MUST pass here because this is our reference for what a "correct" response looks like.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <ul class="checklist">
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">All IF instructions show PASS</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">All LLM Eval instructions show PASS</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">validator_human present with correct JSON format (id, status, message)</span>
+                                </li>
+                            </ul>
+
+                            <div class="alert alert-warning">
+                                <strong>validator_human Required</strong>
+                                For LLM-based constraints (llm_judge, stylistic), you must add a validator_human cell with your human judgment. Format: <code>[{"id": "...", "status": "Passed", "message": "reason"}]</code>
+                            </div>
+
+                            <div class="alert alert-info">
+                                <strong>Character Count Tip</strong>
+                                For character/word count constraints, verify externally using <a href="https://www.invertexto.com/contador-caracteres" target="_blank">invertexto.com</a> before trusting validator.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Check 1.3 -->
+                <div class="check-card" id="check-1-3">
+                    <div class="check-header" onclick="toggleCheck('check-1-3')">
+                        <span class="check-number">1.3</span>
+                        <span class="check-title">Task Challenge Level</span>
+                        <div class="check-status">
+                            <button class="status-btn pass" onclick="event.stopPropagation(); setCheckStatus('check-1-3', 'pass')">PASS</button>
+                            <button class="status-btn fail" onclick="event.stopPropagation(); setCheckStatus('check-1-3', 'fail')">FAIL</button>
+                        </div>
+                        <span class="check-chevron">▼</span>
+                    </div>
+                    <div class="check-content">
+                        <div class="check-inner">
+                            <div class="alert alert-danger" style="margin-top: 0;">
+                                <strong>TASK CHALLENGE REQUIREMENTS (Jan 2026)</strong>
+                                <ul style="margin: 8px 0 0 0; padding-left: 20px; font-size: 12px;">
+                                    <li><strong>At least 3 of 4 models</strong> must fail <strong>≥50%</strong> of constraints (FAIL ≥50%)</li>
+                                    <li>At least 1 instruction must show both PASS and FAIL across 4 responses</li>
+                                    <li>Failures must be from real instruction conflicts, not trivial formatting issues</li>
+                                </ul>
+                            </div>
+
+                            <div class="help-wrapper" style="margin-top: 12px;">
+                                <span style="color: var(--text-secondary); font-size: 13px;">Expected distribution for 5-8 IF instructions:</span>
+                                <span class="help-bubble" onclick="toggleHelp(this)">?</span>
+                                <div class="help-popup">
+                                    <div class="help-popup-header">
+                                        <span class="help-popup-title">Why Challenge Level Matters</span>
+                                        <button class="help-popup-close" onclick="closeHelp(this)">×</button>
+                                    </div>
+                                    <div class="help-popup-content">
+                                        <p>CFBench tests if models can follow constraints. If alternative models pass everything, the task is too easy.</p>
+                                        <p>The challenge level ensures constraints are challenging enough to differentiate model capabilities.</p>
+                                        <p>Maximum 2 of 4 alternatives may pass all instructions.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <table style="width: 100%; font-size: 12px; margin-top: 8px; border-collapse: collapse;">
+                                <thead>
+                                    <tr style="background: rgba(0,0,0,0.2);">
+                                        <th style="padding: 8px; text-align: left; border: 1px solid var(--border);">Response</th>
+                                        <th style="padding: 8px; text-align: left; border: 1px solid var(--border);">Expected Result</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td style="padding: 8px; border: 1px solid var(--border);"><code>assistant</code> (golden)</td>
+                                        <td style="padding: 8px; border: 1px solid var(--border); color: var(--success);"><strong>100% PASS</strong> - all instructions</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 8px; border: 1px solid var(--border);"><code>assistant_{model}_1</code></td>
+                                        <td style="padding: 8px; border: 1px solid var(--border); color: var(--danger);"><strong>FAIL ≥50%</strong> of constraints</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 8px; border: 1px solid var(--border);"><code>assistant_{model}_2</code></td>
+                                        <td style="padding: 8px; border: 1px solid var(--border); color: var(--danger);"><strong>FAIL ≥50%</strong> of constraints</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 8px; border: 1px solid var(--border);"><code>assistant_{model}_3</code></td>
+                                        <td style="padding: 8px; border: 1px solid var(--border); color: var(--danger);"><strong>FAIL ≥50%</strong> of constraints</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 8px; border: 1px solid var(--border);"><code>assistant_{model}_4</code></td>
+                                        <td style="padding: 8px; border: 1px solid var(--border); color: var(--warning);">Can have FAIL &lt;50% (only 1 of 4 allowed)</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+
+                            <div class="alert alert-info" style="margin-top: 12px;">
+                                <strong>Rule Summary:</strong> At least 3 of 4 model responses must have FAIL ≥50%. One response may have FAIL &lt;50%. At least one instruction must flip between PASS and FAIL across responses.
+                            </div>
+
+                            <h3>Failure Calculator</h3>
+                            <p style="font-size: 12px;">Enter total constraints and how many failed for each alternative:</p>
+
+                            <div class="failure-calculator">
+                                <div class="failure-calc-row">
+                                    <div class="failure-tooltip" id="tooltip-alt1">Below 50% - needs fix</div>
+                                    <span class="failure-calc-label">Alternative 1</span>
+                                    <div class="failure-calc-inputs">
+                                        <input type="number" class="failure-calc-input" id="alt1-fail" placeholder="Fail" min="0" onchange="calculateFailure(1)">
+                                        <span class="failure-calc-separator">of</span>
+                                        <input type="number" class="failure-calc-input" id="alt1-total" placeholder="Total" min="1" onchange="calculateFailure(1)">
+                                    </div>
+                                    <span class="failure-calc-result pending" id="alt1-result">--%</span>
+                                </div>
+                                <div class="failure-calc-row">
+                                    <div class="failure-tooltip" id="tooltip-alt2">Below 50% - needs fix</div>
+                                    <span class="failure-calc-label">Alternative 2</span>
+                                    <div class="failure-calc-inputs">
+                                        <input type="number" class="failure-calc-input" id="alt2-fail" placeholder="Fail" min="0" onchange="calculateFailure(2)">
+                                        <span class="failure-calc-separator">of</span>
+                                        <input type="number" class="failure-calc-input" id="alt2-total" placeholder="Total" min="1" onchange="calculateFailure(2)">
+                                    </div>
+                                    <span class="failure-calc-result pending" id="alt2-result">--%</span>
+                                </div>
+                                <div class="failure-calc-row">
+                                    <div class="failure-tooltip" id="tooltip-alt3">Below 50% - needs fix</div>
+                                    <span class="failure-calc-label">Alternative 3</span>
+                                    <div class="failure-calc-inputs">
+                                        <input type="number" class="failure-calc-input" id="alt3-fail" placeholder="Fail" min="0" onchange="calculateFailure(3)">
+                                        <span class="failure-calc-separator">of</span>
+                                        <input type="number" class="failure-calc-input" id="alt3-total" placeholder="Total" min="1" onchange="calculateFailure(3)">
+                                    </div>
+                                    <span class="failure-calc-result pending" id="alt3-result">--%</span>
+                                </div>
+                                <div class="failure-calc-row">
+                                    <div class="failure-tooltip" id="tooltip-alt4">Below 50% - needs fix</div>
+                                    <span class="failure-calc-label">Alternative 4</span>
+                                    <div class="failure-calc-inputs">
+                                        <input type="number" class="failure-calc-input" id="alt4-fail" placeholder="Fail" min="0" onchange="calculateFailure(4)">
+                                        <span class="failure-calc-separator">of</span>
+                                        <input type="number" class="failure-calc-input" id="alt4-total" placeholder="Total" min="1" onchange="calculateFailure(4)">
+                                    </div>
+                                    <span class="failure-calc-result pending" id="alt4-result">--%</span>
+                                </div>
+                            </div>
+
+                            <div class="progress-summary" id="failure-summary">
+                                <div class="progress-summary-row">
+                                    <span class="progress-summary-label">Models with FAIL ≥50%:</span>
+                                    <span class="progress-summary-value" id="passing-count">0 of 4</span>
+                                </div>
+                                <div class="progress-summary-row">
+                                    <span class="progress-summary-label">Rule (need ≥3 of 4):</span>
+                                    <span class="progress-summary-value" id="rule-status">Waiting for input...</span>
+                                </div>
+                            </div>
+
+                            <div class="alert alert-info">
+                                <strong>If Rule Not Met (less than 3 with FAIL ≥50%)</strong>
+                                Ask tasker to add more constraints, make constraints stricter, or use "equal to" instead of "at least".
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Check 1.4 -->
+                <div class="check-card" id="check-1-4">
+                    <div class="check-header" onclick="toggleCheck('check-1-4')">
+                        <span class="check-number">1.4</span>
+                        <span class="check-title">Model Pass Evasion Detection</span>
+                        <div class="check-status">
+                            <button class="status-btn pass" onclick="event.stopPropagation(); setCheckStatus('check-1-4', 'pass')">PASS</button>
+                            <button class="status-btn fail" onclick="event.stopPropagation(); setCheckStatus('check-1-4', 'fail')">FAIL</button>
+                        </div>
+                        <span class="check-chevron">▼</span>
+                    </div>
+                    <div class="check-content">
+                        <div class="check-inner">
+                            <div class="alert alert-danger" style="margin-top: 0;">
+                                <strong>EVASION = INVALID RESPONSE</strong>
+                                <p style="margin-top: 8px; font-size: 12px;">If model evades instead of attempting the task, the USER QUERY must be rewritten.</p>
+                            </div>
+
+                            <div class="help-wrapper" style="margin-top: 12px;">
+                                <p>Check if any model response is an evasion instead of a real attempt.</p>
+                                <span class="help-bubble" onclick="toggleHelp(this)">?</span>
+                                <div class="help-popup">
+                                    <div class="help-popup-header">
+                                        <span class="help-popup-title">What is an Evasion?</span>
+                                        <button class="help-popup-close" onclick="closeHelp(this)">×</button>
+                                    </div>
+                                    <div class="help-popup-content">
+                                        <p>An evasion is when the model avoids completing the task. Types:</p>
+                                        <p><strong>1. Clarification:</strong> Asks questions instead of responding</p>
+                                        <p><strong>2. Apology:</strong> Says task is "too complex" to guarantee</p>
+                                        <p><strong>3. Refusal:</strong> Content filter blocks the response</p>
+                                        <p>A well-written user query gets proper responses. If model evades, the query is poorly written.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <h4 style="margin-top: 16px;">Types of Evasions to Detect:</h4>
+                            <ul class="checklist">
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">No model asks clarifying questions instead of responding</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">No model apologizes saying task is too complex</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">No model refuses due to content filters</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">All 4 model passes are actual attempts to fulfill the request</span>
+                                </li>
+                            </ul>
+
+                            <div class="tip" style="margin-top: 12px;">
+                                <div class="tip-title">Evasion Examples (Italian)</div>
+                                <ul style="font-size: 11px; margin-top: 8px; padding-left: 16px;">
+                                    <li>"Per favore, confermi se il conteggio dei caratteri deve includere..."</li>
+                                    <li>"Mi scuso per la complessità... non posso garantire al 100%..."</li>
+                                    <li>"Prima di procedere, desidero chiarire..."</li>
+                                </ul>
+                            </div>
+
+                            <div class="alert alert-warning" style="margin-top: 12px;">
+                                <strong>If Evasion Detected</strong>
+                                <p style="margin-top: 8px; font-size: 12px;">Ask trainer to REWRITE the user query following the 70/30 structure (70% scenario + 30% constraints), then regenerate all model passes.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- PHASE 2: LLM REVIEW -->
+            <section class="section" id="phase-llm">
+                <div class="phase-header">
+                    <div class="phase-icon llm">🤖</div>
+                    <div class="phase-meta">
+                        <div class="help-wrapper">
+                            <h2 style="margin:0;padding:0;border:none;">Phase 2: LLM-Assisted Review</h2>
+                            <span class="help-bubble" onclick="toggleHelp(this)">?</span>
+                            <div class="help-popup">
+                                <div class="help-popup-header">
+                                    <span class="help-popup-title">About LLM Review</span>
+                                    <button class="help-popup-close" onclick="closeHelp(this)">×</button>
+                                </div>
+                                <div class="help-popup-content">
+                                    <p>These checks use AI to help you validate consistency and detect issues that are hard to spot manually.</p>
+                                    <p>Copy the provided prompts, paste task content where indicated, and analyze the AI's response.</p>
+                                    <p>This speeds up review and catches subtle problems.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <p>Use AI to validate consistency and quality</p>
+                    </div>
+                </div>
+
+                <!-- Check 2.1 -->
+                <div class="check-card" id="check-2-1">
+                    <div class="check-header" onclick="toggleCheck('check-2-1')">
+                        <span class="check-number">2.1</span>
+                        <span class="check-title">System Instructions Validation</span>
+                        <div class="check-status">
+                            <button class="status-btn pass" onclick="event.stopPropagation(); setCheckStatus('check-2-1', 'pass')">PASS</button>
+                            <button class="status-btn fail" onclick="event.stopPropagation(); setCheckStatus('check-2-1', 'fail')">FAIL</button>
+                        </div>
+                        <span class="check-chevron">▼</span>
+                    </div>
+                    <div class="check-content">
+                        <div class="check-inner">
+                            <div class="help-wrapper">
+                                <p>Check system instructions for consistency with conversation.</p>
+                                <span class="help-bubble" onclick="toggleHelp(this)">?</span>
+                                <div class="help-popup">
+                                    <div class="help-popup-header">
+                                        <span class="help-popup-title">What to Look For</span>
+                                        <button class="help-popup-close" onclick="closeHelp(this)">×</button>
+                                    </div>
+                                    <div class="help-popup-content">
+                                        <p><strong>Redundancy:</strong> If conversation mentions currency, system instructions should address currency handling.</p>
+                                        <p><strong>Metadata terms:</strong> Words like "L1 Taxonomy", "Use Case" should NOT appear in system instructions - they're internal terms.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="prompt-box">
+                                <div class="prompt-header">
+                                    <span class="prompt-label">LLM Prompt</span>
+                                    <button class="copy-btn" onclick="copyPrompt(this)">Copy</button>
+                                </div>
+                                <div class="prompt-content">Below are the system instructions. I want to check:
+- Check that the instruction is not redundant with the conversation. For example, if the conversation discusses currency, then currency handling must be present. If not mentioned, it should be absent.
+- Check that metadata terms like 'L1 Taxonomy', 'Use Case' do NOT appear directly.
+- Give final verdict for each metric.
+
+system instructions:
+```
+<span class="placeholder">//PASTE SYSTEM INSTRUCTIONS</span>
+```
+
+Conversation:
+<span class="placeholder">//PASTE CONVERSATION</span></div>
+                            </div>
+
+                            <ul class="checklist">
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">No redundancy issues</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">No metadata terms present</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Check 2.2 -->
+                <div class="check-card" id="check-2-2">
+                    <div class="check-header" onclick="toggleCheck('check-2-2')">
+                        <span class="check-number">2.2</span>
+                        <span class="check-title">Token Length Check</span>
+                        <div class="check-status">
+                            <button class="status-btn pass" onclick="event.stopPropagation(); setCheckStatus('check-2-2', 'pass')">PASS</button>
+                            <button class="status-btn fail" onclick="event.stopPropagation(); setCheckStatus('check-2-2', 'fail')">FAIL</button>
+                        </div>
+                        <span class="check-chevron">▼</span>
+                    </div>
+                    <div class="check-content">
+                        <div class="check-inner">
+                            <div class="help-wrapper">
+                                <p>Verify user prompts have appropriate length.</p>
+                                <span class="help-bubble" onclick="toggleHelp(this)">?</span>
+                                <div class="help-popup">
+                                    <div class="help-popup-header">
+                                        <span class="help-popup-title">Token Length Guidelines</span>
+                                        <button class="help-popup-close" onclick="closeHelp(this)">×</button>
+                                    </div>
+                                    <div class="help-popup-content">
+                                        <p>User prompts shouldn't be too short (lacks context) or too long (unrealistic).</p>
+                                        <p>A reasonable prompt has enough detail to be clear but remains natural.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <ul class="checklist">
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">User prompts have reasonable length</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Check 2.3 -->
+                <div class="check-card" id="check-2-3">
+                    <div class="check-header" onclick="toggleCheck('check-2-3')">
+                        <span class="check-number">2.3</span>
+                        <span class="check-title">Query ↔ Metadata Alignment</span>
+                        <div class="check-status">
+                            <button class="status-btn pass" onclick="event.stopPropagation(); setCheckStatus('check-2-3', 'pass')">PASS</button>
+                            <button class="status-btn fail" onclick="event.stopPropagation(); setCheckStatus('check-2-3', 'fail')">FAIL</button>
+                        </div>
+                        <span class="check-chevron">▼</span>
+                    </div>
+                    <div class="check-content">
+                        <div class="check-inner">
+                            <div class="help-wrapper">
+                                <p>Every JSON instruction must appear naturally in the final user query.</p>
+                                <span class="help-bubble" onclick="toggleHelp(this)">?</span>
+                                <div class="help-popup">
+                                    <div class="help-popup-header">
+                                        <span class="help-popup-title">Why Alignment Matters</span>
+                                        <button class="help-popup-close" onclick="closeHelp(this)">×</button>
+                                    </div>
+                                    <div class="help-popup-content">
+                                        <p>The user query should "ask for" each constraint without using technical terms.</p>
+                                        <p>Example: If JSON has <code>number_words: 100</code>, user query should say "write about 100 words" or similar.</p>
+                                        <p>The query must read naturally as a human request.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="alert alert-danger" style="margin-top: 12px;">
+                                <strong>VALUE CONSISTENCY - Must Match EXACTLY</strong>
+                                <p style="margin-top: 8px; font-size: 12px;">Values mentioned in user query text must match turn_metadata JSON exactly:</p>
+                                <ul style="margin: 8px 0 0 0; padding-left: 20px; font-size: 11px;">
+                                    <li>Query says "4 paragraphs" → JSON must have <code>num_paragraphs: 4</code></li>
+                                    <li>Query says "3097 characters" → JSON must have <code>num_chars: 3097</code></li>
+                                    <li>Any mismatch = FAIL</li>
+                                </ul>
+                            </div>
+
+                            <div class="prompt-box" style="margin-top: 12px;">
+                                <div class="prompt-header">
+                                    <span class="prompt-label">LLM Prompt</span>
+                                    <button class="copy-btn" onclick="copyPrompt(this)">Copy</button>
+                                </div>
+                                <div class="prompt-content">Check TWO things:
+1. Are all instructions in the JSON present naturally in the user query?
+2. Do all NUMERIC VALUES match exactly between query text and JSON?
+
+Compare: paragraphs, characters, words, repetition limits, etc.
+List any mismatches found.
+
+User query:
+```
+<span class="placeholder">//PASTE FINAL USER QUERY</span>
+```
+
+Instruction JSON:
+```
+<span class="placeholder">//PASTE TURN_METADATA</span>
+```</div>
+                            </div>
+
+                            <ul class="checklist">
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">All instructions present naturally in query</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">Query reads naturally as human request</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">All numeric values match exactly (paragraphs, chars, words)</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">llm_judge content appears naturally in query text</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Check 2.4 -->
+                <div class="check-card" id="check-2-4">
+                    <div class="check-header" onclick="toggleCheck('check-2-4')">
+                        <span class="check-number">2.4</span>
+                        <span class="check-title">Conversation Quality</span>
+                        <div class="check-status">
+                            <button class="status-btn pass" onclick="event.stopPropagation(); setCheckStatus('check-2-4', 'pass')">PASS</button>
+                            <button class="status-btn fail" onclick="event.stopPropagation(); setCheckStatus('check-2-4', 'fail')">FAIL</button>
+                        </div>
+                        <span class="check-chevron">▼</span>
+                    </div>
+                    <div class="check-content">
+                        <div class="check-inner">
+                            <ul class="checklist">
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">Conversation flows naturally</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">No contradictions between turns</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Check 2.5 -->
+                <div class="check-card" id="check-2-5">
+                    <div class="check-header" onclick="toggleCheck('check-2-5')">
+                        <span class="check-number">2.5</span>
+                        <span class="check-title">User Query Structure (70/30 Rule)</span>
+                        <div class="check-status">
+                            <button class="status-btn pass" onclick="event.stopPropagation(); setCheckStatus('check-2-5', 'pass')">PASS</button>
+                            <button class="status-btn fail" onclick="event.stopPropagation(); setCheckStatus('check-2-5', 'fail')">FAIL</button>
+                        </div>
+                        <span class="check-chevron">▼</span>
+                    </div>
+                    <div class="check-content">
+                        <div class="check-inner">
+                            <div class="alert alert-danger" style="margin-top: 0;">
+                                <strong>CRITICAL: User Query Must Be a Real REQUEST</strong>
+                                <p style="margin-top: 8px; font-size: 12px;">The final user query must be an actual request, NOT meta-commentary or assistant-style explanation.</p>
+                            </div>
+
+                            <div class="help-wrapper" style="margin-top: 12px;">
+                                <p>Verify the final user query follows the 70/30 structure.</p>
+                                <span class="help-bubble" onclick="toggleHelp(this)">?</span>
+                                <div class="help-popup">
+                                    <div class="help-popup-header">
+                                        <span class="help-popup-title">70/30 Structure</span>
+                                        <button class="help-popup-close" onclick="closeHelp(this)">×</button>
+                                    </div>
+                                    <div class="help-popup-content">
+                                        <p>A good user query has:</p>
+                                        <p><strong>70% Scenario/Context:</strong> Natural explanation of the situation, background, what the user needs</p>
+                                        <p><strong>30% Constraints:</strong> Requirements naturally integrated into the request, NOT stacked at the end</p>
+                                        <p>The scenario in metadata is practically a TEMPLATE for how to write the query!</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <h4 style="margin-top: 16px;">Red Flags (Instant Fail):</h4>
+                            <ul class="checklist">
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">Query is NOT assistant-style explanation ("Prima di procedere...", "Desidero chiarire...")</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">Query contains an actual REQUEST (asks for something specific)</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">Constraints are naturally integrated, NOT stacked at the end</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">Query reads like a human user would naturally write</span>
+                                </li>
+                            </ul>
+
+                            <div class="prompt-box" style="margin-top: 12px;">
+                                <div class="prompt-header">
+                                    <span class="prompt-label">AI Validation Prompt</span>
+                                    <button class="copy-btn" onclick="copyPrompt(this)">Copy</button>
+                                </div>
+                                <div class="prompt-content">Analyze this user query:
+1. Is it an actual REQUEST asking for something specific?
+2. Or is it meta-commentary/explanation like an assistant would write?
+3. Does it follow 70/30 structure (70% scenario, 30% constraints)?
+4. Are constraints naturally integrated or stacked at the end?
+
+User query:
+```
+<span class="placeholder">//PASTE FINAL USER QUERY</span>
+```</div>
+                            </div>
+
+                            <div class="tip" style="margin-top: 12px;">
+                                <div class="tip-title">How to Fix Bad User Queries</div>
+                                <p style="font-size: 11px; margin-top: 8px;">
+                                    1. Look at the <strong>scenario in metadata</strong> - it's your template!<br>
+                                    2. Write 70% explaining the situation naturally<br>
+                                    3. Integrate the 30% constraints into the narrative<br>
+                                    4. End with a clear request asking for something
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- PHASE 3: HUMAN REVIEW -->
+            <section class="section" id="phase-human">
+                <div class="phase-header">
+                    <div class="phase-icon human">👁️</div>
+                    <div class="phase-meta">
+                        <div class="help-wrapper">
+                            <h2 style="margin:0;padding:0;border:none;">Phase 3: Human Review</h2>
+                            <span class="help-bubble" onclick="toggleHelp(this)">?</span>
+                            <div class="help-popup">
+                                <div class="help-popup-header">
+                                    <span class="help-popup-title">About Human Review</span>
+                                    <button class="help-popup-close" onclick="closeHelp(this)">×</button>
+                                </div>
+                                <div class="help-popup-content">
+                                    <p>These checks require your human judgment to catch issues AI might miss.</p>
+                                    <p>Read the entire conversation carefully. Look for anything that feels "off" or unnatural.</p>
+                                    <p>Trust your instincts - if something seems wrong, it probably is.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <p>Manual verification for quality and authenticity</p>
+                    </div>
+                </div>
+
+                <div class="alert alert-warning">
+                    <strong>Read Entire Conversation</strong>
+                    Look for: LLM references, unnatural language, restricted topics, hallucinations.
+                </div>
+
+                <!-- Check 3.1 -->
+                <div class="check-card" id="check-3-1">
+                    <div class="check-header" onclick="toggleCheck('check-3-1')">
+                        <span class="check-number">3.1</span>
+                        <span class="check-title">System Instructions Quality</span>
+                        <div class="check-status">
+                            <button class="status-btn pass" onclick="event.stopPropagation(); setCheckStatus('check-3-1', 'pass')">PASS</button>
+                            <button class="status-btn fail" onclick="event.stopPropagation(); setCheckStatus('check-3-1', 'fail')">FAIL</button>
+                        </div>
+                        <span class="check-chevron">▼</span>
+                    </div>
+                    <div class="check-content">
+                        <div class="check-inner">
+                            <ul class="checklist">
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">Well-written and clear</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">No copy-paste errors</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">Makes sense for scenario</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Check 3.2 -->
+                <div class="check-card" id="check-3-2">
+                    <div class="check-header" onclick="toggleCheck('check-3-2')">
+                        <span class="check-number">3.2</span>
+                        <span class="check-title">turn_metadata Validation</span>
+                        <div class="check-status">
+                            <button class="status-btn pass" onclick="event.stopPropagation(); setCheckStatus('check-3-2', 'pass')">PASS</button>
+                            <button class="status-btn fail" onclick="event.stopPropagation(); setCheckStatus('check-3-2', 'fail')">FAIL</button>
+                        </div>
+                        <span class="check-chevron">▼</span>
+                    </div>
+                    <div class="check-content">
+                        <div class="check-inner">
+                            <div class="alert alert-danger" style="margin-top: 0;">
+                                <strong>MINIMUM REQUIREMENTS (Dec 2025)</strong>
+                                <div style="margin-top: 12px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; font-size: 13px;">
+                                    <div style="background: rgba(0,0,0,0.2); padding: 12px; border-radius: 6px; text-align: center;">
+                                        <div style="font-size: 24px; font-weight: 600; color: var(--accent);">4+</div>
+                                        <div style="color: var(--text-muted);">IF Instructions</div>
+                                    </div>
+                                    <div style="background: rgba(0,0,0,0.2); padding: 12px; border-radius: 6px; text-align: center;">
+                                        <div style="font-size: 24px; font-weight: 600; color: var(--warning);">1+</div>
+                                        <div style="color: var(--text-muted);">LLM Eval</div>
+                                    </div>
+                                    <div style="background: rgba(0,0,0,0.2); padding: 12px; border-radius: 6px; text-align: center;">
+                                        <div style="font-size: 24px; font-weight: 600; color: var(--success);">1+</div>
+                                        <div style="color: var(--text-muted);">llm_judge</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="help-wrapper" style="margin-top: 12px;">
+                                <p>Verify JSON structure and constraint count.</p>
+                                <span class="help-bubble" onclick="toggleHelp(this)">?</span>
+                                <div class="help-popup">
+                                    <div class="help-popup-header">
+                                        <span class="help-popup-title">Constraint Requirements</span>
+                                        <button class="help-popup-close" onclick="closeHelp(this)">×</button>
+                                    </div>
+                                    <div class="help-popup-content">
+                                        <p>Required: <strong>6 to 15 constraints total</strong></p>
+                                        <p>• At least 4 IF (Instruction Following) constraints</p>
+                                        <p>• At least 1 LLM Eval constraint (stylistic, linguistic, situation)</p>
+                                        <p>• At least 1 llm_judge constraint (subjective evaluation)</p>
+                                        <p><strong>20% LIMIT:</strong> Word count constraints (number_words, unique_words, number_characters, word_repetition, vowel_count, consonant_count, capital/lower_word_frequency) should appear in max 1 of 5 tasks.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <ul class="checklist">
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">JSON is valid and well-formatted</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">Minimum 4 IF instructions present</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">Minimum 1 LLM Eval (stylistic/linguistic/situation)</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">Minimum 1 llm_judge instruction</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">Word count constraints used in ≤20% of tasks</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Check 3.3 - validator_human -->
+                <div class="check-card" id="check-3-3">
+                    <div class="check-header" onclick="toggleCheck('check-3-3')">
+                        <span class="check-number">3.3</span>
+                        <span class="check-title">validator_human Review</span>
+                        <div class="check-status">
+                            <button class="status-btn pass" onclick="event.stopPropagation(); setCheckStatus('check-3-3', 'pass')">PASS</button>
+                            <button class="status-btn fail" onclick="event.stopPropagation(); setCheckStatus('check-3-3', 'fail')">FAIL</button>
+                        </div>
+                        <span class="check-chevron">▼</span>
+                    </div>
+                    <div class="check-content">
+                        <div class="check-inner">
+                            <div class="alert alert-danger" style="margin-top: 0;">
+                                <strong>CRITICAL: validator_human Must Be Manually Written</strong>
+                                <p style="margin-top: 8px; font-size: 12px;">This is NOT auto-generated. The trainer must write it themselves for subjective evaluations.</p>
+                            </div>
+
+                            <div class="help-wrapper" style="margin-top: 12px;">
+                                <p>Verify validator_human contains proper human evaluations for each response.</p>
+                                <span class="help-bubble" onclick="toggleHelp(this)">?</span>
+                                <div class="help-popup">
+                                    <div class="help-popup-header">
+                                        <span class="help-popup-title">validator_human Purpose</span>
+                                        <button class="help-popup-close" onclick="closeHelp(this)">×</button>
+                                    </div>
+                                    <div class="help-popup-content">
+                                        <p><strong>validator_human</strong> evaluates constraints that CANNOT be checked by code:</p>
+                                        <p>• stylistic:* (tone, voice, literary style)</p>
+                                        <p>• linguistic:* (pragmatics, speech acts, mood)</p>
+                                        <p>• situation:* (role, audience, context)</p>
+                                        <p>• llm_judge_* (subjective evaluations)</p>
+                                        <p>The trainer must read each response and make a human judgment.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <h4 style="margin-top: 16px;">Required for Each Response:</h4>
+                            <ul class="checklist">
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">Contains ONLY: stylistic:*, linguistic:*, situation:*, llm_judge_*</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">NO IF instructions present (those belong in validator_assistant)</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">llm_judge_* renamed to human_judge_* in validator_human</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">Each entry has: id, status (Passed/Failed), message (justification)</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">Message explains WHY the verdict was given (not copy-paste from validator_assistant)</span>
+                                </li>
+                            </ul>
+
+                            <div class="tip" style="margin-top: 12px;">
+                                <div class="tip-title">JSON Format Example</div>
+                                <pre style="font-size: 11px; margin-top: 8px; overflow-x: auto;"><code>[
+  {
+    "id": "stylistic:tone_formality",
+    "status": "Passed",
+    "message": "Response maintains formal tone throughout with professional vocabulary"
+  },
+  {
+    "id": "human_judge_1",
+    "status": "Failed",
+    "message": "The argument lacks persuasive elements; claims are not well-supported"
+  }
+]</code></pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Check 3.4 -->
+                <div class="check-card" id="check-3-4">
+                    <div class="check-header" onclick="toggleCheck('check-3-4')">
+                        <span class="check-number">3.4</span>
+                        <span class="check-title">Deep Review (DeepSeek)</span>
+                        <div class="check-status">
+                            <button class="status-btn pass" onclick="event.stopPropagation(); setCheckStatus('check-3-4', 'pass')">PASS</button>
+                            <button class="status-btn fail" onclick="event.stopPropagation(); setCheckStatus('check-3-4', 'fail')">FAIL</button>
+                        </div>
+                        <span class="check-chevron">▼</span>
+                    </div>
+                    <div class="check-content">
+                        <div class="check-inner">
+                            <div class="help-wrapper">
+                                <p>Use DeepSeek DeepThink mode for thorough analysis.</p>
+                                <span class="help-bubble" onclick="toggleHelp(this)">?</span>
+                                <div class="help-popup">
+                                    <div class="help-popup-header">
+                                        <span class="help-popup-title">DeepSeek DeepThink</span>
+                                        <button class="help-popup-close" onclick="closeHelp(this)">×</button>
+                                    </div>
+                                    <div class="help-popup-content">
+                                        <p>DeepThink mode provides deeper analysis, checking if:</p>
+                                        <p>• Answers match user prompts</p>
+                                        <p>• System instructions are followed</p>
+                                        <p>• Thinking process is logical</p>
+                                        <p>• No hallucinations present</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="prompt-box">
+                                <div class="prompt-header">
+                                    <span class="prompt-label">DeepSeek Prompt</span>
+                                    <button class="copy-btn" onclick="copyPrompt(this)">Copy</button>
+                                </div>
+                                <div class="prompt-content">Check: 1) if answer addresses prompt 2) follows system instructions 3) any unexpected conditions 4) hallucinations 5) thinking process is logical 6) answer is subset of thinking.
+
+System Instructions:
+```
+<span class="placeholder">//PASTE SYSTEM INSTRUCTIONS</span>
+```
+
+Then add each turn:
+User prompt1: [paste]
+Answer1: [paste]
+Thinking Process1: [paste]</div>
+                            </div>
+
+                            <ul class="checklist">
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">Answers address prompts correctly</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">No hallucinations detected</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">Thinking process is logical</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Check 3.5 -->
+                <div class="check-card" id="check-3-5">
+                    <div class="check-header" onclick="toggleCheck('check-3-5')">
+                        <span class="check-number">3.5</span>
+                        <span class="check-title">Red Flags & Style Check</span>
+                        <div class="check-status">
+                            <button class="status-btn pass" onclick="event.stopPropagation(); setCheckStatus('check-3-5', 'pass')">PASS</button>
+                            <button class="status-btn fail" onclick="event.stopPropagation(); setCheckStatus('check-3-5', 'fail')">FAIL</button>
+                        </div>
+                        <span class="check-chevron">▼</span>
+                    </div>
+                    <div class="check-content">
+                        <div class="check-inner">
+                            <div class="alert alert-danger">
+                                <strong>Immediate Rejection Triggers</strong>
+                                Any of these = reject or request revision
+                            </div>
+
+                            <h4 style="margin-top: 16px;">Content Red Flags</h4>
+                            <ul class="checklist">
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">No LLM self-references ("As an AI...")</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">No unnatural/robotic language</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">No restricted topics</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">No factual errors or hallucinations</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">No preamble/closing statements about following instructions</span>
+                                </li>
+                            </ul>
+
+                            <h4 style="margin-top: 16px;">Grammar & Style (Dec 2025)</h4>
+                            <ul class="checklist">
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">Thinking uses 1st person ("I will...", "I can...")</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">Gender-neutral references (they/them/"the user")</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">American English spelling</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">Use "USD" not "$" for dollar currency</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">No emojis in responses</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">Offensive language masked (f**** not f*ing)</span>
+                                </li>
+                            </ul>
+
+                            <h4 style="margin-top: 16px;">Realisticness</h4>
+                            <ul class="checklist">
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">No boilerplate names (John/Jane Doe, Test User)</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">Names from name-generator.org.uk</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">No sequential strings (id:xyz-123, phone:1234-5678)</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">Avoid generic domains (example.com, company.com)</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Check 3.6 -->
+                <div class="check-card" id="check-3-6">
+                    <div class="check-header" onclick="toggleCheck('check-3-6')">
+                        <span class="check-number">3.6</span>
+                        <span class="check-title">Overall Quality</span>
+                        <div class="check-status">
+                            <button class="status-btn pass" onclick="event.stopPropagation(); setCheckStatus('check-3-6', 'pass')">PASS</button>
+                            <button class="status-btn fail" onclick="event.stopPropagation(); setCheckStatus('check-3-6', 'fail')">FAIL</button>
+                        </div>
+                        <span class="check-chevron">▼</span>
+                    </div>
+                    <div class="check-content">
+                        <div class="check-inner">
+                            <ul class="checklist">
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">Task is challenging but achievable</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">Scenario is realistic</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">Would pass external review</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">Used Grammarly or similar tool before submission</span>
+                                </li>
+                            </ul>
+
+                            <div class="alert alert-info" style="margin-top: 16px;">
+                                <strong>LLM Use Reminder</strong>
+                                <p style="margin-top: 8px; font-size: 12px;">Can use LLMs for help but don't trust blindly. Always check manually before submitting.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Check 3.7 - Language & Content Consistency -->
+                <div class="check-card" id="check-3-7">
+                    <div class="check-header" onclick="toggleCheck('check-3-7')">
+                        <span class="check-number">3.7</span>
+                        <span class="check-title">Language & Content Consistency</span>
+                        <div class="check-status">
+                            <button class="status-btn pass" onclick="event.stopPropagation(); setCheckStatus('check-3-7', 'pass')">PASS</button>
+                            <button class="status-btn fail" onclick="event.stopPropagation(); setCheckStatus('check-3-7', 'fail')">FAIL</button>
+                        </div>
+                        <span class="check-chevron">▼</span>
+                    </div>
+                    <div class="check-content">
+                        <div class="check-inner">
+                            <div class="alert alert-danger" style="margin-top: 0;">
+                                <strong>CRITICAL: Common Issues Found in Reviews</strong>
+                                <p style="margin-top: 8px; font-size: 12px;">These issues are frequently missed and cause task rejection.</p>
+                            </div>
+
+                            <h4 style="margin-top: 16px;">Language Settings</h4>
+                            <ul class="checklist">
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">turn_metadata.language = "it" (NOT "en" for Italian tasks)</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">llm_judge written in ITALIAN (not English)</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">llm_judge NOT redundant with LLM Eval validators</span>
+                                </li>
+                            </ul>
+
+                            <h4 style="margin-top: 16px;">Constraint Explicitness</h4>
+                            <div class="help-wrapper">
+                                <p style="font-size: 12px; color: var(--text-secondary);">ALL constraints in turn_metadata must be EXPLICITLY requested in the user query.</p>
+                                <span class="help-bubble" onclick="toggleHelp(this)">?</span>
+                                <div class="help-popup">
+                                    <div class="help-popup-header">
+                                        <span class="help-popup-title">Hidden Constraints</span>
+                                        <button class="help-popup-close" onclick="closeHelp(this)">×</button>
+                                    </div>
+                                    <div class="help-popup-content">
+                                        <p><strong>BAD:</strong> keywords:existence "schema" exists in context but query doesn't ask to USE the word</p>
+                                        <p><strong>GOOD:</strong> Query explicitly says "use the word 'schema' in your response"</p>
+                                        <p><strong>BAD:</strong> detectable_format:title with &lt;&lt;&gt;&gt; but query doesn't request this format</p>
+                                        <p><strong>GOOD:</strong> Query explicitly says "format titles with &lt;&lt;Title&gt;&gt;"</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <ul class="checklist">
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">keywords:existence → query explicitly asks to USE the word</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">detectable_format:title → query explicitly requests &lt;&lt;&gt;&gt; format</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">No "hidden" constraints (all must appear in query text)</span>
+                                </li>
+                            </ul>
+
+                            <h4 style="margin-top: 16px;">Content Consistency</h4>
+                            <ul class="checklist">
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">Thinking cells reflect ACTUAL query topic (no copy-paste from other tasks)</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">Golden response topic matches user query topic</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">User query is complete (not truncated mid-word)</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">validator_human matches turn_metadata (no copy-paste errors)</span>
+                                </li>
+                            </ul>
+
+                            <div class="tip" style="margin-top: 12px;">
+                                <div class="tip-title">Quick Check</div>
+                                <p style="font-size: 12px; margin-top: 8px;">Read the user query, then check if turn_metadata constraints are ALL mentioned. If any constraint is "hidden" in metadata but not in query = FAIL.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Right Panel - Decision Summary -->
+        <aside class="decision-panel">
+            <!-- Tab Navigation -->
+            <div class="panel-tabs">
+                <button class="panel-tab active" onclick="switchPanelTab('review')">Review Summary</button>
+                <button class="panel-tab" onclick="switchPanelTab('validator')">AI Validator</button>
+                <button class="panel-tab" onclick="switchPanelTab('autoReview')">Auto Review</button>
+            </div>
+
+            <!-- Tab 1: Review Summary -->
+            <div class="panel-tab-content active" id="tab-review">
+                <div class="decision-panel-header">
+                    <div class="decision-panel-title">Review Summary</div>
+                    <div class="decision-panel-subtitle">Track decisions & add notes</div>
+                </div>
+                <div class="decision-panel-body">
+                <div class="decision-section">
+                    <div class="decision-section-title">Phase 1: Pre-Checks</div>
+                    <div class="decision-item" id="decision-1-1">
+                        <div class="decision-item-header">
+                            <span class="decision-item-name">1.1 Cell Names</span>
+                            <span class="decision-item-status pending" id="status-1-1">Pending</span>
+                        </div>
+                        <textarea class="decision-item-notes" placeholder="Notes..." id="notes-1-1"></textarea>
+                        <div class="decision-item-actions">
+                            <button class="decision-item-copy" onclick="copyItemNotes('1-1', '1.1 Cell Names')">Copy</button>
+                        </div>
+                    </div>
+                    <div class="decision-item" id="decision-1-2">
+                        <div class="decision-item-header">
+                            <span class="decision-item-name">1.2 Golden 100%</span>
+                            <span class="decision-item-status pending" id="status-1-2">Pending</span>
+                        </div>
+                        <textarea class="decision-item-notes" placeholder="Notes..." id="notes-1-2"></textarea>
+                        <div class="decision-item-actions">
+                            <button class="decision-item-copy" onclick="copyItemNotes('1-2', '1.2 Golden 100%')">Copy</button>
+                        </div>
+                    </div>
+                    <div class="decision-item" id="decision-1-3">
+                        <div class="decision-item-header">
+                            <span class="decision-item-name">1.3 Challenge Level</span>
+                            <span class="decision-item-status pending" id="status-1-3">Pending</span>
+                        </div>
+                        <textarea class="decision-item-notes" placeholder="Notes..." id="notes-1-3"></textarea>
+                        <div class="decision-item-actions">
+                            <button class="decision-item-copy" onclick="copyItemNotes('1-3', '1.3 Challenge Level')">Copy</button>
+                        </div>
+                    </div>
+                    <div class="decision-item" id="decision-1-4">
+                        <div class="decision-item-header">
+                            <span class="decision-item-name">1.4 Model Evasion</span>
+                            <span class="decision-item-status pending" id="status-1-4">Pending</span>
+                        </div>
+                        <textarea class="decision-item-notes" placeholder="Notes..." id="notes-1-4"></textarea>
+                        <div class="decision-item-actions">
+                            <button class="decision-item-copy" onclick="copyItemNotes('1-4', '1.4 Model Evasion')">Copy</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="decision-section">
+                    <div class="decision-section-title">Phase 2: LLM Review</div>
+                    <div class="decision-item" id="decision-2-1">
+                        <div class="decision-item-header">
+                            <span class="decision-item-name">2.1 System Instr.</span>
+                            <span class="decision-item-status pending" id="status-2-1">Pending</span>
+                        </div>
+                        <textarea class="decision-item-notes" placeholder="Notes..." id="notes-2-1"></textarea>
+                        <div class="decision-item-actions">
+                            <button class="decision-item-copy" onclick="copyItemNotes('2-1', '2.1 System Instr.')">Copy</button>
+                        </div>
+                    </div>
+                    <div class="decision-item" id="decision-2-2">
+                        <div class="decision-item-header">
+                            <span class="decision-item-name">2.2 Token Length</span>
+                            <span class="decision-item-status pending" id="status-2-2">Pending</span>
+                        </div>
+                        <textarea class="decision-item-notes" placeholder="Notes..." id="notes-2-2"></textarea>
+                        <div class="decision-item-actions">
+                            <button class="decision-item-copy" onclick="copyItemNotes('2-2', '2.2 Token Length')">Copy</button>
+                        </div>
+                    </div>
+                    <div class="decision-item" id="decision-2-3">
+                        <div class="decision-item-header">
+                            <span class="decision-item-name">2.3 Query↔Meta</span>
+                            <span class="decision-item-status pending" id="status-2-3">Pending</span>
+                        </div>
+                        <textarea class="decision-item-notes" placeholder="Notes..." id="notes-2-3"></textarea>
+                        <div class="decision-item-actions">
+                            <button class="decision-item-copy" onclick="copyItemNotes('2-3', '2.3 Query↔Meta')">Copy</button>
+                        </div>
+                    </div>
+                    <div class="decision-item" id="decision-2-4">
+                        <div class="decision-item-header">
+                            <span class="decision-item-name">2.4 Conv. Quality</span>
+                            <span class="decision-item-status pending" id="status-2-4">Pending</span>
+                        </div>
+                        <textarea class="decision-item-notes" placeholder="Notes..." id="notes-2-4"></textarea>
+                        <div class="decision-item-actions">
+                            <button class="decision-item-copy" onclick="copyItemNotes('2-4', '2.4 Conv. Quality')">Copy</button>
+                        </div>
+                    </div>
+                    <div class="decision-item" id="decision-2-5">
+                        <div class="decision-item-header">
+                            <span class="decision-item-name">2.5 Query Structure</span>
+                            <span class="decision-item-status pending" id="status-2-5">Pending</span>
+                        </div>
+                        <textarea class="decision-item-notes" placeholder="Notes..." id="notes-2-5"></textarea>
+                        <div class="decision-item-actions">
+                            <button class="decision-item-copy" onclick="copyItemNotes('2-5', '2.5 Query Structure')">Copy</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="decision-section">
+                    <div class="decision-section-title">Phase 3: Human Review</div>
+                    <div class="decision-item" id="decision-3-1">
+                        <div class="decision-item-header">
+                            <span class="decision-item-name">3.1 Sys. Quality</span>
+                            <span class="decision-item-status pending" id="status-3-1">Pending</span>
+                        </div>
+                        <textarea class="decision-item-notes" placeholder="Notes..." id="notes-3-1"></textarea>
+                        <div class="decision-item-actions">
+                            <button class="decision-item-copy" onclick="copyItemNotes('3-1', '3.1 Sys. Quality')">Copy</button>
+                        </div>
+                    </div>
+                    <div class="decision-item" id="decision-3-2">
+                        <div class="decision-item-header">
+                            <span class="decision-item-name">3.2 Metadata</span>
+                            <span class="decision-item-status pending" id="status-3-2">Pending</span>
+                        </div>
+                        <textarea class="decision-item-notes" placeholder="Notes..." id="notes-3-2"></textarea>
+                        <div class="decision-item-actions">
+                            <button class="decision-item-copy" onclick="copyItemNotes('3-2', '3.2 Metadata')">Copy</button>
+                        </div>
+                    </div>
+                    <div class="decision-item" id="decision-3-3">
+                        <div class="decision-item-header">
+                            <span class="decision-item-name">3.3 validator_human</span>
+                            <span class="decision-item-status pending" id="status-3-3">Pending</span>
+                        </div>
+                        <textarea class="decision-item-notes" placeholder="Notes..." id="notes-3-3"></textarea>
+                        <div class="decision-item-actions">
+                            <button class="decision-item-copy" onclick="copyItemNotes('3-3', '3.3 validator_human')">Copy</button>
+                        </div>
+                    </div>
+                    <div class="decision-item" id="decision-3-4">
+                        <div class="decision-item-header">
+                            <span class="decision-item-name">3.4 Deep Review</span>
+                            <span class="decision-item-status pending" id="status-3-4">Pending</span>
+                        </div>
+                        <textarea class="decision-item-notes" placeholder="Notes..." id="notes-3-4"></textarea>
+                        <div class="decision-item-actions">
+                            <button class="decision-item-copy" onclick="copyItemNotes('3-4', '3.4 Deep Review')">Copy</button>
+                        </div>
+                    </div>
+                    <div class="decision-item" id="decision-3-5">
+                        <div class="decision-item-header">
+                            <span class="decision-item-name">3.5 Red Flags</span>
+                            <span class="decision-item-status pending" id="status-3-5">Pending</span>
+                        </div>
+                        <textarea class="decision-item-notes" placeholder="Notes..." id="notes-3-5"></textarea>
+                        <div class="decision-item-actions">
+                            <button class="decision-item-copy" onclick="copyItemNotes('3-5', '3.5 Red Flags')">Copy</button>
+                        </div>
+                    </div>
+                    <div class="decision-item" id="decision-3-6">
+                        <div class="decision-item-header">
+                            <span class="decision-item-name">3.6 Overall</span>
+                            <span class="decision-item-status pending" id="status-3-6">Pending</span>
+                        </div>
+                        <textarea class="decision-item-notes" placeholder="Notes..." id="notes-3-6"></textarea>
+                        <div class="decision-item-actions">
+                            <button class="decision-item-copy" onclick="copyItemNotes('3-6', '3.6 Overall')">Copy</button>
+                        </div>
+                    </div>
+                    <div class="decision-item" id="decision-3-7">
+                        <div class="decision-item-header">
+                            <span class="decision-item-name">3.7 Lang/Content</span>
+                            <span class="decision-item-status pending" id="status-3-7">Pending</span>
+                        </div>
+                        <textarea class="decision-item-notes" placeholder="Notes..." id="notes-3-7"></textarea>
+                        <div class="decision-item-actions">
+                            <button class="decision-item-copy" onclick="copyItemNotes('3-7', '3.7 Lang/Content')">Copy</button>
+                        </div>
+                    </div>
+                </div>
+
+                <button class="copy-all-btn" onclick="copyAllNotes()">📋 Copy All Notes for Request Changes</button>
+                </div>
+            </div>
+
+            <!-- Tab 2: AI Validator -->
+            <div class="panel-tab-content" id="tab-validator">
+                <div class="decision-panel-header">
+                    <div class="decision-panel-title">AI Validator</div>
+                    <div class="decision-panel-subtitle">Paste task content to validate with AI</div>
+                </div>
+                <div class="validator-panel-body">
+                    <!-- Number of Turns Selector -->
+                    <div class="validator-section">
+                        <label class="validator-label">Number of Turns</label>
+                        <select id="validator-turns" class="validator-select" onchange="updateValidatorTurns()">
+                            <option value="2">2 turns</option>
+                            <option value="3">3 turns</option>
+                            <option value="4">4 turns</option>
+                            <option value="5">5 turns</option>
+                            <option value="6" selected>6 turns</option>
+                        </select>
+                    </div>
+
+                    <!-- System Prompt -->
+                    <div class="validator-section">
+                        <label class="validator-label">System Prompt</label>
+                        <textarea class="validator-input" id="val-system" placeholder="Paste the system prompt here..."></textarea>
+                    </div>
+
+                    <!-- Intermediate Turns Container -->
+                    <div id="validator-turns-container">
+                        <!-- Turn 1 -->
+                        <div class="validator-section validator-turn">
+                            <div class="validator-turn-header">Turn 1 (Intermediate)</div>
+                            <label class="validator-sublabel">User</label>
+                            <textarea class="validator-input small" id="val-turn1-user" placeholder="User message..."></textarea>
+                            <label class="validator-sublabel">Assistant</label>
+                            <textarea class="validator-input small" id="val-turn1-assistant" placeholder="Assistant response..."></textarea>
+                        </div>
+                        <!-- Turn 2 -->
+                        <div class="validator-section validator-turn">
+                            <div class="validator-turn-header">Turn 2 (Intermediate)</div>
+                            <label class="validator-sublabel">User</label>
+                            <textarea class="validator-input small" id="val-turn2-user" placeholder="User message..."></textarea>
+                            <label class="validator-sublabel">Assistant</label>
+                            <textarea class="validator-input small" id="val-turn2-assistant" placeholder="Assistant response..."></textarea>
+                        </div>
+                        <!-- Turn 3 -->
+                        <div class="validator-section validator-turn">
+                            <div class="validator-turn-header">Turn 3 (Intermediate)</div>
+                            <label class="validator-sublabel">User</label>
+                            <textarea class="validator-input small" id="val-turn3-user" placeholder="User message..."></textarea>
+                            <label class="validator-sublabel">Assistant</label>
+                            <textarea class="validator-input small" id="val-turn3-assistant" placeholder="Assistant response..."></textarea>
+                        </div>
+                        <!-- Turn 4 -->
+                        <div class="validator-section validator-turn">
+                            <div class="validator-turn-header">Turn 4 (Intermediate)</div>
+                            <label class="validator-sublabel">User</label>
+                            <textarea class="validator-input small" id="val-turn4-user" placeholder="User message..."></textarea>
+                            <label class="validator-sublabel">Assistant</label>
+                            <textarea class="validator-input small" id="val-turn4-assistant" placeholder="Assistant response..."></textarea>
+                        </div>
+                        <!-- Turn 5 -->
+                        <div class="validator-section validator-turn">
+                            <div class="validator-turn-header">Turn 5 (Intermediate)</div>
+                            <label class="validator-sublabel">User</label>
+                            <textarea class="validator-input small" id="val-turn5-user" placeholder="User message..."></textarea>
+                            <label class="validator-sublabel">Assistant</label>
+                            <textarea class="validator-input small" id="val-turn5-assistant" placeholder="Assistant response..."></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Final Turn -->
+                    <div class="validator-section validator-final">
+                        <div class="validator-turn-header final">Final Turn (With Constraints)</div>
+                        <label class="validator-sublabel">User Query (Final)</label>
+                        <textarea class="validator-input" id="val-final-user" placeholder="Final user query with constraints..."></textarea>
+                        <label class="validator-sublabel">turn_metadata (JSON)</label>
+                        <textarea class="validator-input" id="val-turn-metadata" placeholder='{"language": "it", "instructions": [...], "llm_judge": [...]}'></textarea>
+                        <label class="validator-sublabel">Assistant (Golden Response)</label>
+                        <textarea class="validator-input" id="val-final-assistant" placeholder="Golden assistant response..."></textarea>
+                        <label class="validator-sublabel">validator_human (JSON)</label>
+                        <textarea class="validator-input small" id="val-validator-human" placeholder='[{"id": "...", "status": "Passed", "message": "..."}]'></textarea>
+                    </div>
+
+                    <!-- Copy Buttons -->
+                    <div class="validator-actions">
+                        <button class="validator-btn primary" onclick="copyValidatorForAI()">
+                            📋 Copy All for AI Validation
+                        </button>
+                        <button class="validator-btn secondary" onclick="clearValidatorFields()">
+                            🗑️ Clear All
+                        </button>
+                    </div>
+
+                    <div class="validator-tip">
+                        <strong>How to use:</strong> Paste each part of the task above, then click "Copy All for AI Validation". The button will copy a formatted prompt with instructions ready to paste into DeepSeek, ChatGPT, or Claude for validation.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 3: Auto Review -->
+            <div class="panel-tab-content" id="tab-autoReview">
+                <div class="decision-panel-header">
+                    <div class="decision-panel-title">Auto Review</div>
+                    <div class="decision-panel-subtitle">Upload notebook for automated validation</div>
+                </div>
+                <div class="validator-panel-body">
+                    <!-- API Key Section -->
+                    <div class="validator-section">
+                        <label class="validator-label">Gemini API Key</label>
+                        <div style="display: flex; gap: 8px;">
+                            <input type="password" id="auto-api-key" class="validator-input small" placeholder="Enter API key..." style="flex: 1;">
+                            <button class="validator-btn secondary" onclick="saveAutoApiKey()" style="white-space: nowrap;">Save</button>
+                        </div>
+                        <div id="auto-api-status" style="font-size: 0.8rem; margin-top: 5px; color: var(--error-color);">Not configured</div>
+                    </div>
+
+                    <!-- File Upload -->
+                    <div class="validator-section">
+                        <label class="validator-label">Upload Notebook (.ipynb)</label>
+                        <div class="auto-upload-area" id="auto-upload-area" onclick="document.getElementById('auto-file-input').click()">
+                            <div style="font-size: 2rem; margin-bottom: 10px;">📁</div>
+                            <div>Click or drag notebook file here</div>
+                            <input type="file" id="auto-file-input" accept=".ipynb" style="display: none;" onchange="handleAutoFileSelect(event)">
+                        </div>
+                        <div id="auto-file-info" style="display: none; margin-top: 10px; padding: 10px; background: var(--bg-card); border-radius: 6px;">
+                            <span id="auto-file-name" style="color: var(--primary-color);"></span>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="validator-actions">
+                        <button class="validator-btn primary" id="auto-run-basic" onclick="runAutoBasicValidation()" disabled>
+                            Run Basic Validation
+                        </button>
+                        <button class="validator-btn secondary" id="auto-run-full" onclick="runAutoFullValidation()" disabled>
+                            Run Full AI Analysis
+                        </button>
+                    </div>
+
+                    <!-- Progress -->
+                    <div id="auto-progress" style="display: none; margin-top: 15px;">
+                        <div style="height: 6px; background: var(--bg-card); border-radius: 3px; overflow: hidden;">
+                            <div id="auto-progress-bar" style="height: 100%; background: var(--primary-color); width: 0%; transition: width 0.3s;"></div>
+                        </div>
+                        <div id="auto-progress-text" style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 5px;">Initializing...</div>
+                    </div>
+
+                    <!-- Results -->
+                    <div id="auto-results" style="display: none; margin-top: 15px;">
+                        <div id="auto-results-content"></div>
+                        <button class="validator-btn secondary" onclick="copyAutoResults()" style="margin-top: 10px; width: 100%;">
+                            Copy Results
+                        </button>
+                    </div>
+
+                    <div class="validator-tip" style="margin-top: 15px;">
+                        <strong>Tip:</strong> Basic validation runs deterministic checks (no API needed). Full AI analysis uses Gemini API for comprehensive review including 70/30 structure, evasion detection, and llm_judge integration checks.
+                    </div>
+
+                    <div style="margin-top: 10px; text-align: center;">
+                        <a href="../automated_review/index.html" target="_blank" style="color: var(--primary-color); font-size: 0.85rem;">
+                            Open Full Validator Interface →
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <script src="../js/main.js"></script>
+    <!-- Auto Review Scripts -->
+    <script src="../automated_review/config.js"></script>
+    <script src="../automated_review/js/notebook_parser.js"></script>
+    <script src="../automated_review/js/validators.js"></script>
+    <script src="../automated_review/js/api_handler.js"></script>
+    <script src="../automated_review/js/report_generator.js"></script>
+    <script>
+        // Panel Tab Switching
+        function switchPanelTab(tabName) {
+            // Update tab buttons
+            document.querySelectorAll('.panel-tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelector(`.panel-tab[onclick*="${tabName}"]`).classList.add('active');
+
+            // Update tab content
+            document.querySelectorAll('.panel-tab-content').forEach(content => content.classList.remove('active'));
+            document.getElementById(`tab-${tabName}`).classList.add('active');
+        }
+
+        // Update visible turns based on selection
+        function updateValidatorTurns() {
+            const numTurns = parseInt(document.getElementById('validator-turns').value);
+            const turns = document.querySelectorAll('.validator-turn');
+            turns.forEach((turn, index) => {
+                // Show turns 1 to (numTurns - 1) since last turn is the final turn
+                turn.style.display = index < (numTurns - 1) ? 'block' : 'none';
+            });
+        }
+
+        // Copy formatted content for AI validation
+        function copyValidatorForAI() {
+            const numTurns = parseInt(document.getElementById('validator-turns').value);
+            const system = document.getElementById('val-system').value.trim();
+            const finalUser = document.getElementById('val-final-user').value.trim();
+            const turnMetadata = document.getElementById('val-turn-metadata').value.trim();
+            const finalAssistant = document.getElementById('val-final-assistant').value.trim();
+            const validatorHuman = document.getElementById('val-validator-human').value.trim();
+
+            // Build intermediate turns
+            let turnsText = '';
+            for (let i = 1; i < numTurns; i++) {
+                const userEl = document.getElementById(`val-turn${i}-user`);
+                const assistantEl = document.getElementById(`val-turn${i}-assistant`);
+                if (userEl && assistantEl) {
+                    const user = userEl.value.trim();
+                    const assistant = assistantEl.value.trim();
+                    if (user || assistant) {
+                        turnsText += `\n=== TURN ${i} (Intermediate) ===\n`;
+                        turnsText += `[User]\n${user || '(empty)'}\n\n`;
+                        turnsText += `[Assistant]\n${assistant || '(empty)'}\n`;
+                    }
+                }
+            }
+
+            // Build the comprehensive prompt based on our review experience
+            const prompt = `You are a CFBench task reviewer. Analyze this task thoroughly and validate if it follows all guidelines correctly.
+
+## CRITICAL VALIDATION POINTS:
+
+### 1. FINAL USER QUERY STRUCTURE (Most Important)
+- **Is it a REAL REQUEST?** The query must ASK for something, not be meta-commentary or assistant-style explanation
+- **RED FLAGS to detect:**
+  - Starts with "Prima di procedere...", "Desidero chiarire...", "Let me explain..." = FAIL (this is assistant language)
+  - Query is just explaining/describing instead of requesting = FAIL
+  - Query is a list of stacked constraints without scenario context = FAIL
+- **70/30 RULE:** Good queries have ~70% scenario/context and ~30% constraints naturally integrated
+- **The scenario in metadata is practically a TEMPLATE for how the query should be written**
+
+### 2. VALUE CONSISTENCY (Must Match Exactly)
+Compare ALL numeric values between the user query text and turn_metadata JSON:
+- If query says "4 paragraphs" but JSON has num_paragraphs: 5 = FAIL
+- If query says "3097 characters" but JSON has num_chars: 2648 = FAIL
+- ALL numbers must match exactly: paragraphs, characters, words, repetition limits, etc.
+
+### 3. llm_judge INTEGRATION
+- The llm_judge content from JSON must appear NATURALLY in the user query
+- It cannot just exist in metadata - user must actually REQUEST what llm_judge evaluates
+- Example: If llm_judge checks "Qual è il riepilogo?", query must ask for a summary
+
+### 4. SYSTEM PROMPT QUALITY
+- Is it well-written, clear, and appropriate?
+- Does it define the role, objective, and processing rules?
+- NO metadata terms ("L1 Taxonomy", "Use Case") should appear
+
+### 5. INTERMEDIATE TURNS
+- Do they flow naturally?
+- Is there context building?
+- (Note: They don't need to be about the same subject as final turn)
+
+### 6. GOLDEN RESPONSE
+- Does it fulfill ALL requirements from turn_metadata?
+- Is it a real response, not meta-commentary about instructions?
+
+### 7. validator_human
+- Are the evaluations reasonable and well-justified?
+- Is it manually written (not auto-generated)?
+
+## TASK CONTENT:
+
+=== SYSTEM PROMPT ===
+${system || '(not provided)'}
+${turnsText}
+=== FINAL TURN ===
+[User Query]
+${finalUser || '(not provided)'}
+
+[turn_metadata JSON]
+${turnMetadata || '(not provided)'}
+
+[Assistant - Golden Response]
+${finalAssistant || '(not provided)'}
+
+[validator_human JSON]
+${validatorHuman || '(not provided)'}
+
+---
+
+## YOUR ANALYSIS:
+
+Please provide:
+
+1. **CRITICAL ISSUES** (things that MUST be fixed):
+   - List each issue with specific quotes from the task
+   - Explain WHY it's wrong
+
+2. **WARNINGS** (things that should be improved):
+   - Less critical but still problematic
+
+3. **VALUE CONSISTENCY CHECK**:
+   - Table comparing query values vs JSON values
+   - Mark any mismatches
+
+4. **VERDICT**:
+   - ✅ READY FOR SUBMISSION
+   - ⚠️ NEEDS MINOR FIXES (list what)
+   - ❌ NEEDS MAJOR REWRITE (explain what's fundamentally wrong)
+
+5. **HOW TO FIX** (if issues found):
+   - Specific, actionable steps to fix each issue
+
+Be thorough and critical. Focus on the most important issues first.`;
+
+            navigator.clipboard.writeText(prompt).then(() => {
+                const btn = document.querySelector('.validator-btn.primary');
+                const originalText = btn.innerHTML;
+                btn.innerHTML = '✅ Copied!';
+                btn.style.background = 'var(--success)';
+                setTimeout(() => {
+                    btn.innerHTML = originalText;
+                    btn.style.background = '';
+                }, 2000);
+            });
+        }
+
+        // Clear all validator fields
+        function clearValidatorFields() {
+            document.querySelectorAll('.validator-input').forEach(input => input.value = '');
+        }
+
+        // Initialize turns visibility
+        document.addEventListener('DOMContentLoaded', updateValidatorTurns);
+
+        // ========== AUTO REVIEW FUNCTIONS ==========
+
+        // Auto Review state
+        let autoParser = null;
+        let autoApiHandler = null;
+        let autoValidators = null;
+        let autoReportGenerator = null;
+        let autoParsedNotebook = null;
+        let autoResultsText = '';
+
+        // Initialize Auto Review
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize parser and handlers if available
+            if (typeof NotebookParser !== 'undefined') {
+                autoParser = new NotebookParser();
+            }
+            if (typeof APIHandler !== 'undefined') {
+                autoApiHandler = new APIHandler();
+            }
+            if (typeof ReportGenerator !== 'undefined') {
+                autoReportGenerator = new ReportGenerator();
+            }
+
+            // Check for API key - priority: CONFIG > localStorage
+            const configKey = typeof CONFIG !== 'undefined' ? CONFIG.GEMINI_API_KEY : null;
+            const savedKey = localStorage.getItem('gemini_api_key');
+
+            if (configKey || savedKey) {
+                if (configKey) {
+                    autoApiHandler?.setApiKey(configKey);
+                } else if (savedKey) {
+                    autoApiHandler?.setApiKey(savedKey);
+                }
+                document.getElementById('auto-api-key').value = '••••••••••';
+                document.getElementById('auto-api-key').placeholder = configKey ? 'Loaded from config.js' : 'Saved in browser';
+                updateAutoApiStatus(true);
+            }
+
+            // Setup drag and drop for upload area
+            const uploadArea = document.getElementById('auto-upload-area');
+            if (uploadArea) {
+                uploadArea.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    uploadArea.style.borderColor = 'var(--primary-color)';
+                    uploadArea.style.background = 'rgba(118, 185, 0, 0.1)';
+                });
+                uploadArea.addEventListener('dragleave', () => {
+                    uploadArea.style.borderColor = '';
+                    uploadArea.style.background = '';
+                });
+                uploadArea.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    uploadArea.style.borderColor = '';
+                    uploadArea.style.background = '';
+                    if (e.dataTransfer.files.length > 0) {
+                        handleAutoFile(e.dataTransfer.files[0]);
+                    }
+                });
+            }
+        });
+
+        // Save API key
+        function saveAutoApiKey() {
+            const keyInput = document.getElementById('auto-api-key');
+            const key = keyInput.value.trim();
+            if (key && !key.startsWith('••')) {
+                localStorage.setItem('gemini_api_key', key);
+                autoApiHandler?.setApiKey(key);
+                keyInput.value = '••••••••••';
+                updateAutoApiStatus(true);
+            }
+        }
+
+        // Update API status
+        function updateAutoApiStatus(connected) {
+            const status = document.getElementById('auto-api-status');
+            if (connected) {
+                status.textContent = 'API configured';
+                status.style.color = 'var(--success-color)';
+            } else {
+                status.textContent = 'Not configured';
+                status.style.color = 'var(--error-color)';
+            }
+        }
+
+        // Handle file selection
+        function handleAutoFileSelect(event) {
+            const file = event.target.files[0];
+            if (file) handleAutoFile(file);
+        }
+
+        // Handle uploaded file
+        async function handleAutoFile(file) {
+            if (!file.name.endsWith('.ipynb')) {
+                alert('Please select a .ipynb file');
+                return;
+            }
+
+            try {
+                autoParsedNotebook = await autoParser.parseFile(file);
+
+                // Show file info
+                document.getElementById('auto-file-info').style.display = 'block';
+                document.getElementById('auto-file-name').textContent = `${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+
+                // Enable buttons
+                document.getElementById('auto-run-basic').disabled = false;
+                document.getElementById('auto-run-full').disabled = false;
+
+                // Hide previous results
+                document.getElementById('auto-results').style.display = 'none';
+
+            } catch (error) {
+                alert('Failed to parse notebook: ' + error.message);
+            }
+        }
+
+        // Run basic validation
+        async function runAutoBasicValidation() {
+            if (!autoParsedNotebook || !autoParser) return;
+
+            showAutoProgress();
+            updateAutoProgress(10, 'Running structure checks...');
+
+            try {
+                autoValidators = new Validators(autoParsedNotebook);
+
+                await sleep(200);
+                updateAutoProgress(40, 'Checking content...');
+
+                await sleep(200);
+                updateAutoProgress(70, 'Validating metadata...');
+
+                const results = autoValidators.runAll();
+
+                await sleep(200);
+                updateAutoProgress(100, 'Complete!');
+
+                await sleep(300);
+                showAutoResults(results, null);
+
+            } catch (error) {
+                hideAutoProgress();
+                alert('Validation failed: ' + error.message);
+            }
+        }
+
+        // Run full AI validation
+        async function runAutoFullValidation() {
+            if (!autoParsedNotebook || !autoParser) return;
+
+            if (!autoApiHandler?.hasApiKey()) {
+                alert('Please configure your Gemini API key first');
+                return;
+            }
+
+            showAutoProgress();
+            updateAutoProgress(5, 'Running deterministic checks...');
+
+            try {
+                autoValidators = new Validators(autoParsedNotebook);
+                const deterministicResults = autoValidators.runAll();
+
+                updateAutoProgress(20, 'Analyzing with AI...');
+                await sleep(500);
+
+                let apiResults = {};
+
+                // Query structure check
+                try {
+                    const queryResult = await autoApiHandler.validateQueryStructure(
+                        autoParsedNotebook.finalTurn?.user?.content || '',
+                        autoParsedNotebook.metadata?.scenario || ''
+                    );
+                    apiResults.query_analysis = queryResult;
+                } catch (e) {
+                    console.warn('Query check failed:', e);
+                }
+
+                updateAutoProgress(50, 'Checking llm_judge integration...');
+                await sleep(500);
+
+                // LLM Judge check
+                try {
+                    const llmJudgeResult = await autoApiHandler.validateLLMJudgeIntegration(
+                        autoParsedNotebook.finalTurn?.user?.content || '',
+                        autoParsedNotebook.finalTurn?.turnMetadata?.llmJudge || []
+                    );
+                    apiResults.llm_judge_integration = llmJudgeResult;
+                } catch (e) {
+                    console.warn('LLM Judge check failed:', e);
+                }
+
+                updateAutoProgress(80, 'Running comprehensive review...');
+                await sleep(500);
+
+                // Comprehensive review
+                try {
+                    const comprehensive = await autoApiHandler.comprehensiveReview(autoParsedNotebook, autoValidators);
+                    apiResults = { ...apiResults, ...comprehensive };
+                } catch (e) {
+                    console.warn('Comprehensive review failed:', e);
+                }
+
+                updateAutoProgress(100, 'Complete!');
+                await sleep(300);
+                showAutoResults(deterministicResults, apiResults);
+
+            } catch (error) {
+                hideAutoProgress();
+                alert('Validation failed: ' + error.message);
+            }
+        }
+
+        // Show/hide progress
+        function showAutoProgress() {
+            document.getElementById('auto-progress').style.display = 'block';
+            document.getElementById('auto-results').style.display = 'none';
+        }
+
+        function hideAutoProgress() {
+            document.getElementById('auto-progress').style.display = 'none';
+        }
+
+        function updateAutoProgress(percent, text) {
+            document.getElementById('auto-progress-bar').style.width = percent + '%';
+            document.getElementById('auto-progress-text').textContent = text;
+        }
+
+        // Show results
+        function showAutoResults(deterministicResults, apiResults) {
+            hideAutoProgress();
+
+            autoReportGenerator.setData(autoParsedNotebook, deterministicResults, apiResults);
+            const summary = autoReportGenerator.getSummary();
+
+            // Build compact results HTML
+            const statusClass = summary.status === 'PASS' ? 'success-color' :
+                               summary.status === 'MINOR_REVISION' ? 'warning-color' : 'error-color';
+
+            let html = `
+                <div style="text-align: center; padding: 15px; background: var(--bg-card); border-radius: 8px; margin-bottom: 15px;">
+                    <div style="font-size: 1.5rem; font-weight: bold; color: var(--${statusClass});">${summary.status}</div>
+                    <div style="color: var(--text-secondary); margin-top: 5px;">
+                        ${summary.passed}/${summary.totalChecks} checks passed
+                    </div>
+                </div>
+            `;
+
+            // List issues
+            const issues = deterministicResults.getAllIssues?.() || [];
+            const apiIssues = apiResults?.critical_issues || [];
+            const allIssues = [...issues.map(i => i.issue), ...apiIssues];
+
+            if (allIssues.length > 0) {
+                html += '<div style="margin-top: 10px;"><strong style="color: var(--error-color);">Issues Found:</strong><ul style="margin: 5px 0; padding-left: 20px;">';
+                allIssues.slice(0, 10).forEach(issue => {
+                    html += `<li style="color: var(--text-secondary); font-size: 0.85rem; margin: 5px 0;">${issue}</li>`;
+                });
+                if (allIssues.length > 10) {
+                    html += `<li style="color: var(--text-secondary); font-size: 0.85rem;">... and ${allIssues.length - 10} more</li>`;
+                }
+                html += '</ul></div>';
+            }
+
+            // Store text report for copying
+            autoResultsText = autoReportGenerator.generateTextReport();
+
+            document.getElementById('auto-results-content').innerHTML = html;
+            document.getElementById('auto-results').style.display = 'block';
+        }
+
+        // Copy results
+        function copyAutoResults() {
+            if (autoResultsText) {
+                navigator.clipboard.writeText(autoResultsText).then(() => {
+                    const btn = document.querySelector('#auto-results button');
+                    btn.textContent = 'Copied!';
+                    setTimeout(() => btn.textContent = 'Copy Results', 2000);
+                });
+            }
+        }
+
+        // Utility sleep function
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+    </script>
+</body>
+</html>

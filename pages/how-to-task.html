@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How to Task</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Caveat:wght@500;600&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #fff;
+            color: #111;
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        /* Hero */
+        .hero {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .hero h1 {
+            font-size: 64px;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+
+        .hero h1 span { color: #2563eb; }
+
+        .hero p {
+            font-size: 20px;
+            color: #666;
+            margin-bottom: 40px;
+        }
+
+        .hero-btns {
+            display: flex;
+            gap: 16px;
+        }
+
+        .btn {
+            padding: 14px 36px;
+            font-size: 15px;
+            font-weight: 600;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+        }
+
+        .btn-dark { background: #111; color: #fff; }
+        .btn-dark:hover { background: #333; }
+        .btn-outline { background: #fff; color: #333; border: 2px solid #ddd; }
+        .btn-outline:hover { border-color: #111; color: #111; }
+        .btn-red { background: #dc2626; color: #fff; }
+        .btn-red:hover { background: #b91c1c; }
+
+        /* No path */
+        .no-path {
+            display: none;
+            height: 100vh;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .no-path.show { display: flex; }
+
+        .no-path h2 { font-size: 28px; margin-bottom: 32px; }
+
+        .no-cards {
+            display: flex;
+            gap: 20px;
+        }
+
+        .no-card {
+            width: 240px;
+            padding: 24px;
+            border: 2px solid #eee;
+            border-radius: 12px;
+            text-decoration: none;
+            text-align: left;
+            transition: all 0.2s;
+        }
+
+        .no-card:hover { border-color: #2563eb; }
+        .no-card h3 { font-size: 16px; color: #111; margin-bottom: 4px; }
+        .no-card p { font-size: 13px; color: #666; }
+
+        .back-link {
+            margin-top: 24px;
+            color: #888;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .back-link:hover { color: #2563eb; }
+
+        /* Diagram container */
+        .diagram {
+            display: none;
+            padding: 60px 80px 120px;
+            position: relative;
+        }
+
+        .diagram.show { display: block; }
+
+        /* Diagram items */
+        .item {
+            position: relative;
+            margin-bottom: 60px;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.4s ease;
+        }
+
+        .item.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .item.left { margin-right: 50%; padding-right: 40px; }
+        .item.right { margin-left: 50%; padding-left: 40px; }
+        .item.center { max-width: 700px; margin-left: auto; margin-right: auto; }
+        .item.wide { max-width: 900px; }
+
+        /* Circle scratch - hand drawn effect */
+        .scratch {
+            position: absolute;
+            pointer-events: none;
+        }
+
+        .scratch svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .scratch path, .scratch ellipse {
+            fill: none;
+            stroke: #111;
+            stroke-width: 2.5;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            stroke-dasharray: 400;
+            stroke-dashoffset: 400;
+        }
+
+        .item.visible .scratch path,
+        .item.visible .scratch ellipse {
+            animation: draw 0.8s ease forwards 0.2s;
+        }
+
+        @keyframes draw {
+            to { stroke-dashoffset: 0; }
+        }
+
+        /* Title items */
+        .item-title {
+            font-size: 32px;
+            font-weight: 700;
+            color: #111;
+            margin-bottom: 12px;
+            display: inline-block;
+            position: relative;
+            padding: 8px 16px;
+        }
+
+        .item-title .scratch {
+            top: -12px;
+            left: -24px;
+            right: -24px;
+            bottom: -12px;
+        }
+
+        .item-text {
+            font-size: 17px;
+            color: #444;
+            max-width: 500px;
+        }
+
+        .item.right .item-text { margin-left: 0; }
+
+        /* Connector lines */
+        .connector {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 2px;
+            background: #ddd;
+            height: 40px;
+            bottom: -50px;
+        }
+
+        .connector.hidden { display: none; }
+
+        /* Arrow */
+        .arrow-down {
+            text-align: center;
+            font-size: 28px;
+            color: #ccc;
+            margin: -20px 0 20px;
+        }
+
+        /* Example boxes */
+        .example-box {
+            background: #fafafa;
+            border: 2px solid #eee;
+            border-radius: 12px;
+            padding: 20px 24px;
+            margin-top: 16px;
+            font-size: 15px;
+            line-height: 1.7;
+        }
+
+        .example-box.bad {
+            border-color: #fecaca;
+            background: #fef2f2;
+        }
+
+        .example-box.good {
+            border-color: #bbf7d0;
+            background: #f0fdf4;
+        }
+
+        .example-label {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .example-label.bad { color: #dc2626; }
+        .example-label.good { color: #16a34a; }
+
+        /* Highlight */
+        .highlight-text {
+            background: linear-gradient(180deg, transparent 60%, #fef08a 60%);
+            padding: 0 4px;
+        }
+
+        /* Handwritten note */
+        .handnote {
+            font-family: 'Caveat', cursive;
+            font-size: 22px;
+            color: #666;
+            transform: rotate(-2deg);
+            margin: 8px 0;
+        }
+
+        /* Requirements inline */
+        .reqs {
+            display: flex;
+            gap: 24px;
+            margin: 20px 0;
+        }
+
+        .req {
+            text-align: center;
+        }
+
+        .req-num {
+            font-size: 36px;
+            font-weight: 700;
+        }
+
+        .req:nth-child(1) .req-num { color: #2563eb; }
+        .req:nth-child(2) .req-num { color: #f59e0b; }
+        .req:nth-child(3) .req-num { color: #9333ea; }
+
+        .req-label {
+            font-size: 12px;
+            color: #666;
+            font-weight: 600;
+        }
+
+        /* Link */
+        .link-inline {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: #2563eb;
+            font-weight: 500;
+            text-decoration: none;
+            margin-top: 12px;
+        }
+
+        .link-inline:hover { text-decoration: underline; }
+
+        /* Link with arrow callout */
+        .link-callout {
+            position: relative;
+            margin: 24px 0;
+        }
+
+        .link-callout-hint {
+            font-family: 'Caveat', cursive;
+            font-size: 20px;
+            color: #666;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .link-callout-arrow {
+            display: inline-block;
+            font-size: 24px;
+            animation: point-arrow 1s ease-in-out infinite;
+            color: #dc2626;
+        }
+
+        @keyframes point-arrow {
+            0%, 100% { transform: translateX(0); }
+            50% { transform: translateX(8px); }
+        }
+
+        .link-callout-box {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 20px;
+            background: #fff;
+            border: 2px solid #111;
+            border-radius: 10px;
+            text-decoration: none;
+            color: #111;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .link-callout-box:hover {
+            background: #111;
+            color: #fff;
+        }
+
+        .link-callout-box span {
+            font-size: 20px;
+        }
+
+        /* Tags */
+        .tags { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
+        .tag {
+            padding: 6px 12px;
+            background: #f3f4f6;
+            border-radius: 6px;
+            font-size: 13px;
+            color: #374151;
+        }
+
+        /* Checklist */
+        .checklist { margin: 16px 0; }
+        .check {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 8px 0;
+        }
+        .check-icon { color: #16a34a; font-size: 18px; }
+        .check span { font-size: 15px; color: #333; }
+
+        /* Continue button */
+        .continue-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 24px;
+            background: #111;
+            color: #fff;
+            font-size: 14px;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: all 0.2s;
+        }
+
+        .continue-btn:hover { background: #333; }
+
+        /* Final */
+        .final-block {
+            text-align: center;
+            padding: 60px;
+            border: 2px solid #eee;
+            border-radius: 16px;
+            margin-top: 40px;
+        }
+
+        .final-block h2 { font-size: 24px; margin-bottom: 8px; }
+        .final-block p { color: #666; margin-bottom: 24px; }
+
+        /* Home */
+        .home-btn {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            width: 44px;
+            height: 44px;
+            background: #fff;
+            border: 2px solid #eee;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            font-size: 18px;
+            z-index: 100;
+        }
+
+        .home-btn:hover { border-color: #2563eb; }
+
+        /* Responsive */
+        @media (max-width: 800px) {
+            .diagram { padding: 40px 24px; }
+            .item.left, .item.right { margin-left: 0; margin-right: 0; padding: 0; }
+            .hero h1 { font-size: 42px; }
+            .reqs { flex-direction: column; gap: 12px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- HERO -->
+<section class="hero" id="hero">
+    <h1>HOW TO <span>TASK</span></h1>
+    <p>Are you struggling with creating tasks?</p>
+    <div class="hero-btns">
+        <button class="btn btn-dark" onclick="startDiagram()">Yes, help me</button>
+        <button class="btn btn-outline" onclick="showNoPath()">No, I'm good</button>
+    </div>
+</section>
+
+<!-- NO PATH -->
+<section class="no-path" id="noPath">
+    <h2>Great! What would you like?</h2>
+    <div class="no-cards">
+        <a href="#" class="no-card" onclick="startDiagram(); return false;">
+            <h3>&#128218; Improve my tasks</h3>
+            <p>Learn best practices</p>
+        </a>
+        <a href="practical.html" class="no-card">
+            <h3>&#128736; Practical Guide</h3>
+            <p>Go to notebook builder</p>
+        </a>
+    </div>
+    <div class="back-link" onclick="showHero()">&#8592; Go back</div>
+</section>
+
+<!-- DIAGRAM -->
+<section class="diagram" id="diagram">
+
+    <!-- Item 1: The Cascade -->
+    <div class="item center" id="item1">
+        <div class="item-title">
+            The Cascade
+            <div class="scratch">
+                <svg viewBox="0 0 100 100" preserveAspectRatio="none">
+                    <ellipse cx="50" cy="50" rx="48" ry="45" />
+                </svg>
+            </div>
+        </div>
+        <p class="item-text">Everything flows together. Each step feeds into the next - that's why human verification matters.</p>
+        <button class="continue-btn" onclick="showNext(2)">Show me &#8594;</button>
+    </div>
+
+    <!-- Item 2: Step 1 -->
+    <div class="item left" id="item2">
+        <p class="handnote">step 1</p>
+        <div class="item-title">
+            turn_metadata
+            <div class="scratch">
+                <svg viewBox="0 0 100 100" preserveAspectRatio="none">
+                    <ellipse cx="50" cy="50" rx="48" ry="45" />
+                </svg>
+            </div>
+        </div>
+        <p class="item-text">Pick your constraints here. These are the rules the model must follow.</p>
+        <div class="reqs">
+            <div class="req"><div class="req-num">4+</div><div class="req-label">IF Instructions</div></div>
+            <div class="req"><div class="req-num">1+</div><div class="req-label">LLM Eval</div></div>
+            <div class="req"><div class="req-num">1+</div><div class="req-label">LLM Judge</div></div>
+        </div>
+        <p class="item-text" style="margin-top: 16px;"><strong>Note:</strong> At least 1 LLM Eval must be in the <span class="highlight-text">system prompt</span>!</p>
+
+        <div class="link-callout">
+            <div class="link-callout-hint">
+                Don't know all the constraints?
+                <span class="link-callout-arrow">&#8594;</span>
+            </div>
+            <a href="https://docs.google.com/spreadsheets/d/1WRa_83_uvk5pBfDdnFTMMiIsDEVMkU2d_r53Oot4Wh8/edit?gid=857577227#gid=857577227" target="_blank" class="link-callout-box">
+                <span>&#128203;</span>
+                CLICK HERE - CONSTRAINT DICTIONARY
+            </a>
+        </div>
+        <button class="continue-btn" onclick="showNext(3)">Next &#8594;</button>
+    </div>
+
+    <div class="arrow-down" id="arrow2">&#8595;</div>
+
+    <!-- Item 3: Step 2 -->
+    <div class="item right" id="item3">
+        <p class="handnote">step 2</p>
+        <div class="item-title">
+            Transform to text
+            <div class="scratch">
+                <svg viewBox="0 0 100 100" preserveAspectRatio="none">
+                    <ellipse cx="50" cy="50" rx="48" ry="45" />
+                </svg>
+            </div>
+        </div>
+        <p class="item-text">Each constraint becomes <span class="highlight-text">natural text</span> in your user query. Give context, build a scenario.</p>
+        <button class="continue-btn" onclick="showNext(4)">See example &#8594;</button>
+    </div>
+
+    <div class="arrow-down" id="arrow3">&#8595;</div>
+
+    <!-- Item 4: IF Instructions (Building the query) -->
+    <div class="item center wide" id="item4">
+        <p class="handnote">building the query - part 1</p>
+        <div class="item-title">
+            IF Instructions
+            <div class="scratch">
+                <svg viewBox="0 0 100 100" preserveAspectRatio="none">
+                    <ellipse cx="50" cy="50" rx="48" ry="45" />
+                </svg>
+            </div>
+        </div>
+        <p class="item-text">Start with your <span class="highlight-text">IF constraints</span> - these are deterministic rules that can be verified by code (word count, forbidden words, format, etc).</p>
+
+        <div class="example-box bad">
+            <div class="example-label bad">&#10060; Too artificial</div>
+            "Write 3 paragraphs in caps with 'cake' and without 'football' or 'goal'."
+        </div>
+
+        <p style="font-size: 14px; color: #666; margin: 16px 0 8px;"><strong>Transform into natural context:</strong></p>
+        <div class="example-box good" id="query-step1">
+            <div class="example-label good">&#10004; Query so far (IF only)</div>
+            "You're a football trainer giving a motivational speech to your team. Use football analogies but <strong>avoid the words 'football' and 'goal'</strong> - it's a metaphor challenge! <strong>Mention 'cake'</strong> as a reward for winning. <strong>Use all caps</strong> because you're yelling motivationally. <strong>Write exactly 3 paragraphs</strong>."
+        </div>
+
+        <p class="handnote" style="margin-top: 16px;">&#8593; 4 IF constraints with natural context!</p>
+        <button class="continue-btn" onclick="showNext(5)">Add LLM Eval &#8594;</button>
+    </div>
+
+    <div class="arrow-down" id="arrow4">&#8595;</div>
+
+    <!-- Item 5: LLM Eval (Query accumulating) -->
+    <div class="item center wide" id="item5">
+        <p class="handnote">building the query - part 2</p>
+        <div class="item-title">
+            LLM Eval
+            <div class="scratch">
+                <svg viewBox="0 0 100 100" preserveAspectRatio="none">
+                    <ellipse cx="50" cy="50" rx="48" ry="45" />
+                </svg>
+            </div>
+        </div>
+        <p class="item-text"><span class="highlight-text">LLM Eval constraints</span> check structured aspects like tone, style, or content quality. Remember: at least 1 must be in system prompt!</p>
+
+        <p style="font-size: 14px; color: #666; margin: 16px 0 8px;"><strong>Look at the query - it's already there!</strong></p>
+        <div class="example-box good" id="query-step2">
+            <div class="example-label good">&#10004; Query so far (IF + LLM Eval)</div>
+            "You're a football trainer <span style="background: #fef08a; padding: 2px 4px; border-radius: 3px;"><strong>giving a motivational speech</strong></span> to your team. Use football analogies but <strong>avoid the words 'football' and 'goal'</strong> - it's a metaphor challenge! <strong>Mention 'cake'</strong> as a reward for winning. <strong>Use all caps</strong> because you're yelling motivationally. <strong>Write exactly 3 paragraphs</strong>."
+        </div>
+
+        <div style="background: #ecfdf5; border: 2px solid #10b981; border-radius: 10px; padding: 16px; margin-top: 16px;">
+            <p style="font-size: 14px; color: #065f46; margin: 0;">
+                <strong>&#128161; See it?</strong> The natural construction of the query already made it explicit that the response must be motivational - it's in "<strong>giving a motivational speech</strong>" highlighted above.<br><br>
+                If it wasn't already there, you'd need to create some context to include it. This applies to <em>any</em> instruction you add - always weave it naturally into the scenario!
+            </p>
+        </div>
+
+        <p class="handnote" style="margin-top: 16px;">&#8593; constraints hide naturally in the scenario!</p>
+        <button class="continue-btn" onclick="showNext(6)">Add LLM Judge &#8594;</button>
+    </div>
+
+    <div class="arrow-down" id="arrow5">&#8595;</div>
+
+    <!-- Item 6: LLM Judge Example -->
+    <div class="item center wide" id="item6">
+        <p class="handnote">building the query - part 3</p>
+        <div class="item-title">
+            LLM Judge
+            <div class="scratch">
+                <svg viewBox="0 0 100 100" preserveAspectRatio="none">
+                    <ellipse cx="50" cy="50" rx="48" ry="45" />
+                </svg>
+            </div>
+        </div>
+        <p class="item-text">Finally, add <span class="highlight-text">LLM Judge requirements</span> - complex semantic checks that need AI to verify (factual accuracy, logical connections, etc).</p>
+
+        <p style="font-size: 14px; color: #666; margin: 16px 0 8px;"><strong>Now add the LLM Judge requirement to the query:</strong></p>
+        <div class="example-box good" id="query-final">
+            <div class="example-label good">&#10004; FINAL QUERY (IF + LLM Eval + LLM Judge)</div>
+            "You're a football trainer <span style="background: #fef08a; padding: 2px 4px; border-radius: 3px;">giving a motivational speech</span> to your team. Use football analogies but <strong>avoid the words 'football' and 'goal'</strong> - it's a metaphor challenge! <strong>Mention 'cake'</strong> as a reward for winning. <strong>Use all caps</strong> because you're yelling motivationally. <strong>Write exactly 3 paragraphs</strong>.<br><br>
+            <span style="color: #9333ea; font-weight: 600;">NEW &#8594;</span> At the end, mention the proverb <strong>'iron sharpens iron'</strong> and explain the <strong>factual physical process</strong> of this analogy - how the friction of two metal blades actually sharpens them - and connect this with the <strong>teamwork</strong> they need to succeed together."
+        </div>
+
+        <p style="font-size: 14px; color: #666; margin: 16px 0 8px;"><strong>Write the llm_judge cell (in English!):</strong></p>
+        <div class="example-box" style="background: #faf5ff; border-color: #d8b4fe;">
+            "The model creates a proper explanation about the proverb 'iron sharpens iron,' explaining the factual physical process of metal friction and connecting it with teamwork for the team to succeed together?"
+        </div>
+
+        <p class="handnote" style="margin-top: 12px;">&#8593; must be a yes/no verification question!</p>
+        <button class="continue-btn" onclick="showNext(7)">Now the Gold Response &#8594;</button>
+    </div>
+
+    <div class="arrow-down" id="arrow6">&#8595;</div>
+
+    <!-- Item 7: Gold Response -->
+    <div class="item center wide" id="item7" style="max-width: 1100px;">
+        <p class="handnote">step 3 - critical!</p>
+        <div class="item-title" style="color: #16a34a;">
+            Gold Response
+            <div class="scratch">
+                <svg viewBox="0 0 100 100" preserveAspectRatio="none">
+                    <ellipse cx="50" cy="50" rx="48" ry="45" style="stroke: #16a34a;" />
+                </svg>
+            </div>
+        </div>
+        <p class="item-text">Create a response that <span class="highlight-text">passes ALL constraints</span>. This proves the task is achievable.</p>
+
+        <div style="display: flex; gap: 20px; align-items: flex-start; margin-top: 16px;">
+            <!-- Gold Response Example -->
+            <div class="example-box good" style="font-family: monospace; font-size: 12px; line-height: 1.7; flex: 1; margin: 0;">
+                <div class="example-label good">&#10004; Example Gold Response</div>
+                LISTEN UP, CHAMPIONS! TODAY WE'RE NOT JUST A TEAM - WE'RE A FORCE OF NATURE! LIKE A MIGHTY RIVER CUTTING THROUGH STONE, WE WILL CARVE OUR PATH TO VICTORY! EVERY DROP OF SWEAT YOU'VE SHED HAS BUILT YOU INTO WARRIORS! AND WHEN WE WIN, THERE'S CAKE WAITING FOR US - THE SWEETEST REWARD FOR THE SWEETEST VICTORY!<br><br>
+                YOU ARE STRONGER THAN YOU KNOW! LIKE THUNDER SHAKING THE SKY, YOUR SPIRIT WILL SHAKE THE HEARTS OF YOUR OPPONENTS! EVERY PRACTICE, EVERY EARLY MORNING, EVERY SACRIFICE - IT ALL LEADS TO THIS MOMENT! YOU ARE READY! YOU ARE POWERFUL! YOU ARE UNSTOPPABLE!<br><br>
+                REMEMBER: IRON SHARPENS IRON! JUST AS TWO METAL BLADES CREATE FRICTION AGAINST EACH OTHER, GRINDING AND POLISHING UNTIL BOTH BECOME RAZOR-SHARP - THAT'S WHAT WE DO FOR EACH OTHER! YOUR TEAMMATE'S STRENGTH MAKES YOU STRONGER! YOUR EFFORT LIFTS EVERYONE! TOGETHER, WE SHARPEN EACH OTHER INTO THE CHAMPIONS WE'RE MEANT TO BE! NOW GO OUT THERE AND PROVE IT!
+            </div>
+
+            <!-- Side notes -->
+            <div style="width: 280px; flex-shrink: 0; display: flex; flex-direction: column; gap: 12px;">
+                <div style="background: #fef3c7; border: 2px solid #f59e0b; border-radius: 8px; padding: 12px; font-size: 12px;">
+                    <p style="font-weight: 700; color: #92400e; margin: 0 0 6px;">&#9888;&#65039; Don't trust LLMs blindly!</p>
+                    <p style="color: #78350f; margin: 0; line-height: 1.5;">AI can make mistakes. <strong>Read it yourself</strong> and confirm each constraint is met.</p>
+                </div>
+
+                <p style="font-family: 'Caveat', cursive; font-size: 16px; color: #666; margin: 0; transform: rotate(-1deg);">check ALL constraints here &#8595;</p>
+
+                <a href="https://multi-lang-nvidia.streamlit.app/" target="_blank" style="display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: #fff; border: 2px solid #111; border-radius: 8px; text-decoration: none; color: #111; font-weight: 600; font-size: 12px; transition: all 0.2s;">
+                    <span style="font-size: 16px;">&#9989;</span>
+                    <span>Validator Tool</span>
+                    <span style="margin-left: auto; animation: point-arrow 1s ease-in-out infinite; color: #dc2626;">&#8594;</span>
+                </a>
+            </div>
+        </div>
+
+        <button class="continue-btn" onclick="showNext(8)" style="margin-top: 16px;">Next &#8594;</button>
+    </div>
+
+    <div class="arrow-down" id="arrow7">&#8595;</div>
+
+    <!-- Item 8: Step 4 -->
+    <div class="item right" id="item8">
+        <p class="handnote">step 4</p>
+        <div class="item-title">
+            4 Model Passes
+            <div class="scratch">
+                <svg viewBox="0 0 100 100" preserveAspectRatio="none">
+                    <ellipse cx="50" cy="50" rx="48" ry="45" />
+                </svg>
+            </div>
+        </div>
+        <p class="item-text">Run your query through 4 models to prove the task is challenging.</p>
+        <div style="background: #fef2f2; border: 2px solid #fecaca; border-radius: 8px; padding: 12px; margin-top: 12px; font-size: 14px;">
+            <strong style="color: #dc2626;">Rule:</strong> <span style="color: #7f1d1d;">At least <strong>3 models</strong> must fail <strong>≥50%</strong> of the constraints.</span>
+        </div>
+        <button class="continue-btn" onclick="showNext(9)">Almost done &#8594;</button>
+    </div>
+
+    <div class="arrow-down" id="arrow8">&#8595;</div>
+
+    <!-- Item 9: Verification -->
+    <div class="item center" id="item9">
+        <div class="item-title" style="color: #dc2626;">
+            Human Check!
+            <div class="scratch" style="stroke: #dc2626;">
+                <svg viewBox="0 0 100 100" preserveAspectRatio="none">
+                    <ellipse cx="50" cy="50" rx="48" ry="45" style="stroke: #dc2626;" />
+                </svg>
+            </div>
+        </div>
+        <p class="item-text">This is the cascade you must verify manually. Don't trust LLMs!</p>
+
+        <div class="checklist">
+            <div class="check"><span class="check-icon">&#10003;</span><span><strong>turn_metadata</strong> &#8594; all constraints defined</span></div>
+            <div class="check"><span class="check-icon">&#10003;</span><span><strong>user query</strong> &#8594; each constraint appears as natural text</span></div>
+            <div class="check"><span class="check-icon">&#10003;</span><span><strong>gold response</strong> &#8594; passes every single constraint</span></div>
+        </div>
+
+        <p class="handnote">read your notebook yourself!</p>
+        <button class="continue-btn" onclick="showNext(10)">Final checklist &#8594;</button>
+    </div>
+
+    <div class="arrow-down" id="arrow9">&#8595;</div>
+
+    <!-- Item 10: Checklist -->
+    <div class="item center wide" id="item10">
+        <div class="item-title">
+            Before Submit
+            <div class="scratch">
+                <svg viewBox="0 0 100 100" preserveAspectRatio="none">
+                    <ellipse cx="50" cy="50" rx="48" ry="45" />
+                </svg>
+            </div>
+        </div>
+
+        <div class="checklist">
+            <div class="check"><span class="check-icon">&#10003;</span><span>At least <strong>4 IF + 1 LLM Eval + 1 LLM Judge</strong></span></div>
+            <div class="check"><span class="check-icon">&#10003;</span><span>At least <strong>1 LLM Eval in system prompt</strong></span></div>
+            <div class="check"><span class="check-icon">&#10003;</span><span>Every <strong>&gt;user source</strong> constraint appears in user query</span></div>
+            <div class="check"><span class="check-icon">&#10003;</span><span>User query is <strong>natural, not artificial</strong></span></div>
+            <div class="check"><span class="check-icon">&#10003;</span><span>Gold response <strong>passes ALL</strong> constraints</span></div>
+            <div class="check"><span class="check-icon">&#10003;</span><span><strong>llm_judge</strong> and <strong>validator_human</strong> cells are in <strong>ENGLISH</strong></span></div>
+            <div class="check"><span class="check-icon">&#10003;</span><span>You <strong>read everything yourself</strong></span></div>
+        </div>
+
+        <div class="link-callout">
+            <div class="link-callout-hint">
+                Struggling to create context for constraints?
+                <span class="link-callout-arrow">&#8594;</span>
+            </div>
+            <a href="https://docs.google.com/spreadsheets/d/15DDiDjqcwr07zLuNtkINqEjHcHZD34JDBMtVy6gq7Qk/edit?gid=274701048#gid=274701048" target="_blank" class="link-callout-box">
+                <span>&#128161;</span>
+                CLICK HERE - SCENARIO EXAMPLES
+            </a>
+        </div>
+        <button class="continue-btn" onclick="showNext(11)">Done! &#8594;</button>
+    </div>
+
+    <!-- Final -->
+    <div class="item center" id="item11">
+        <div class="final-block">
+            <h2>You're ready!</h2>
+            <p>Now go create something challenging.</p>
+            <div style="display: flex; gap: 12px; justify-content: center;">
+                <a href="practical.html" class="btn btn-dark">Practical Guide</a>
+                <a href="../index.html" class="btn btn-outline">Home</a>
+            </div>
+        </div>
+    </div>
+
+</section>
+
+<a href="../index.html" class="home-btn">&#127968;</a>
+
+<script>
+    let currentItem = 1;
+
+    function showHero() {
+        document.getElementById('hero').style.display = 'flex';
+        document.getElementById('noPath').classList.remove('show');
+        document.getElementById('diagram').classList.remove('show');
+    }
+
+    function showNoPath() {
+        document.getElementById('hero').style.display = 'none';
+        document.getElementById('noPath').classList.add('show');
+    }
+
+    function startDiagram() {
+        document.getElementById('hero').style.display = 'none';
+        document.getElementById('noPath').classList.remove('show');
+        document.getElementById('diagram').classList.add('show');
+        showItem(1);
+    }
+
+    function showItem(n) {
+        const item = document.getElementById('item' + n);
+        if (item) {
+            item.classList.add('visible');
+            setTimeout(() => {
+                item.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 100);
+        }
+    }
+
+    function showNext(n) {
+        // Show arrow if exists
+        const arrow = document.getElementById('arrow' + (n-1));
+        if (arrow) arrow.style.opacity = '1';
+
+        currentItem = n;
+        showItem(n);
+    }
+
+    // Hide all arrows initially
+    document.querySelectorAll('.arrow-down').forEach(a => a.style.opacity = '0');
+</script>
+
+</body>
+</html>

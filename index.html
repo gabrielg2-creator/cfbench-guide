@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CFBench Documentation</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        /* Landing Page Styles */
+        .landing {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 48px 24px;
+        }
+
+        .landing-header {
+            text-align: center;
+            margin-bottom: 56px;
+        }
+
+        .landing-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-muted);
+            margin-bottom: 28px;
+        }
+
+        .landing-badge-dot {
+            width: 6px;
+            height: 6px;
+            background: var(--success);
+            border-radius: 50%;
+        }
+
+        .landing h1 {
+            font-size: 42px;
+            font-weight: 600;
+            letter-spacing: -0.5px;
+            margin-bottom: 14px;
+            background: linear-gradient(135deg, var(--text) 0%, var(--text-secondary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .landing-subtitle {
+            font-size: 17px;
+            color: var(--text-muted);
+            max-width: 420px;
+            line-height: 1.6;
+        }
+
+        /* Cards Grid */
+        .landing-cards {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            max-width: 680px;
+            width: 100%;
+        }
+
+        /* Card Component */
+        .landing-card {
+            position: relative;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            text-decoration: none;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow: hidden;
+        }
+
+        .landing-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--card-accent, var(--accent));
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .landing-card:hover {
+            border-color: var(--border-light);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+        }
+
+        .landing-card:hover::before {
+            transform: scaleX(1);
+        }
+
+        /* Card accent colors */
+        .landing-card[data-accent="blue"] { --card-accent: #3b82f6; }
+        .landing-card[data-accent="purple"] { --card-accent: #8b5cf6; }
+        .landing-card[data-accent="amber"] { --card-accent: #f59e0b; }
+        .landing-card[data-accent="green"] { --card-accent: #10b981; }
+
+        .card-indicator {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 16px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            transition: all 0.25s ease;
+        }
+
+        .card-indicator svg {
+            width: 18px;
+            height: 18px;
+            color: var(--card-accent, var(--accent));
+            transition: transform 0.25s ease;
+        }
+
+        .landing-card:hover .card-indicator {
+            background: var(--card-accent, var(--accent));
+            border-color: var(--card-accent, var(--accent));
+        }
+
+        .landing-card:hover .card-indicator svg {
+            color: white;
+            transform: scale(1.1);
+        }
+
+        .card-content h3 {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text);
+            margin: 0 0 6px;
+        }
+
+        .card-content p {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin: 0;
+            line-height: 1.5;
+        }
+
+        .card-arrow {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-top: 14px;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-muted);
+            transition: all 0.2s ease;
+        }
+
+        .card-arrow svg {
+            width: 14px;
+            height: 14px;
+            transition: transform 0.2s ease;
+        }
+
+        .landing-card:hover .card-arrow {
+            color: var(--card-accent, var(--accent));
+        }
+
+        .landing-card:hover .card-arrow svg {
+            transform: translateX(3px);
+        }
+
+        /* Footer */
+        .landing-footer {
+            margin-top: 64px;
+            text-align: center;
+        }
+
+        .landing-footer-main {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+        }
+
+        .landing-footer-credit {
+            font-size: 11px;
+            color: var(--text-muted);
+            opacity: 0.5;
+        }
+
+        /* Featured Tutorial Card */
+        .featured-card {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            width: 100%;
+            max-width: 680px;
+            background: var(--bg-secondary);
+            border: 2px solid #3b82f6;
+            border-radius: 16px;
+            padding: 24px 28px;
+            margin-bottom: 20px;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        .featured-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 32px rgba(59, 130, 246, 0.15);
+        }
+
+        .featured-icon {
+            width: 56px;
+            height: 56px;
+            background: linear-gradient(135deg, #3b82f6, #6366f1);
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            flex-shrink: 0;
+        }
+
+        .featured-text {
+            flex: 1;
+        }
+
+        .featured-label {
+            display: inline-block;
+            font-size: 11px;
+            font-weight: 600;
+            color: #3b82f6;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+        }
+
+        .featured-card h2 {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text);
+            margin: 0 0 6px;
+        }
+
+        .featured-card p {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin: 0;
+            line-height: 1.5;
+        }
+
+        .featured-arrow {
+            font-size: 24px;
+            color: #3b82f6;
+            transition: transform 0.3s ease;
+        }
+
+        .featured-card:hover .featured-arrow {
+            transform: translateX(5px);
+        }
+
+        /* Responsive */
+        @media (max-width: 640px) {
+            .landing-cards {
+                grid-template-columns: 1fr;
+            }
+            .landing h1 {
+                font-size: 32px;
+            }
+            .featured-card {
+                flex-direction: column;
+                text-align: center;
+                padding: 24px 20px;
+            }
+            .featured-arrow {
+                display: none;
+            }
+        }
+
+        /* Light theme adjustments */
+        [data-theme="light"] .landing-card {
+            background: #ffffff;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+        }
+
+        [data-theme="light"] .landing-card:hover {
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+        }
+
+        [data-theme="light"] .landing h1 {
+            background: linear-gradient(135deg, #202124 0%, #5f6368 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+        }
+
+        [data-theme="light"] .featured-card {
+            background: #ffffff;
+            border-color: #3b82f6;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+
+        [data-theme="light"] .featured-card:hover {
+            box-shadow: 0 12px 32px rgba(59, 130, 246, 0.12);
+        }
+    </style>
+</head>
+<body>
+
+<div class="landing">
+    <header class="landing-header">
+        <div class="landing-badge">
+            <span class="landing-badge-dot"></span>
+            v2.1 Official
+        </div>
+        <h1>CFBench Documentation</h1>
+        <p class="landing-subtitle">Complete guide for creating, structuring, and reviewing CFBench tasks.</p>
+    </header>
+
+    <!-- Featured Tutorial Card -->
+    <a href="pages/how-to-task.html" class="featured-card">
+        <div class="featured-icon">&#127919;</div>
+        <div class="featured-text">
+            <span class="featured-label">Interactive Tutorial</span>
+            <h2>How to Task</h2>
+            <p>Struggling with tasks? Learn step-by-step with examples and quizzes.</p>
+        </div>
+        <div class="featured-arrow">&#8594;</div>
+    </a>
+
+    <div class="landing-cards">
+        <a href="pages/platform.html" class="landing-card" data-accent="blue">
+            <div class="card-indicator">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                    <line x1="8" y1="21" x2="16" y2="21"></line>
+                    <line x1="12" y1="17" x2="12" y2="21"></line>
+                </svg>
+            </div>
+            <div class="card-content">
+                <h3>Platform Guide</h3>
+                <p>Visual step-by-step guide for all platform tools: LT, Colab, Validator, ChatHub.</p>
+            </div>
+            <div class="card-arrow">
+                Get started
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </div>
+        </a>
+
+        <a href="pages/structure.html" class="landing-card" data-accent="purple">
+            <div class="card-indicator">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+                    <path d="M2 17l10 5 10-5"></path>
+                    <path d="M2 12l10 5 10-5"></path>
+                </svg>
+            </div>
+            <div class="card-content">
+                <h3>Structure Guide</h3>
+                <p>Understand notebook cell structure, naming conventions, and validation rules.</p>
+            </div>
+            <div class="card-arrow">
+                Learn structure
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </div>
+        </a>
+
+        <a href="pages/practical.html" class="landing-card" data-accent="amber">
+            <div class="card-indicator">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
+                </svg>
+            </div>
+            <div class="card-content">
+                <h3>Practical Guide</h3>
+                <p>Step-by-step task creation with prompts, examples, and best practices.</p>
+            </div>
+            <div class="card-arrow">
+                Create tasks
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </div>
+        </a>
+
+        <a href="pages/review.html" class="landing-card" data-accent="green">
+            <div class="card-indicator">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9 11l3 3L22 4"></path>
+                    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+                </svg>
+            </div>
+            <div class="card-content">
+                <h3>Review Guide</h3>
+                <p>Pod lead checklist for reviewing and validating submitted tasks.</p>
+            </div>
+            <div class="card-arrow">
+                Review tasks
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </div>
+        </a>
+    </div>
+
+    <footer class="landing-footer">
+        <p class="landing-footer-main">CFBench · Nvidia/Turing Project</p>
+        <p class="landing-footer-credit">Made by Gabriel Glock · Italian pod lead</p>
+    </footer>
+</div>
+
+<script src="js/main.js"></script>
+</body>
+</html>

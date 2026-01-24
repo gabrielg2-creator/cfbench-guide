@@ -1,0 +1,2735 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CFBench - Practical Guide</title>
+    <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+
+<nav class="nav">
+    <a href="../index.html" class="nav-brand">CFBench Docs</a>
+    <div class="search-wrapper">
+        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input type="text" class="search-input" placeholder="Search..." id="searchInput">
+        <div class="search-results" id="searchResults"></div>
+    </div>
+    <div class="nav-links">
+        <a href="platform.html" class="nav-link">Platform</a>
+        <a href="structure.html" class="nav-link">Structure</a>
+        <a href="practical.html" class="nav-link active">Practical</a>
+        <a href="review.html" class="nav-link">Review</a>
+    </div>
+    <div class="nav-actions">
+        <a href="how-to-task.html" class="help-link" title="Interactive tutorial">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            Struggling? Walkthrough
+        </a>
+        <button class="print-btn" onclick="window.print()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            Print
+        </button>
+        <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">
+            <svg id="sunIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+            <svg id="moonIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+    </div>
+</nav>
+
+<!-- Notebook Builder Panel -->
+<div class="notebook-builder" id="notebookBuilder">
+    <div class="notebook-builder-header">
+        <span class="notebook-builder-title">Notebook Builder</span>
+        <div class="notebook-builder-actions">
+            <button class="nb-btn secondary" onclick="clearAllCells()">Clear</button>
+            <button class="nb-btn" onclick="copyAllCells()">Copy All</button>
+            <button class="notebook-builder-toggle" onclick="toggleBuilder()" title="Minimize">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 15l-6-6-6 6"/></svg>
+            </button>
+        </div>
+    </div>
+    <div class="nb-model-selector">
+        <label>Model:</label>
+        <div class="nb-model-toggle">
+            <button class="active" onclick="switchModel('nemotron')">Nemotron</button>
+            <button onclick="switchModel('qwen3')">Qwen3</button>
+        </div>
+    </div>
+    <div class="nb-turn-selector">
+        <label>Turns:</label>
+        <div class="nb-turn-controls">
+            <button class="nb-turn-btn" onclick="decreaseTurns()" id="btnDecrease" disabled>−</button>
+            <span class="nb-turn-count" id="turnCount">2</span>
+            <button class="nb-turn-btn" onclick="increaseTurns()" id="btnIncrease">+</button>
+        </div>
+        <span class="nb-turn-info" id="turnInfo">1 intermediate + 1 final</span>
+    </div>
+    <div class="notebook-builder-body" id="notebookBody">
+        <!-- Intermediate Turn 1 (always visible) -->
+        <div class="nb-section-divider">
+            <span>Intermediate Turn 1</span>
+            <span class="nb-section-help" onclick="toggleSectionHelp(event, this)">?
+                <span class="nb-section-tooltip">
+                    <strong>Intermediate Turn</strong>
+                    Contains System Prompt (Step 1) + User Query + Thinking + Assistant Response. The thinking must be FABRICATED using the prompt from Step 5 to simulate how the AI "reasoned" to produce the response.
+                </span>
+            </span>
+        </div>
+
+        <div class="nb-cell collapsed" data-cell="system">
+            <div class="nb-cell-header" onclick="toggleNbCell(this)">
+                <span class="nb-cell-name">**[system]**</span>
+                <span class="nb-cell-help" onclick="toggleCellHelp(event, this)">?<span class="nb-cell-tooltip"><strong>Step 1:</strong> System prompt that defines WHO the AI is. <strong style="color: #f59e0b;">Must contain at least 1 LLM Eval constraint!</strong> Review and edit for accuracy!</span></span>
+                <div class="nb-cell-actions">
+                    <button class="nb-cell-copy" onclick="event.stopPropagation(); copyCellContent('system')">Copy</button>
+                    <span class="nb-cell-status" id="status-system"></span>
+                    <svg class="nb-cell-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                </div>
+            </div>
+            <div class="nb-cell-content">
+                <textarea class="nb-cell-textarea" id="cell-system" placeholder="Paste your system prompt here..." oninput="updateCellStatus('system')"></textarea>
+            </div>
+        </div>
+
+        <div class="nb-cell collapsed" data-cell="user-int1">
+            <div class="nb-cell-header" onclick="toggleNbCell(this)">
+                <span class="nb-cell-name">**[user]**</span>
+                <span class="nb-cell-help" onclick="toggleCellHelp(event, this)">?<span class="nb-cell-tooltip"><strong>Step 2:</strong> Simple intermediate query to build context. Natural conversation before the challenging final query.</span></span>
+                <div class="nb-cell-actions">
+                    <button class="nb-cell-copy" onclick="event.stopPropagation(); copyCellContent('user-int1')">Copy</button>
+                    <span class="nb-cell-status" id="status-user-int1"></span>
+                    <svg class="nb-cell-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                </div>
+            </div>
+            <div class="nb-cell-content">
+                <textarea class="nb-cell-textarea" id="cell-user-int1" placeholder="Paste intermediate user query here..." oninput="updateCellStatus('user-int1')"></textarea>
+            </div>
+        </div>
+
+        <div class="nb-cell collapsed" data-cell="thinking-int1">
+            <div class="nb-cell-header" onclick="toggleNbCell(this)">
+                <span class="nb-cell-name">**[thinking]**</span>
+                <span class="nb-cell-help" onclick="toggleCellHelp(event, this)">?<span class="nb-cell-tooltip"><strong>Step 5:</strong> FABRICATED reasoning. Use the prompt from Step 5 to generate thinking that leads to the assistant response.</span></span>
+                <div class="nb-cell-actions">
+                    <button class="nb-cell-copy" onclick="event.stopPropagation(); copyCellContent('thinking-int1')">Copy</button>
+                    <span class="nb-cell-status" id="status-thinking-int1"></span>
+                    <svg class="nb-cell-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                </div>
+            </div>
+            <div class="nb-cell-content">
+                <textarea class="nb-cell-textarea" id="cell-thinking-int1" placeholder="Paste intermediate thinking here..." oninput="updateCellStatus('thinking-int1')"></textarea>
+            </div>
+        </div>
+
+        <div class="nb-cell collapsed" data-cell="assistant-int1">
+            <div class="nb-cell-header" onclick="toggleNbCell(this)">
+                <span class="nb-cell-name">**[assistant]**</span>
+                <span class="nb-cell-help" onclick="toggleCellHelp(event, this)">?<span class="nb-cell-tooltip"><strong>Step 2:</strong> Response to the intermediate query. Simple, helpful answer that builds context for the final challenge.</span></span>
+                <div class="nb-cell-actions">
+                    <button class="nb-cell-copy" onclick="event.stopPropagation(); copyCellContent('assistant-int1')">Copy</button>
+                    <span class="nb-cell-status" id="status-assistant-int1"></span>
+                    <svg class="nb-cell-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                </div>
+            </div>
+            <div class="nb-cell-content">
+                <textarea class="nb-cell-textarea" id="cell-assistant-int1" placeholder="Paste intermediate assistant response here..." oninput="updateCellStatus('assistant-int1')"></textarea>
+            </div>
+        </div>
+
+        <!-- Intermediate Turn 2 (hidden by default) -->
+        <div class="nb-intermediate-turn" id="turn2-block">
+            <div class="nb-section-divider">
+                <span>Intermediate Turn 2</span>
+                <span class="nb-section-help" onclick="toggleSectionHelp(event, this)">?
+                    <span class="nb-section-tooltip">
+                        <strong>Additional Turn</strong>
+                        Same structure as Turn 1 but without system prompt. User + Thinking + Assistant. Remember: thinking is FABRICATED after you have the assistant response.
+                    </span>
+                </span>
+            </div>
+
+            <div class="nb-cell collapsed" data-cell="user-int2">
+                <div class="nb-cell-header" onclick="toggleNbCell(this)">
+                    <span class="nb-cell-name">**[user]**</span>
+                    <span class="nb-cell-help" onclick="toggleCellHelp(event, this)">?<span class="nb-cell-tooltip"><strong>Step 2:</strong> Second intermediate query. Continues the conversation naturally.</span></span>
+                    <div class="nb-cell-actions">
+                        <button class="nb-cell-copy" onclick="event.stopPropagation(); copyCellContent('user-int2')">Copy</button>
+                        <span class="nb-cell-status" id="status-user-int2"></span>
+                        <svg class="nb-cell-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                    </div>
+                </div>
+                <div class="nb-cell-content">
+                    <textarea class="nb-cell-textarea" id="cell-user-int2" placeholder="Paste second intermediate user query here..." oninput="updateCellStatus('user-int2')"></textarea>
+                </div>
+            </div>
+
+            <div class="nb-cell collapsed" data-cell="thinking-int2">
+                <div class="nb-cell-header" onclick="toggleNbCell(this)">
+                    <span class="nb-cell-name">**[thinking]**</span>
+                    <span class="nb-cell-help" onclick="toggleCellHelp(event, this)">?<span class="nb-cell-tooltip"><strong>Step 5:</strong> FABRICATED reasoning. Use the prompt from Step 5 to generate thinking that leads to the assistant response.</span></span>
+                    <div class="nb-cell-actions">
+                        <button class="nb-cell-copy" onclick="event.stopPropagation(); copyCellContent('thinking-int2')">Copy</button>
+                        <span class="nb-cell-status" id="status-thinking-int2"></span>
+                        <svg class="nb-cell-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                    </div>
+                </div>
+                <div class="nb-cell-content">
+                    <textarea class="nb-cell-textarea" id="cell-thinking-int2" placeholder="Paste second intermediate thinking here..." oninput="updateCellStatus('thinking-int2')"></textarea>
+                </div>
+            </div>
+
+            <div class="nb-cell collapsed" data-cell="assistant-int2">
+                <div class="nb-cell-header" onclick="toggleNbCell(this)">
+                    <span class="nb-cell-name">**[assistant]**</span>
+                    <span class="nb-cell-help" onclick="toggleCellHelp(event, this)">?<span class="nb-cell-tooltip"><strong>Step 2:</strong> Response to the second intermediate query.</span></span>
+                    <div class="nb-cell-actions">
+                        <button class="nb-cell-copy" onclick="event.stopPropagation(); copyCellContent('assistant-int2')">Copy</button>
+                        <span class="nb-cell-status" id="status-assistant-int2"></span>
+                        <svg class="nb-cell-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                    </div>
+                </div>
+                <div class="nb-cell-content">
+                    <textarea class="nb-cell-textarea" id="cell-assistant-int2" placeholder="Paste second intermediate assistant response here..." oninput="updateCellStatus('assistant-int2')"></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- Intermediate Turn 3 (hidden by default) -->
+        <div class="nb-intermediate-turn" id="turn3-block">
+            <div class="nb-section-divider">
+                <span>Intermediate Turn 3</span>
+                <span class="nb-section-help" onclick="toggleSectionHelp(event, this)">?
+                    <span class="nb-section-tooltip">
+                        <strong>Additional Turn</strong>
+                        Same structure as Turn 2. User + Thinking + Assistant. Remember: thinking is FABRICATED after you have the assistant response.
+                    </span>
+                </span>
+            </div>
+
+            <div class="nb-cell collapsed" data-cell="user-int3">
+                <div class="nb-cell-header" onclick="toggleNbCell(this)">
+                    <span class="nb-cell-name">**[user]**</span>
+                    <span class="nb-cell-help" onclick="toggleCellHelp(event, this)">?<span class="nb-cell-tooltip"><strong>Step 2:</strong> Third intermediate query. Continues the conversation naturally.</span></span>
+                    <div class="nb-cell-actions">
+                        <button class="nb-cell-copy" onclick="event.stopPropagation(); copyCellContent('user-int3')">Copy</button>
+                        <span class="nb-cell-status" id="status-user-int3"></span>
+                        <svg class="nb-cell-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                    </div>
+                </div>
+                <div class="nb-cell-content">
+                    <textarea class="nb-cell-textarea" id="cell-user-int3" placeholder="Paste third intermediate user query here..." oninput="updateCellStatus('user-int3')"></textarea>
+                </div>
+            </div>
+
+            <div class="nb-cell collapsed" data-cell="thinking-int3">
+                <div class="nb-cell-header" onclick="toggleNbCell(this)">
+                    <span class="nb-cell-name">**[thinking]**</span>
+                    <span class="nb-cell-help" onclick="toggleCellHelp(event, this)">?<span class="nb-cell-tooltip"><strong>Step 5:</strong> FABRICATED reasoning. Use the prompt from Step 5 to generate thinking that leads to the assistant response.</span></span>
+                    <div class="nb-cell-actions">
+                        <button class="nb-cell-copy" onclick="event.stopPropagation(); copyCellContent('thinking-int3')">Copy</button>
+                        <span class="nb-cell-status" id="status-thinking-int3"></span>
+                        <svg class="nb-cell-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                    </div>
+                </div>
+                <div class="nb-cell-content">
+                    <textarea class="nb-cell-textarea" id="cell-thinking-int3" placeholder="Paste third intermediate thinking here..." oninput="updateCellStatus('thinking-int3')"></textarea>
+                </div>
+            </div>
+
+            <div class="nb-cell collapsed" data-cell="assistant-int3">
+                <div class="nb-cell-header" onclick="toggleNbCell(this)">
+                    <span class="nb-cell-name">**[assistant]**</span>
+                    <span class="nb-cell-help" onclick="toggleCellHelp(event, this)">?<span class="nb-cell-tooltip"><strong>Step 2:</strong> Response to the third intermediate query.</span></span>
+                    <div class="nb-cell-actions">
+                        <button class="nb-cell-copy" onclick="event.stopPropagation(); copyCellContent('assistant-int3')">Copy</button>
+                        <span class="nb-cell-status" id="status-assistant-int3"></span>
+                        <svg class="nb-cell-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                    </div>
+                </div>
+                <div class="nb-cell-content">
+                    <textarea class="nb-cell-textarea" id="cell-assistant-int3" placeholder="Paste third intermediate assistant response here..." oninput="updateCellStatus('assistant-int3')"></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dynamic Intermediate Turns Container (for turns 5+) -->
+        <div id="dynamic-turns-container"></div>
+
+        <!-- Final Turn -->
+        <div class="nb-section-divider">
+            <span>Final Turn</span>
+            <span class="nb-section-help" onclick="toggleSectionHelp(event, this)">?
+                <span class="nb-section-tooltip">
+                    <strong>Final Turn</strong>
+                    The challenging query (70% content + 30% constraints), turn_metadata JSON, Golden response that MUST pass 100%, thinking (fabricated), and validator result.
+                </span>
+            </span>
+        </div>
+
+        <div class="nb-cell collapsed" data-cell="user-final">
+            <div class="nb-cell-header" onclick="toggleNbCell(this)">
+                <span class="nb-cell-name">**[user]**</span>
+                <span class="nb-cell-help" onclick="toggleCellHelp(event, this)">?<span class="nb-cell-tooltip"><strong>Step 3:</strong> The challenging query with 70% content + 30% constraints as natural language. Must match turn_metadata!</span></span>
+                <div class="nb-cell-actions">
+                    <button class="nb-cell-copy" onclick="event.stopPropagation(); copyCellContent('user-final')">Copy</button>
+                    <span class="nb-cell-status" id="status-user-final"></span>
+                    <svg class="nb-cell-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                </div>
+            </div>
+            <div class="nb-cell-content">
+                <textarea class="nb-cell-textarea" id="cell-user-final" placeholder="Paste final user query here..." oninput="updateCellStatus('user-final')"></textarea>
+            </div>
+        </div>
+
+        <div class="nb-cell collapsed" data-cell="thinking-golden">
+            <div class="nb-cell-header" onclick="toggleNbCell(this)">
+                <span class="nb-cell-name">**[thinking]**</span>
+                <span class="nb-cell-help" onclick="toggleCellHelp(event, this)">?<span class="nb-cell-tooltip"><strong>Step 5:</strong> FABRICATED reasoning. Must be 2.5x-3x the length of the assistant response. Use the prompt from Step 5.</span></span>
+                <div class="nb-cell-actions">
+                    <button class="nb-cell-copy" onclick="event.stopPropagation(); copyCellContent('thinking-golden')">Copy</button>
+                    <span class="nb-cell-status" id="status-thinking-golden"></span>
+                    <svg class="nb-cell-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                </div>
+            </div>
+            <div class="nb-cell-content">
+                <textarea class="nb-cell-textarea" id="cell-thinking-golden" placeholder="Paste golden thinking here..." oninput="updateCellStatus('thinking-golden')"></textarea>
+            </div>
+        </div>
+
+        <div class="nb-cell collapsed" data-cell="turn-metadata">
+            <div class="nb-cell-header" onclick="toggleNbCell(this)">
+                <span class="nb-cell-name">**[turn_metadata]**</span>
+                <span class="nb-cell-help" onclick="toggleCellHelp(event, this)">?<span class="nb-cell-tooltip"><strong>Step 6:</strong> JSON with all constraints. Use the Validator Tool. Minimum: 4 IF + 1 LLM Eval (at least 1 must be in system prompt!) + 1 LLM Judge!</span></span>
+                <div class="nb-cell-actions">
+                    <button class="nb-cell-copy" onclick="event.stopPropagation(); copyCellContent('turn-metadata')">Copy</button>
+                    <span class="nb-cell-status" id="status-turn-metadata"></span>
+                    <svg class="nb-cell-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                </div>
+            </div>
+            <div class="nb-cell-content">
+                <textarea class="nb-cell-textarea" id="cell-turn-metadata" placeholder="Paste turn_metadata JSON here..." oninput="updateCellStatus('turn-metadata')"></textarea>
+            </div>
+        </div>
+
+        <div class="nb-cell collapsed" data-cell="assistant-golden">
+            <div class="nb-cell-header" onclick="toggleNbCell(this)">
+                <span class="nb-cell-name">**[assistant]**</span>
+                <span class="nb-cell-help" onclick="toggleCellHelp(event, this)">?<span class="nb-cell-tooltip"><strong>Step 4:</strong> The GOLDEN response that passes ALL constraints. Must be 100% PASS on validation!</span></span>
+                <div class="nb-cell-actions">
+                    <button class="nb-cell-copy" onclick="event.stopPropagation(); copyCellContent('assistant-golden')">Copy</button>
+                    <span class="nb-cell-status" id="status-assistant-golden"></span>
+                    <svg class="nb-cell-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                </div>
+            </div>
+            <div class="nb-cell-content">
+                <textarea class="nb-cell-textarea" id="cell-assistant-golden" placeholder="Paste golden response here..." oninput="updateCellStatus('assistant-golden')"></textarea>
+            </div>
+        </div>
+
+        <div class="nb-cell collapsed" data-cell="validator-golden">
+            <div class="nb-cell-header" onclick="toggleNbCell(this)">
+                <span class="nb-cell-name">**[validator_assistant]**</span>
+                <span class="nb-cell-help" onclick="toggleCellHelp(event, this)">?<span class="nb-cell-tooltip"><strong>Colab:</strong> Run validation in Colab. Golden MUST show 100% PASS. If not, fix the response!</span></span>
+                <div class="nb-cell-actions">
+                    <button class="nb-cell-copy" onclick="event.stopPropagation(); copyCellContent('validator-golden')">Copy</button>
+                    <span class="nb-cell-status" id="status-validator-golden"></span>
+                    <svg class="nb-cell-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                </div>
+            </div>
+            <div class="nb-cell-content">
+                <textarea class="nb-cell-textarea" id="cell-validator-golden" placeholder="Paste validator result here..." oninput="updateCellStatus('validator-golden')"></textarea>
+            </div>
+        </div>
+
+        <div class="nb-cell collapsed" data-cell="validator-human-golden">
+            <div class="nb-cell-header" onclick="toggleNbCell(this)">
+                <span class="nb-cell-name">**[validator_human]**</span>
+                <span class="nb-cell-help" onclick="toggleCellHelp(event, this)">?<span class="nb-cell-tooltip"><strong>Human Validation:</strong> Manual JSON for LLM-evaluated constraints (llm_judge). Include instruction ID, status (Passed/Failed), and reason message for each. <strong>MUST BE WRITTEN IN ENGLISH!</strong></span></span>
+                <div class="nb-cell-actions">
+                    <button class="nb-cell-copy" onclick="event.stopPropagation(); copyCellContent('validator-human-golden')">Copy</button>
+                    <span class="nb-cell-status" id="status-validator-human-golden"></span>
+                    <svg class="nb-cell-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                </div>
+            </div>
+            <div class="nb-cell-content">
+                <textarea class="nb-cell-textarea" id="cell-validator-human-golden" placeholder="[
+  {
+    &quot;id&quot;: &quot;llm_judge_1&quot;,
+    &quot;status&quot;: &quot;Passed&quot;,
+    &quot;message&quot;: &quot;Reason why this passed&quot;
+  }
+]" oninput="updateCellStatus('validator-human-golden')"></textarea>
+            </div>
+        </div>
+
+        <!-- Alternative Models -->
+        <div class="nb-section-divider">
+            <span>Alternative Model Responses (1-4)</span>
+            <span class="nb-section-help" onclick="toggleSectionHelp(event, this)">?
+                <span class="nb-section-tooltip">
+                    <strong>Alternative Responses</strong>
+                    4 responses from Nemotron or Qwen3 via ChatHub. At least 3 must FAIL 50%+ of constraints. Only 1 may pass 100%.
+                </span>
+            </span>
+        </div>
+
+        <div class="nb-cell collapsed" data-cell="thinking-alt1">
+            <div class="nb-cell-header" onclick="toggleNbCell(this)">
+                <span class="nb-cell-name">**[thinking_nemotron_1]**</span>
+                <span class="nb-cell-help" onclick="toggleCellHelp(event, this)">?<span class="nb-cell-tooltip"><strong>Step 7:</strong> Thinking from ChatHub response #1. Copy directly from ChatHub.</span></span>
+                <div class="nb-cell-actions">
+                    <button class="nb-cell-copy" onclick="event.stopPropagation(); copyCellContent('thinking-alt1')">Copy</button>
+                    <span class="nb-cell-status" id="status-thinking-alt1"></span>
+                    <svg class="nb-cell-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                </div>
+            </div>
+            <div class="nb-cell-content">
+                <textarea class="nb-cell-textarea" id="cell-thinking-alt1" placeholder="Thinking for alternative 1..." oninput="updateCellStatus('thinking-alt1')"></textarea>
+            </div>
+        </div>
+
+        <div class="nb-cell collapsed" data-cell="assistant-alt1">
+            <div class="nb-cell-header" onclick="toggleNbCell(this)">
+                <span class="nb-cell-name">**[assistant_nemotron_1]**</span>
+                <span class="nb-cell-help" onclick="toggleCellHelp(event, this)">?<span class="nb-cell-tooltip"><strong>Step 7:</strong> Response from ChatHub #1. Should FAIL at least 50% of constraints!</span></span>
+                <div class="nb-cell-actions">
+                    <button class="nb-cell-copy" onclick="event.stopPropagation(); copyCellContent('assistant-alt1')">Copy</button>
+                    <span class="nb-cell-status" id="status-assistant-alt1"></span>
+                    <svg class="nb-cell-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                </div>
+            </div>
+            <div class="nb-cell-content">
+                <textarea class="nb-cell-textarea" id="cell-assistant-alt1" placeholder="Alternative response 1..." oninput="updateCellStatus('assistant-alt1')"></textarea>
+            </div>
+        </div>
+
+        <div class="nb-cell collapsed" data-cell="validator-alt1">
+            <div class="nb-cell-header" onclick="toggleNbCell(this)">
+                <span class="nb-cell-name">**[validator_assistant_nemotron_1]**</span>
+                <span class="nb-cell-help" onclick="toggleCellHelp(event, this)">?<span class="nb-cell-tooltip"><strong>Colab:</strong> Validation result for response #1. At most 1 of 4 may show 100% PASS.</span></span>
+                <div class="nb-cell-actions">
+                    <button class="nb-cell-copy" onclick="event.stopPropagation(); copyCellContent('validator-alt1')">Copy</button>
+                    <span class="nb-cell-status" id="status-validator-alt1"></span>
+                    <svg class="nb-cell-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                </div>
+            </div>
+            <div class="nb-cell-content">
+                <textarea class="nb-cell-textarea" id="cell-validator-alt1" placeholder="Validator result 1..." oninput="updateCellStatus('validator-alt1')"></textarea>
+            </div>
+        </div>
+
+        <div class="nb-cell collapsed" data-cell="validator-human-alt1">
+            <div class="nb-cell-header" onclick="toggleNbCell(this)">
+                <span class="nb-cell-name">**[validator_human_nemotron_1]**</span>
+                <span class="nb-cell-help" onclick="toggleCellHelp(event, this)">?<span class="nb-cell-tooltip"><strong>Human Validation:</strong> Manual JSON for LLM-evaluated constraints in response #1.</span></span>
+                <div class="nb-cell-actions">
+                    <button class="nb-cell-copy" onclick="event.stopPropagation(); copyCellContent('validator-human-alt1')">Copy</button>
+                    <span class="nb-cell-status" id="status-validator-human-alt1"></span>
+                    <svg class="nb-cell-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                </div>
+            </div>
+            <div class="nb-cell-content">
+                <textarea class="nb-cell-textarea" id="cell-validator-human-alt1" placeholder="Validator human result 1..." oninput="updateCellStatus('validator-human-alt1')"></textarea>
+            </div>
+        </div>
+
+        <div class="nb-cell collapsed" data-cell="thinking-alt2">
+            <div class="nb-cell-header" onclick="toggleNbCell(this)">
+                <span class="nb-cell-name">**[thinking_nemotron_2]**</span>
+                <span class="nb-cell-help" onclick="toggleCellHelp(event, this)">?<span class="nb-cell-tooltip"><strong>Step 7:</strong> Thinking from ChatHub response #2. Copy directly from ChatHub.</span></span>
+                <div class="nb-cell-actions">
+                    <button class="nb-cell-copy" onclick="event.stopPropagation(); copyCellContent('thinking-alt2')">Copy</button>
+                    <span class="nb-cell-status" id="status-thinking-alt2"></span>
+                    <svg class="nb-cell-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                </div>
+            </div>
+            <div class="nb-cell-content">
+                <textarea class="nb-cell-textarea" id="cell-thinking-alt2" placeholder="Thinking for alternative 2..." oninput="updateCellStatus('thinking-alt2')"></textarea>
+            </div>
+        </div>
+
+        <div class="nb-cell collapsed" data-cell="assistant-alt2">
+            <div class="nb-cell-header" onclick="toggleNbCell(this)">
+                <span class="nb-cell-name">**[assistant_nemotron_2]**</span>
+                <span class="nb-cell-help" onclick="toggleCellHelp(event, this)">?<span class="nb-cell-tooltip"><strong>Step 7:</strong> Response from ChatHub #2. Should FAIL at least 50% of constraints!</span></span>
+                <div class="nb-cell-actions">
+                    <button class="nb-cell-copy" onclick="event.stopPropagation(); copyCellContent('assistant-alt2')">Copy</button>
+                    <span class="nb-cell-status" id="status-assistant-alt2"></span>
+                    <svg class="nb-cell-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                </div>
+            </div>
+            <div class="nb-cell-content">
+                <textarea class="nb-cell-textarea" id="cell-assistant-alt2" placeholder="Alternative response 2..." oninput="updateCellStatus('assistant-alt2')"></textarea>
+            </div>
+        </div>
+
+        <div class="nb-cell collapsed" data-cell="validator-alt2">
+            <div class="nb-cell-header" onclick="toggleNbCell(this)">
+                <span class="nb-cell-name">**[validator_assistant_nemotron_2]**</span>
+                <span class="nb-cell-help" onclick="toggleCellHelp(event, this)">?<span class="nb-cell-tooltip"><strong>Colab:</strong> Validation result for response #2. Must have at least 50% FAIL.</span></span>
+                <div class="nb-cell-actions">
+                    <button class="nb-cell-copy" onclick="event.stopPropagation(); copyCellContent('validator-alt2')">Copy</button>
+                    <span class="nb-cell-status" id="status-validator-alt2"></span>
+                    <svg class="nb-cell-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                </div>
+            </div>
+            <div class="nb-cell-content">
+                <textarea class="nb-cell-textarea" id="cell-validator-alt2" placeholder="Validator result 2..." oninput="updateCellStatus('validator-alt2')"></textarea>
+            </div>
+        </div>
+
+        <div class="nb-cell collapsed" data-cell="validator-human-alt2">
+            <div class="nb-cell-header" onclick="toggleNbCell(this)">
+                <span class="nb-cell-name">**[validator_human_nemotron_2]**</span>
+                <span class="nb-cell-help" onclick="toggleCellHelp(event, this)">?<span class="nb-cell-tooltip"><strong>Human Validation:</strong> Manual JSON for LLM-evaluated constraints in response #2.</span></span>
+                <div class="nb-cell-actions">
+                    <button class="nb-cell-copy" onclick="event.stopPropagation(); copyCellContent('validator-human-alt2')">Copy</button>
+                    <span class="nb-cell-status" id="status-validator-human-alt2"></span>
+                    <svg class="nb-cell-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                </div>
+            </div>
+            <div class="nb-cell-content">
+                <textarea class="nb-cell-textarea" id="cell-validator-human-alt2" placeholder="Validator human result 2..." oninput="updateCellStatus('validator-human-alt2')"></textarea>
+            </div>
+        </div>
+
+        <div class="nb-cell collapsed" data-cell="thinking-alt3">
+            <div class="nb-cell-header" onclick="toggleNbCell(this)">
+                <span class="nb-cell-name">**[thinking_nemotron_3]**</span>
+                <span class="nb-cell-help" onclick="toggleCellHelp(event, this)">?<span class="nb-cell-tooltip"><strong>Step 7:</strong> Thinking from ChatHub response #3. Copy directly from ChatHub.</span></span>
+                <div class="nb-cell-actions">
+                    <button class="nb-cell-copy" onclick="event.stopPropagation(); copyCellContent('thinking-alt3')">Copy</button>
+                    <span class="nb-cell-status" id="status-thinking-alt3"></span>
+                    <svg class="nb-cell-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                </div>
+            </div>
+            <div class="nb-cell-content">
+                <textarea class="nb-cell-textarea" id="cell-thinking-alt3" placeholder="Thinking for alternative 3..." oninput="updateCellStatus('thinking-alt3')"></textarea>
+            </div>
+        </div>
+
+        <div class="nb-cell collapsed" data-cell="assistant-alt3">
+            <div class="nb-cell-header" onclick="toggleNbCell(this)">
+                <span class="nb-cell-name">**[assistant_nemotron_3]**</span>
+                <span class="nb-cell-help" onclick="toggleCellHelp(event, this)">?<span class="nb-cell-tooltip"><strong>Step 7:</strong> Response from ChatHub #3. Should FAIL at least 50% of constraints!</span></span>
+                <div class="nb-cell-actions">
+                    <button class="nb-cell-copy" onclick="event.stopPropagation(); copyCellContent('assistant-alt3')">Copy</button>
+                    <span class="nb-cell-status" id="status-assistant-alt3"></span>
+                    <svg class="nb-cell-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                </div>
+            </div>
+            <div class="nb-cell-content">
+                <textarea class="nb-cell-textarea" id="cell-assistant-alt3" placeholder="Alternative response 3..." oninput="updateCellStatus('assistant-alt3')"></textarea>
+            </div>
+        </div>
+
+        <div class="nb-cell collapsed" data-cell="validator-alt3">
+            <div class="nb-cell-header" onclick="toggleNbCell(this)">
+                <span class="nb-cell-name">**[validator_assistant_nemotron_3]**</span>
+                <span class="nb-cell-help" onclick="toggleCellHelp(event, this)">?<span class="nb-cell-tooltip"><strong>Colab:</strong> Validation result for response #3. Must have at least 50% FAIL.</span></span>
+                <div class="nb-cell-actions">
+                    <button class="nb-cell-copy" onclick="event.stopPropagation(); copyCellContent('validator-alt3')">Copy</button>
+                    <span class="nb-cell-status" id="status-validator-alt3"></span>
+                    <svg class="nb-cell-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                </div>
+            </div>
+            <div class="nb-cell-content">
+                <textarea class="nb-cell-textarea" id="cell-validator-alt3" placeholder="Validator result 3..." oninput="updateCellStatus('validator-alt3')"></textarea>
+            </div>
+        </div>
+
+        <div class="nb-cell collapsed" data-cell="validator-human-alt3">
+            <div class="nb-cell-header" onclick="toggleNbCell(this)">
+                <span class="nb-cell-name">**[validator_human_nemotron_3]**</span>
+                <span class="nb-cell-help" onclick="toggleCellHelp(event, this)">?<span class="nb-cell-tooltip"><strong>Human Validation:</strong> Manual JSON for LLM-evaluated constraints in response #3.</span></span>
+                <div class="nb-cell-actions">
+                    <button class="nb-cell-copy" onclick="event.stopPropagation(); copyCellContent('validator-human-alt3')">Copy</button>
+                    <span class="nb-cell-status" id="status-validator-human-alt3"></span>
+                    <svg class="nb-cell-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                </div>
+            </div>
+            <div class="nb-cell-content">
+                <textarea class="nb-cell-textarea" id="cell-validator-human-alt3" placeholder="Validator human result 3..." oninput="updateCellStatus('validator-human-alt3')"></textarea>
+            </div>
+        </div>
+
+        <div class="nb-cell collapsed" data-cell="thinking-alt4">
+            <div class="nb-cell-header" onclick="toggleNbCell(this)">
+                <span class="nb-cell-name">**[thinking_nemotron_4]**</span>
+                <span class="nb-cell-help" onclick="toggleCellHelp(event, this)">?<span class="nb-cell-tooltip"><strong>Step 7:</strong> Thinking from ChatHub response #4. Copy directly from ChatHub.</span></span>
+                <div class="nb-cell-actions">
+                    <button class="nb-cell-copy" onclick="event.stopPropagation(); copyCellContent('thinking-alt4')">Copy</button>
+                    <span class="nb-cell-status" id="status-thinking-alt4"></span>
+                    <svg class="nb-cell-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                </div>
+            </div>
+            <div class="nb-cell-content">
+                <textarea class="nb-cell-textarea" id="cell-thinking-alt4" placeholder="Thinking for alternative 4..." oninput="updateCellStatus('thinking-alt4')"></textarea>
+            </div>
+        </div>
+
+        <div class="nb-cell collapsed" data-cell="assistant-alt4">
+            <div class="nb-cell-header" onclick="toggleNbCell(this)">
+                <span class="nb-cell-name">**[assistant_nemotron_4]**</span>
+                <span class="nb-cell-help" onclick="toggleCellHelp(event, this)">?<span class="nb-cell-tooltip"><strong>Step 7:</strong> Response from ChatHub #4. Should FAIL at least 50% of constraints!</span></span>
+                <div class="nb-cell-actions">
+                    <button class="nb-cell-copy" onclick="event.stopPropagation(); copyCellContent('assistant-alt4')">Copy</button>
+                    <span class="nb-cell-status" id="status-assistant-alt4"></span>
+                    <svg class="nb-cell-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                </div>
+            </div>
+            <div class="nb-cell-content">
+                <textarea class="nb-cell-textarea" id="cell-assistant-alt4" placeholder="Alternative response 4..." oninput="updateCellStatus('assistant-alt4')"></textarea>
+            </div>
+        </div>
+
+        <div class="nb-cell collapsed" data-cell="validator-alt4">
+            <div class="nb-cell-header" onclick="toggleNbCell(this)">
+                <span class="nb-cell-name">**[validator_assistant_nemotron_4]**</span>
+                <span class="nb-cell-help" onclick="toggleCellHelp(event, this)">?<span class="nb-cell-tooltip"><strong>Colab:</strong> Validation result for response #4. Must have at least 50% FAIL.</span></span>
+                <div class="nb-cell-actions">
+                    <button class="nb-cell-copy" onclick="event.stopPropagation(); copyCellContent('validator-alt4')">Copy</button>
+                    <span class="nb-cell-status" id="status-validator-alt4"></span>
+                    <svg class="nb-cell-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                </div>
+            </div>
+            <div class="nb-cell-content">
+                <textarea class="nb-cell-textarea" id="cell-validator-alt4" placeholder="Validator result 4..." oninput="updateCellStatus('validator-alt4')"></textarea>
+            </div>
+        </div>
+
+        <div class="nb-cell collapsed" data-cell="validator-human-alt4">
+            <div class="nb-cell-header" onclick="toggleNbCell(this)">
+                <span class="nb-cell-name">**[validator_human_nemotron_4]**</span>
+                <span class="nb-cell-help" onclick="toggleCellHelp(event, this)">?<span class="nb-cell-tooltip"><strong>Human Validation:</strong> Manual JSON for LLM-evaluated constraints in response #4.</span></span>
+                <div class="nb-cell-actions">
+                    <button class="nb-cell-copy" onclick="event.stopPropagation(); copyCellContent('validator-human-alt4')">Copy</button>
+                    <span class="nb-cell-status" id="status-validator-human-alt4"></span>
+                    <svg class="nb-cell-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                </div>
+            </div>
+            <div class="nb-cell-content">
+                <textarea class="nb-cell-textarea" id="cell-validator-human-alt4" placeholder="Validator human result 4..." oninput="updateCellStatus('validator-human-alt4')"></textarea>
+            </div>
+        </div>
+    </div>
+    <div class="nb-progress">
+        <span id="progressText">0 / 24 cells</span>
+        <div class="nb-progress-bar">
+            <div class="nb-progress-fill" id="progressFill" style="width: 0%"></div>
+        </div>
+    </div>
+</div>
+
+<div class="layout">
+    <aside class="sidebar">
+        <div class="sidebar-section">
+            <div class="sidebar-label">Steps</div>
+            <nav class="sidebar-nav">
+                <a href="#overview" class="sidebar-link active"><span class="step-num">i</span> Overview</a>
+                <a href="#step0" class="sidebar-link"><span class="step-num">0</span> Metadata</a>
+                <a href="#step1" class="sidebar-link"><span class="step-num">1</span> System Prompt</a>
+                <a href="#step2" class="sidebar-link"><span class="step-num">2</span> Intermediate</a>
+                <a href="#step3" class="sidebar-link"><span class="step-num">3</span> Final Query</a>
+                <a href="#step4" class="sidebar-link"><span class="step-num">4</span> Golden Response</a>
+                <a href="#step5" class="sidebar-link"><span class="step-num">5</span> Thinking Cells</a>
+                <a href="#step6" class="sidebar-link"><span class="step-num">6</span> turn_metadata</a>
+                <a href="#step7" class="sidebar-link"><span class="step-num">7</span> Alternatives</a>
+                <a href="#step8" class="sidebar-link"><span class="step-num">8</span> Final Review</a>
+            </nav>
+        </div>
+        <div class="sidebar-section">
+            <div class="sidebar-label">Resources</div>
+            <nav class="sidebar-nav">
+                <a href="https://multi-lang-nvidia.streamlit.app/" target="_blank" class="sidebar-link">Validator Tool</a>
+                <a href="https://chathub.turing.com/" target="_blank" class="sidebar-link">ChatHub</a>
+                <a href="https://docs.google.com/spreadsheets/d/1WRa_83_uvk5pBfDdnFTMMiIsDEVMkU2d_r53Oot4Wh8" target="_blank" class="sidebar-link">Constraints Sheet</a>
+                <a href="https://www.name-generator.org.uk/" target="_blank" class="sidebar-link">Name Generator</a>
+                <a href="word_count.html" class="sidebar-link">Word Counter</a>
+            </nav>
+        </div>
+        <p style="font-size: 8px; color: rgba(128,128,128,0.25); text-align: center; margin-top: auto; padding-top: 20px; letter-spacing: 0.3px;">Made by Gabriel Glock · Italian pod lead</p>
+    </aside>
+
+    <main class="main">
+
+        <!-- Overview -->
+        <section class="section" id="overview">
+            <div class="help-wrapper">
+                <h1>Practical Guide</h1>
+                <span class="help-bubble" onclick="toggleHelp(this)">?</span>
+                <div class="help-popup">
+                    <div class="help-popup-header">
+                        <span class="help-popup-title">The workflow</span>
+                        <button class="help-popup-close" onclick="closeHelp(this)">✕</button>
+                    </div>
+                    <div class="help-popup-content">
+                        <p>You'll use multiple tools during creation:</p>
+                        <p><strong>Phase 1:</strong> Create content with LLM (Nemo, Qwen, or DeepSeek)</p>
+                        <p><strong>Phase 2:</strong> Test with ChatHub</p>
+                        <p><strong>Phase 3:</strong> Assemble in Colab</p>
+                    </div>
+                </div>
+            </div>
+            <p class="subtitle">Step-by-step instructions to create your CFBench task.</p>
+
+            <div class="alert alert-info">
+                <strong>Key Understanding</strong>
+                The external LLM "remembers" your conversation. As you build each piece, it understands the context. ChatHub is used ONLY at the end to test if real models can follow your constraints.
+            </div>
+
+            <h3>The 3-Phase Workflow</h3>
+            <div class="workflow-diagram">
+                <div class="workflow-phase">
+                    <div class="workflow-phase-header">
+                        <div class="workflow-phase-num">Phase 1</div>
+                        <div class="workflow-phase-title">External LLM</div>
+                    </div>
+                    <div class="workflow-phase-body">
+                        <ul>
+                            <li>System Prompt</li>
+                            <li>Intermediate Turns</li>
+                            <li>Final User Query</li>
+                            <li>Golden Response</li>
+                            <li>Thinking Cells</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="workflow-arrow">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                </div>
+                <div class="workflow-phase">
+                    <div class="workflow-phase-header">
+                        <div class="workflow-phase-num">Phase 2</div>
+                        <div class="workflow-phase-title">ChatHub</div>
+                    </div>
+                    <div class="workflow-phase-body">
+                        <ul>
+                            <li>Test 4 Models</li>
+                            <li>Get Alternative Responses</li>
+                            <li>Verify 50% Failure</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="workflow-arrow">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                </div>
+                <div class="workflow-phase">
+                    <div class="workflow-phase-header">
+                        <div class="workflow-phase-num">Phase 3</div>
+                        <div class="workflow-phase-title">Colab Notebook</div>
+                    </div>
+                    <div class="workflow-phase-body">
+                        <ul>
+                            <li>Assemble All Cells</li>
+                            <li>Run Validation</li>
+                            <li>Final Review</li>
+                            <li>Submit</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Step 0 -->
+        <div class="step-card collapsible" id="step0">
+            <div class="step-header" onclick="toggleStep(this)">
+                <div class="step-number">0</div>
+                <div class="step-meta">
+                    <h2>Understand Your Metadata</h2>
+                    <p>Before writing anything, know what you're building</p>
+                </div>
+            </div>
+            <div class="step-body">
+                <div class="help-wrapper">
+                    <h4 style="margin:0;">What the metadata contains:</h4>
+                    <span class="help-bubble" onclick="toggleHelp(this)">?</span>
+                    <div class="help-popup">
+                        <div class="help-popup-header">
+                            <span class="help-popup-title">What is this step?</span>
+                            <button class="help-popup-close" onclick="closeHelp(this)">✕</button>
+                        </div>
+                        <div class="help-popup-content">
+                            <p>Reading and understanding the <strong>task metadata</strong> you received.</p>
+                            <p>The metadata defines everything: domain, number of turns, length requirements, scenario type.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tools">
+                    <span class="tool">Just Reading</span>
+                </div>
+                <ul>
+                    <li><strong>Domain:</strong> The topic area (finance, health, technology, etc.)</li>
+                    <li><strong>Taxonomy Levels (L1, L2, L3):</strong> Specific categorization</li>
+                    <li><strong>Use Case:</strong> The type of task (analysis, creation, comparison)</li>
+                    <li><strong>Scenario:</strong> A REFERENCE example — do NOT copy literally!</li>
+                    <li><strong>Length Constraints:</strong> Min/max for system prompt, queries, responses</li>
+                </ul>
+
+                <div class="alert alert-danger">
+                    <strong>⚠️ About the Scenario Field</strong>
+                    <p style="margin: 8px 0 0 0;">The scenario in metadata is a <strong>REFERENCE EXAMPLE</strong> showing what kind of situation you should create. It gives you an idea of the context, tone, and complexity expected.</p>
+                    <p style="margin: 8px 0 0 0;"><strong>DO NOT copy it literally!</strong> Use it as inspiration to create your own PARALLEL situation with different specifics (different names, places, numbers, details).</p>
+                </div>
+
+                <div class="input-group">
+                    <label class="input-label">Paste your task metadata here:</label>
+                    <textarea class="input-field" placeholder="Paste the complete metadata from your selected task..."></textarea>
+                </div>
+
+                <div class="input-group" style="margin-top: 16px; padding: 16px; background: rgba(249, 171, 0, 0.1); border: 1px solid rgba(249, 171, 0, 0.3); border-radius: 8px;">
+                    <label class="input-label" style="color: #f9ab00;">📋 Scenario Reference (from metadata):</label>
+                    <textarea class="input-field" style="min-height: 80px; background: rgba(0,0,0,0.2);" placeholder="Copy ONLY the scenario field from your metadata here. Use this as a REFERENCE to create your own parallel situation in the user queries..."></textarea>
+                    <p style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">
+                        <strong>How to use:</strong> Read this scenario to understand the expected context. Then create YOUR OWN situation inspired by it — change names, specifics, numbers, but keep the same type/complexity of situation.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="connection">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+            Now start creating with external LLM
+        </div>
+
+        <!-- Step 1 -->
+        <div class="step-card collapsible" id="step1">
+            <div class="step-header" onclick="toggleStep(this)">
+                <div class="step-number">1</div>
+                <div class="step-meta">
+                    <h2>Create System Prompt</h2>
+                    <p>Define WHO the AI is and HOW it behaves</p>
+                </div>
+            </div>
+            <div class="step-body">
+                <div class="help-wrapper">
+                    <span style="color: var(--text-secondary);">Creates the AI personality for this conversation</span>
+                    <span class="help-bubble" onclick="toggleHelp(this)">?</span>
+                    <div class="help-popup">
+                        <div class="help-popup-header">
+                            <span class="help-popup-title">What is this?</span>
+                            <button class="help-popup-close" onclick="closeHelp(this)">✕</button>
+                        </div>
+                        <div class="help-popup-content">
+                            <p>The <strong>"personality" and rules</strong> for the AI in this conversation. It sets the context for everything that follows.</p>
+                            <p><strong>Tool:</strong> External LLM</p>
+                            <p><strong>Output:</strong> Text for "system" cell</p>
+                            <p><strong>Cell Name:</strong> system</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tools">
+                    <span class="tool primary">Nemo / Qwen / DeepSeek</span>
+                </div>
+
+                <div class="prompt-box">
+                    <div class="prompt-header">
+                        <span class="prompt-label">Prompt</span>
+                        <button class="copy-btn" onclick="copyPrompt(this)">Copy</button>
+                    </div>
+                    <div class="prompt-content">Metadata:
+[PASTE YOUR METADATA HERE - remove scenario, skip length constraints]
+
+Create a system instruction in Language: [YOUR LANGUAGE]
+
+Include:
+- Role: Who the assistant is (data analyst, planner, tutor, etc.)
+- Objective: Success in one sentence
+- Conditionals: Based on use case, user type, input format
+- Processing Rules: Formulas, rounding, sorting, tie-breaking, missing values, limits
+- Taxonomy-Based Rules: Rules from Domain/Use Case
+- Interaction Policy: How to handle ambiguous input (ask-then-act, defaults, leave empty)
+- Reasoning: Do not reveal chain-of-thought unless requested
+- Safety: Refuse unsafe/illegal/medical/legal requests (1-sentence + alternative)
+- Style: Tone (formal/friendly/concise), no emojis, no excessive verbosity
+- Output Format: Only if structured output needed
+
+Do NOT mention metadata terms (use-case, L1, L2). End with "unless otherwise specified by the user."
+
+Length: [SYSTEM PROMPT LENGTH from metadata]</div>
+                </div>
+
+                <!-- System Prompt Components Checklist -->
+                <div class="tip" style="margin-top: 16px;">
+                    <div class="tip-title">System Prompt Components Checklist (Dec 2025)</div>
+                    <div style="margin-top: 12px; font-size: 13px;">
+                        <p style="margin-bottom: 12px; color: var(--text-secondary);">A well-structured system prompt should include these components:</p>
+
+                        <div style="display: grid; gap: 8px;">
+                            <div style="padding: 10px; background: rgba(0,0,0,0.15); border-radius: 6px; border-left: 3px solid var(--accent);">
+                                <strong style="color: var(--accent);">1. Role</strong>
+                                <span style="color: var(--text-muted); display: block; margin-top: 4px;">Define WHO the assistant is (data analyst, travel planner, legal advisor, tutor, etc.)</span>
+                            </div>
+
+                            <div style="padding: 10px; background: rgba(0,0,0,0.15); border-radius: 6px; border-left: 3px solid var(--accent);">
+                                <strong style="color: var(--accent);">2. Objective</strong>
+                                <span style="color: var(--text-muted); display: block; margin-top: 4px;">Define success in ONE sentence — what the assistant must achieve</span>
+                            </div>
+
+                            <div style="padding: 10px; background: rgba(0,0,0,0.15); border-radius: 6px; border-left: 3px solid #6b7280;">
+                                <strong style="color: #9ca3af;">3. Greeting Format</strong> <span style="font-size: 11px; color: var(--text-muted);">(optional)</span>
+                                <span style="color: var(--text-muted); display: block; margin-top: 4px;">How the assistant should greet users (if applicable)</span>
+                            </div>
+
+                            <div style="padding: 10px; background: rgba(0,0,0,0.15); border-radius: 6px; border-left: 3px solid var(--accent);">
+                                <strong style="color: var(--accent);">4. Conditionals</strong>
+                                <span style="color: var(--text-muted); display: block; margin-top: 4px;">Rules based on: use case, user type, input format, data situation</span>
+                            </div>
+
+                            <div style="padding: 10px; background: rgba(0,0,0,0.15); border-radius: 6px; border-left: 3px solid var(--warning);">
+                                <strong style="color: var(--warning);">5. General Processing Rules</strong>
+                                <div style="color: var(--text-muted); margin-top: 4px; padding-left: 12px;">
+                                    <div>• Formulas & Calculations</div>
+                                    <div>• Rounding/Precision</div>
+                                    <div>• Sorting/Ordering</div>
+                                    <div>• Handling Ties</div>
+                                    <div>• Missing Values</div>
+                                    <div>• Limits</div>
+                                </div>
+                            </div>
+
+                            <div style="padding: 10px; background: rgba(0,0,0,0.15); border-radius: 6px; border-left: 3px solid var(--accent);">
+                                <strong style="color: var(--accent);">6. Taxonomy-Based Rules</strong>
+                                <span style="color: var(--text-muted); display: block; margin-top: 4px;">Domain-specific rules derived from the metadata (L1/L2 categories, use case)</span>
+                            </div>
+
+                            <div style="padding: 10px; background: rgba(0,0,0,0.15); border-radius: 6px; border-left: 3px solid var(--warning);">
+                                <strong style="color: var(--warning);">7. Conflict Resolution Rules</strong>
+                                <span style="color: var(--text-muted); display: block; margin-top: 4px;">What to do when rules contradict (priority order, fallback behavior)</span>
+                            </div>
+
+                            <div style="padding: 10px; background: rgba(0,0,0,0.15); border-radius: 6px; border-left: 3px solid var(--accent);">
+                                <strong style="color: var(--accent);">8. Interaction Policy</strong>
+                                <span style="color: var(--text-muted); display: block; margin-top: 4px;">How to handle ambiguous input: ask-then-act, use defaults, or leave empty</span>
+                            </div>
+
+                            <div style="padding: 10px; background: rgba(0,0,0,0.15); border-radius: 6px; border-left: 3px solid var(--accent);">
+                                <strong style="color: var(--accent);">9. Reasoning Exposure</strong>
+                                <span style="color: var(--text-muted); display: block; margin-top: 4px;">Do NOT reveal chain-of-thought unless explicitly requested by user</span>
+                            </div>
+
+                            <div style="padding: 10px; background: rgba(0,0,0,0.15); border-radius: 6px; border-left: 3px solid var(--danger);">
+                                <strong style="color: var(--danger);">10. Safety & Refusals</strong>
+                                <span style="color: var(--text-muted); display: block; margin-top: 4px;">Refuse unsafe/illegal/medical/legal requests (1 sentence + suggest alternative)</span>
+                            </div>
+
+                            <div style="padding: 10px; background: rgba(0,0,0,0.15); border-radius: 6px; border-left: 3px solid var(--accent);">
+                                <strong style="color: var(--accent);">11. Style & Tone</strong>
+                                <span style="color: var(--text-muted); display: block; margin-top: 4px;">Formal/friendly/concise, no emojis, no excessive verbosity</span>
+                            </div>
+
+                            <div style="padding: 10px; background: rgba(0,0,0,0.15); border-radius: 6px; border-left: 3px solid var(--warning);">
+                                <strong style="color: var(--warning);">12. Default Behaviors</strong>
+                                <span style="color: var(--text-muted); display: block; margin-top: 4px;">What the assistant does when no specific instruction applies</span>
+                            </div>
+
+                            <div style="padding: 10px; background: rgba(0,0,0,0.15); border-radius: 6px; border-left: 3px solid var(--accent);">
+                                <strong style="color: var(--accent);">13. Output Format</strong>
+                                <span style="color: var(--text-muted); display: block; margin-top: 4px;">JSON, Markdown Table, Plain Text, Numbered List, etc. (only if structured output needed)</span>
+                            </div>
+                        </div>
+
+                        <div class="alert alert-info" style="margin-top: 16px;">
+                            <strong>Remember:</strong> End with "unless otherwise specified by the user" to allow flexibility.
+                        </div>
+
+                        <div class="alert alert-danger" style="margin-top: 12px;">
+                            <strong>&#9888;&#65039; Required:</strong> The system prompt must contain at least <strong>1 LLM Eval constraint</strong> (e.g., tone, style, or behavior that needs AI to verify).
+                        </div>
+                    </div>
+                </div>
+
+                <div class="help-wrapper" style="margin: 16px 0;">
+                    <span style="color: var(--text-secondary); font-size: 14px;">About length requirements</span>
+                    <span class="help-bubble" onclick="toggleHelp(this)">?</span>
+                    <div class="help-popup">
+                        <div class="help-popup-header">
+                            <span class="help-popup-title">Tokens vs Words</span>
+                            <button class="help-popup-close" onclick="closeHelp(this)">✕</button>
+                        </div>
+                        <div class="help-popup-content">
+                            <p><strong>LLM token counts ≠ word counts.</strong></p>
+                            <p>A 500-token text might only have 350-400 words. Metadata length requirements are usually in words.</p>
+                            <p>Use an external word counter (like <a href="https://wordcounter.net" target="_blank">wordcounter.net</a>) to verify your content meets the specified length requirements.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="alert alert-success">
+                    <strong>After generating</strong>
+                    ALWAYS read and edit manually. Do NOT trust LLMs blindly! Make sure it makes sense for your specific scenario.
+                </div>
+
+                <div class="input-group">
+                    <label class="input-label">Your edited System Prompt:</label>
+                    <textarea class="input-field" placeholder="Paste and edit your system prompt here..."></textarea>
+                </div>
+            </div>
+        </div>
+
+        <div class="connection">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+            Keep using the same external LLM chat
+        </div>
+
+        <!-- Step 2 -->
+        <div class="step-card collapsible" id="step2">
+            <div class="step-header" onclick="toggleStep(this)">
+                <div class="step-number">2</div>
+                <div class="step-meta">
+                    <h2>Create Intermediate User Queries</h2>
+                    <p>Simple conversation to build context before the challenge</p>
+                </div>
+            </div>
+            <div class="step-body">
+                <div class="help-wrapper">
+                    <span style="color: var(--text-secondary);">Simple queries to build conversation context</span>
+                    <span class="help-bubble" onclick="toggleHelp(this)">?</span>
+                    <div class="help-popup">
+                        <div class="help-popup-header">
+                            <span class="help-popup-title">What is this?</span>
+                            <button class="help-popup-close" onclick="closeHelp(this)">✕</button>
+                        </div>
+                        <div class="help-popup-content">
+                            <p>Simple user questions/requests that come <strong>BEFORE</strong> the challenging final query.</p>
+                            <p>They build conversation context. These are <strong>EASY</strong> queries with no complex constraints.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tools">
+                    <span class="tool primary">Same External LLM Chat</span>
+                </div>
+
+                <div class="prompt-box">
+                    <div class="prompt-header">
+                        <span class="prompt-label">Prompt</span>
+                        <button class="copy-btn" onclick="copyPrompt(this)">Copy</button>
+                    </div>
+                    <div class="prompt-content">Metadata: [PASTE METADATA - remove scenario/length]
+
+Create [NUMBER] intermediate user messages for multi-turn conversation.
+
+SCENARIO REFERENCE (use as inspiration, do NOT copy):
+[PASTE THE SCENARIO FROM METADATA HERE]
+
+Create a PARALLEL situation inspired by the above — same type of context but with DIFFERENT specifics (names, places, numbers, details).
+
+Requirements:
+- SIMPLE and EASY queries (just for conversation volume)
+- Follow-ups of each other (naturally connected)
+- Human-like tone with occasional punctuation mistakes
+- Language: [YOUR LANGUAGE]
+- NOT mechanical or LLM-generated sounding
+- NO em-dash, latex, markdown
+- Related to domain but YOUR OWN parallel situation
+- Clear but simple goals
+
+Generate [NUMBER] simple, natural intermediate queries that establish YOUR scenario context.</div>
+                </div>
+
+                <div class="alert alert-info">
+                    <strong>Keep the LLM chat going!</strong>
+                    After getting the user queries, ask the LLM to respond to each one as the assistant. This builds the conversation naturally.
+                </div>
+
+                <div class="alert alert-warning">
+                    <strong>🔤 Generating Names?</strong>
+                    <p style="margin-top: 8px;">Any artificially generated names (people, companies, places) should be created using: <a href="https://www.name-generator.org.uk/" target="_blank" style="color: #f9ab00;"><strong>name-generator.org.uk</strong></a></p>
+                    <p style="margin-top: 4px; font-size: 12px; color: var(--text-muted);">This ensures realistic, varied names and avoids common LLM-generated name patterns.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="connection">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+            Now the challenging part begins
+        </div>
+
+        <!-- Step 3 -->
+        <div class="step-card collapsible" id="step3">
+            <div class="step-header" onclick="toggleStep(this)">
+                <div class="step-number">3</div>
+                <div class="step-meta">
+                    <h2>Create Final User Query</h2>
+                    <p>70% content + 30% constraints as natural language</p>
+                </div>
+            </div>
+            <div class="step-body">
+                <div class="help-wrapper">
+                    <span style="color: var(--text-secondary);">The challenging query with constraints</span>
+                    <span class="help-bubble" onclick="toggleHelp(this)">?</span>
+                    <div class="help-popup">
+                        <div class="help-popup-header">
+                            <span class="help-popup-title">The challenge</span>
+                            <button class="help-popup-close" onclick="closeHelp(this)">✕</button>
+                        </div>
+                        <div class="help-popup-content">
+                            <p>The user's final request that includes <strong>BOTH</strong> the actual question AND format/style constraints written as natural language.</p>
+                            <p>This is where the benchmark challenge happens.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tools">
+                    <span class="tool primary">External LLM</span>
+                    <span class="tool warning">+ Manual Editing</span>
+                </div>
+
+                <h4>Part A: Generate 70% Content Query</h4>
+                <div class="prompt-box">
+                    <div class="prompt-header">
+                        <span class="prompt-label">Prompt</span>
+                        <button class="copy-btn" onclick="copyPrompt(this)">Copy</button>
+                    </div>
+                    <div class="prompt-content">Metadata: [PASTE METADATA - remove scenario/length]
+
+SCENARIO REFERENCE (use as inspiration, NOT literally):
+[PASTE THE SCENARIO FROM METADATA HERE]
+
+Create a final user query that CONTINUES the parallel situation you established in intermediate turns (same context, different from metadata scenario).
+
+Tone: Human-like, occasional punctuation mistakes, [YOUR LANGUAGE], NOT mechanical, NO em-dash/latex/markdown
+
+Content:
+1. Builds on YOUR parallel scenario (not metadata's literal scenario)
+2. Clear, specific goal
+3. ALL data required (no external knowledge needed)
+4. NOT generic - very specific
+5. NO room for assumptions
+6. All conditions explicit
+7. No visualizations/code requests
+8. Only ONE optimal solution
+9. Realistic data amount
+
+Length: [USER QUERY LENGTH RANGE]
+
+Strictly include ALL context/values needed. Domain: [YOUR DOMAIN]</div>
+                </div>
+
+                <div class="help-wrapper" style="margin: 24px 0 16px;">
+                    <h4 style="margin: 0;">Part B: Convert Constraints to Natural Language</h4>
+                    <span class="help-bubble" onclick="toggleHelp(this)">?</span>
+                    <div class="help-popup">
+                        <div class="help-popup-header">
+                            <span class="help-popup-title">What is turn_metadata?</span>
+                            <button class="help-popup-close" onclick="closeHelp(this)">✕</button>
+                        </div>
+                        <div class="help-popup-content">
+                            <p><strong>turn_metadata</strong> is a JSON configuration that defines all constraints your response must follow.</p>
+                            <p>You create it using the <a href="https://multi-lang-nvidia.streamlit.app/" target="_blank">Validator Tool</a> (see Step 6).</p>
+                            <p>Your final user query must <strong>naturally ask for everything</strong> this JSON specifies — constraints become natural language requests.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="prompt-box">
+                    <div class="prompt-header">
+                        <span class="prompt-label">Prompt</span>
+                        <button class="copy-btn" onclick="copyPrompt(this)">Copy</button>
+                    </div>
+                    <div class="prompt-content">Convert these constraints to natural language in [YOUR LANGUAGE]:
+
+Example conversions:
+- "include at least 5 bullet points"
+- "structure it in exactly 3 paragraphs"
+- "make sure to mention Rome, Florence, and Venice"
+
+My turn_metadata JSON:
+```
+[PASTE YOUR TURN_METADATA JSON - see Step 6]
+```
+
+Domain: [YOUR DOMAIN] - make constraints feel natural for this context.
+
+Convert ALL instructions into natural phrases I can add to my query.</div>
+                </div>
+
+                <div class="alert alert-warning">
+                    <strong>Combine naturally!</strong>
+                    Final Query = 70% Content + 30% Constraints. Don't make it obvious they're constraints — weave them into the request naturally.
+                </div>
+
+                <div class="alert alert-danger" style="margin-top: 12px;">
+                    <strong>Final Turn Requirements (Dec 2025)</strong>
+                    <p style="margin-top: 8px;">Your final user query MUST include:</p>
+                    <ul style="margin-top: 8px; font-size: 13px;">
+                        <li><strong>4+ IF instructions</strong> — merged naturally, NOT stacked</li>
+                        <li><strong>1+ LLM Eval instruction</strong> — stylistic/linguistic/situation</li>
+                        <li><strong>1+ llm_judge instruction</strong> — subjective evaluation</li>
+                    </ul>
+                    <p style="margin-top: 8px; font-size: 12px;">The query should <strong>challenge/break the model</strong> while remaining achievable for the Golden response.</p>
+                </div>
+
+                <div class="tip" style="margin-top: 12px;">
+                    <div class="tip-title">Non-Final vs Final Turns</div>
+                    <table style="width: 100%; font-size: 12px; margin-top: 8px;">
+                        <thead>
+                            <tr style="background: rgba(0,0,0,0.2);">
+                                <th style="padding: 8px; text-align: left;">Non-Final Turns (1..N-1)</th>
+                                <th style="padding: 8px; text-align: left;">Final Turn</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="padding: 8px; vertical-align: top;">
+                                    <ul style="margin: 0; padding-left: 16px;">
+                                        <li>Easy to medium difficulty</li>
+                                        <li>Build context incrementally</li>
+                                        <li>Natural follow-ups</li>
+                                        <li>All required info present</li>
+                                    </ul>
+                                </td>
+                                <td style="padding: 8px; vertical-align: top;">
+                                    <ul style="margin: 0; padding-left: 16px;">
+                                        <li>High complexity</li>
+                                        <li>4+ IF + 1 LLM Eval + 1 llm_judge</li>
+                                        <li>Should challenge the model</li>
+                                        <li>No ambiguity in instructions</li>
+                                    </ul>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="input-group">
+                    <label class="input-label">Your complete Final User Query:</label>
+                    <textarea class="input-field" style="min-height: 150px;" placeholder="Combined query with content and constraints..."></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 4 -->
+        <div class="step-card collapsible" id="step4">
+            <div class="step-header" onclick="toggleStep(this)">
+                <div class="step-number">4</div>
+                <div class="step-meta">
+                    <h2>Create Golden Response</h2>
+                    <p>The answer that passes ALL constraints</p>
+                </div>
+            </div>
+            <div class="step-body">
+                <div class="help-wrapper">
+                    <span style="color: var(--text-secondary);">The perfect response that passes all constraints</span>
+                    <span class="help-bubble" onclick="toggleHelp(this)">?</span>
+                    <div class="help-popup">
+                        <div class="help-popup-header">
+                            <span class="help-popup-title">Why "Golden"?</span>
+                            <button class="help-popup-close" onclick="closeHelp(this)">✕</button>
+                        </div>
+                        <div class="help-popup-content">
+                            <p>This response <strong>proves the task is achievable</strong>.</p>
+                            <p>Generate with external LLM, and if it fails any constraint, emphasize those constraints and regenerate.</p>
+                            <p>Manual editing only for small final adjustments.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tools">
+                    <span class="tool primary">DeepSeek (Deep Thinking ON)</span>
+                    <span class="tool warning">Refine Until 100%</span>
+                </div>
+
+                <div class="prompt-box">
+                    <div class="prompt-header">
+                        <span class="prompt-label">Prompt</span>
+                        <button class="copy-btn" onclick="copyPrompt(this)">Copy</button>
+                    </div>
+                    <div class="prompt-content">I will give you a question and I need you to follow these rules while solving the problem in [YOUR LANGUAGE]:
+
+REASONING REQUIREMENTS:
+- Solution WITHOUT skipping ANY reasoning
+- Don't assume anything outside given info (no hallucinations)
+- Process solution ONLY through given information
+- Think out loud: provide each context used to solve
+- If multiple cases/solutions possible, discuss ALL briefly
+- NO self-reference words: 'I', 'we', 'you', 'your' (VERY IMPORTANT)
+
+STRUCTURE:
+- Initial opening: "To find out how..." or similar (NOT "Certainly", "Sure", "Let's" or any acknowledgement)
+- Skip opening if output constraints present (paragraphs, characters, etc.)
+- Understanding: Simplify problem, clarify hidden requirements (don't copy-paste user prompt)
+
+STYLE:
+- Don't mention problem as "puzzle"
+- NO emojis (:heavy_check_mark: etc.)
+- Don't write meta-comments like "(plain-language recap)" or "Sorry—detailed reasoning cannot be provided"
+- NO latex
+
+CRITICAL - Follow these exact constraints:
+[LIST ALL YOUR CONSTRAINTS FROM turn_metadata HERE]
+
+Question:
+[PASTE FINAL USER QUERY]</div>
+                </div>
+
+                <div class="alert alert-danger">
+                    <strong>ALWAYS verify manually!</strong>
+                    LLMs hallucinate. After generating, check:
+                    <ul>
+                        <li>All calculations are correct</li>
+                        <li>All constraints are actually followed</li>
+                        <li>No made-up information</li>
+                        <li>Response makes logical sense</li>
+                    </ul>
+                    If constraints fail: emphasize them and regenerate. Only edit manually as last resort.
+                </div>
+
+                <div class="alert alert-warning" style="margin-top: 12px;">
+                    <strong>No Preamble/Closing Statements (Dec 2025 Rule)</strong>
+                    <p style="margin-top: 8px;">Remove any meta-commentary about how the model is following instructions:</p>
+                    <ul style="margin-top: 8px; font-size: 13px;">
+                        <li><strong>Remove preambles like:</strong> "Here's your 100-word summary:", "Certainly! Here is..."</li>
+                        <li><strong>Remove closing statements like:</strong> "(100 words)", "I used the word 'tree' five times as requested"</li>
+                        <li><strong>Remove instruction acknowledgements:</strong> Any statement describing what constraints were followed</li>
+                    </ul>
+                    <p style="margin-top: 8px; font-size: 12px; color: var(--text-muted);">The response should just BE the content — no commentary about creating it.</p>
+                </div>
+
+                <div class="alert alert-info" style="margin-top: 12px;">
+                    <strong>No Model Evasions</strong>
+                    <p style="margin-top: 8px; font-size: 13px;">If the model refuses to fulfill the request (e.g., "This has been blocked by content filters"), the response is <strong>invalid</strong> regardless of whether it technically follows the constraints. The model must actually deliver the content.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 5 -->
+        <div class="step-card collapsible" id="step5">
+            <div class="step-header" onclick="toggleStep(this)">
+                <div class="step-number">5</div>
+                <div class="step-meta">
+                    <h2>Generate Thinking Cells</h2>
+                    <p>Internal reasoning — created AFTER responses</p>
+                </div>
+            </div>
+            <div class="step-body">
+                <div class="help-wrapper">
+                    <span style="color: var(--text-secondary);">Internal reasoning created AFTER responses</span>
+                    <span class="help-bubble" onclick="toggleHelp(this)">?</span>
+                    <div class="help-popup">
+                        <div class="help-popup-header">
+                            <span class="help-popup-title">What are Thinking cells?</span>
+                            <button class="help-popup-close" onclick="closeHelp(this)">✕</button>
+                        </div>
+                        <div class="help-popup-content">
+                            <p>The <strong>"internal monologue"</strong> showing how the AI reasons through the problem.</p>
+                            <p>Created ARTIFICIALLY: you write the response first, then generate thinking that would lead to it.</p>
+                            <p><strong>Length:</strong> 2.5x-3x response</p>
+                            <p><strong>Style:</strong> Self-talk, "I..."</p>
+                            <p><strong>Fabricate for:</strong> Intermediate turns + Golden</p>
+                            <p><strong>Copy from ChatHub:</strong> Alternative responses</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tools">
+                    <span class="tool primary">External LLM</span>
+                </div>
+
+                <div class="alert alert-warning">
+                    <strong>FABRICATE with External LLM:</strong>
+                    <ul>
+                        <li>✅ All intermediate turn thinkings</li>
+                        <li>✅ Golden response thinking (final turn)</li>
+                    </ul>
+                    <p style="margin-top: 8px;">Use the prompt below to generate artificial reasoning that leads to each response.</p>
+                </div>
+
+                <div class="alert alert-success">
+                    <strong>COPY from ChatHub (do NOT fabricate):</strong>
+                    <ul>
+                        <li>📋 thinking_nemotron_1, 2, 3, 4 (or qwen3)</li>
+                    </ul>
+                    <p style="margin-top: 8px;">Only for the 4 alternative model responses — copy the REAL thinking output from ChatHub when the model answers the final query!</p>
+                </div>
+
+                <div class="dropdown" style="margin-bottom: 16px;">
+                    <div class="dropdown-header" onclick="toggleDropdown(this)">
+                        <span>Prompt: FIRST Thinking Cell (Turn 1)</span>
+                        <span class="dropdown-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></span>
+                    </div>
+                    <div class="dropdown-content">
+                        <div class="dropdown-inner">
+                            <div class="prompt-box" style="margin: 0;">
+                                <div class="prompt-header">
+                                    <span class="prompt-label">First Turn Thinking</span>
+                                    <button class="copy-btn" onclick="copyPrompt(this)">Copy</button>
+                                </div>
+                                <div class="prompt-content">You are given a conversation consisting of:
+1) A user question
+2) An assistant response that correctly answers the user question
+
+Your task is to generate a **thinking cell** placed **BEFORE** the given assistant response.
+
+The thinking cell must:
+- Fully analyze the user question
+- Contain ALL reasoning that logically leads to the given assistant response
+- Be a strict superset of the assistant's reasoning (assistant response can be derived from it)
+- NEVER reference, mention, or point to the given assistant response explicitly
+
+Core requirements (The thinking must include):
+- Step-by-step reasoning breaking down the problem-solving process
+- Internal monologue written as self-talk
+- Self-questioning (checking correctness, exploring alternatives)
+- Acknowledgment of uncertainty where applicable
+- Backtracking when an earlier step is reconsidered or corrected
+- Justification for each step, explaining why it is taken
+- Continuous alignment with the final goal
+- Explicit assumptions and inferences
+- A validation step to verify the solution once obtained
+
+Structural requirements:
+Follow the logical hierarchy: Understanding → Variables → Solution → Validation → Conclusion
+Do NOT use headings explicitly. Maintain hierarchy through natural flow.
+
+Tone and style constraints:
+- Written as self-talk, first-person singular (I ...)
+- Do NOT address the user
+- Do NOT use "let me" or "we"
+- Do NOT use bullet points, numbering, hyphens, or symbols
+- Use ONLY line breaks to separate thoughts
+- No emojis or special symbols
+- Start with "I ..."
+
+Content constraints:
+- Use ONLY information present in the given conversation
+- Do NOT introduce external concepts, terms, or assumptions
+- Cover all edge cases implied by the assistant response
+- Final answer derived from thinking must MATCH the assistant response
+
+Length constraints:
+- At least 2.5× the length of the assistant response
+- At most 3× the length of the assistant response
+
+User: [PASTE USER QUERY]
+Assistant: [PASTE THE RESPONSE]
+
+Generate the thinking cell in [YOUR LANGUAGE].</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="dropdown" style="margin-bottom: 16px;">
+                    <div class="dropdown-header" onclick="toggleDropdown(this)">
+                        <span>Prompt: FOLLOW-UP Thinking Cells (Turn 2+)</span>
+                        <span class="dropdown-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></span>
+                    </div>
+                    <div class="dropdown-content">
+                        <div class="dropdown-inner">
+                            <div class="prompt-box" style="margin: 0;">
+                                <div class="prompt-header">
+                                    <span class="prompt-label">Follow-up Turn Thinking</span>
+                                    <button class="copy-btn" onclick="copyPrompt(this)">Copy</button>
+                                </div>
+                                <div class="prompt-content">You are given a conversation where:
+- A user asks a follow-up question
+- The assistant responds to that follow-up question
+
+Your task is to generate a **thinking cell** placed **BEFORE** the assistant response for this follow-up turn.
+
+This thinking cell must:
+- Fully analyze the follow-up user question
+- Incorporate context and conclusions from earlier turns
+- Clearly identify what was already done previously
+- Highlight what has changed or been added in the current turn
+- Reason through remaining steps needed to reach the final answer
+- Lead logically and completely to the given assistant response
+
+The thinking cell must be a strict superset of the assistant's reasoning.
+Do NOT mention, reference, or point to the assistant response explicitly.
+
+Core reasoning requirements (same as first turn):
+- Step-by-step reasoning, internal monologue as self-talk
+- Self-questioning, uncertainty acknowledgment, backtracking
+- Justification for each step, continuous alignment with objective
+- Explicit assumptions/inferences, validation step at end
+
+Structural requirements:
+Understanding → Using previous results → New variables → Step-by-step → Validation → Conclusion
+(No explicit headings, maintain hierarchy through natural flow)
+
+Tone/style: Self-talk "I ...", no "we"/"let me", no bullets/numbering/hyphens/emojis, only line breaks
+
+Length: 2.5× to 3× the assistant response length
+
+User: [PASTE FOLLOW-UP USER QUERY]
+Assistant: [PASTE THE RESPONSE]
+
+Generate the thinking cell in [YOUR LANGUAGE].</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 6 -->
+        <div class="step-card collapsible" id="step6">
+            <div class="step-header" onclick="toggleStep(this)">
+                <div class="step-number">6</div>
+                <div class="step-meta">
+                    <h2>Create turn_metadata</h2>
+                    <p>JSON constraints that validators check against</p>
+                </div>
+            </div>
+            <div class="step-body">
+                <div class="help-wrapper">
+                    <span style="color: var(--text-secondary);">JSON constraints for validation</span>
+                    <span class="help-bubble" onclick="toggleHelp(this)">?</span>
+                    <div class="help-popup">
+                        <div class="help-popup-header">
+                            <span class="help-popup-title">Source of truth</span>
+                            <button class="help-popup-close" onclick="closeHelp(this)">✕</button>
+                        </div>
+                        <div class="help-popup-content">
+                            <p>A JSON object defining all constraints that responses will be <strong>validated against</strong>.</p>
+                            <p>Your final user query must ask for everything that turn_metadata requires.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tools">
+                    <span class="tool success">Validator Tool</span>
+                </div>
+
+                <p>Use the <a href="https://multi-lang-nvidia.streamlit.app/" target="_blank"><strong>Validator Tool</strong></a> to build your JSON constraints.</p>
+
+                <div class="alert alert-danger" style="margin-top: 16px;">
+                    <strong>Minimum Requirements (Dec 2025 Update)</strong>
+                    <div style="margin-top: 12px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
+                        <div style="background: rgba(0,0,0,0.2); padding: 12px; border-radius: 6px;">
+                            <div style="font-weight: 600; color: #4fc3f7; margin-bottom: 6px;">4+ IF Instructions</div>
+                            <p style="font-size: 12px; margin: 0; color: var(--text-muted);">Programmatically checkable (word count, keywords, formatting)</p>
+                        </div>
+                        <div style="background: rgba(0,0,0,0.2); padding: 12px; border-radius: 6px;">
+                            <div style="font-weight: 600; color: #f9ab00; margin-bottom: 6px;">1+ LLM Eval</div>
+                            <p style="font-size: 12px; margin: 0; color: var(--text-muted);">stylistic:*, linguistic:*, or situation:* instructions</p>
+                        </div>
+                        <div style="background: rgba(0,0,0,0.2); padding: 12px; border-radius: 6px;">
+                            <div style="font-weight: 600; color: #e879f9; margin-bottom: 6px;">1+ LLM Judge</div>
+                            <p style="font-size: 12px; margin: 0; color: var(--text-muted);">Subjective natural-language quality checks</p>
+                        </div>
+                    </div>
+                    <p style="margin-top: 12px; font-size: 13px;"><strong>Target:</strong> 6-15 constraints per task. More constraints = higher chance models will fail!</p>
+                </div>
+
+                <div class="tip" style="margin-top: 16px;">
+                    <div class="tip-title">What is llm_judge?</div>
+                    <p><code>llm_judge</code> is a natural-language evaluation check that <strong>cannot be verified by code</strong> (regex, counters, schema checks). It's used for subjective requirements that only a human or LLM can evaluate.</p>
+                    <p style="margin-top: 8px;"><strong>Examples of llm_judge requirements:</strong></p>
+                    <ul style="margin-top: 4px; font-size: 13px;">
+                        <li>"keywords evenly and naturally distributed"</li>
+                        <li>"sounds organic, not forced"</li>
+                        <li>"tone feels professional throughout"</li>
+                        <li>"the conclusion ties back to the intro"</li>
+                        <li>"facts are consistent and not contradictory"</li>
+                        <li>"argument is persuasive"</li>
+                    </ul>
+                    <div style="margin-top: 12px; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 6px;">
+                        <strong style="font-size: 12px; color: var(--text-secondary);">Key Distinction:</strong>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; font-size: 12px;">
+                            <div><strong>IF:</strong> Programmatic (exact counts, keywords, casing)</div>
+                            <div><strong>llm_judge:</strong> Human judgment (style, quality, semantics)</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="dropdown" style="margin-top: 12px;">
+                    <div class="dropdown-header" onclick="toggleDropdown(this)">
+                        <span>Understanding the 3 Instruction Types</span>
+                        <span class="dropdown-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></span>
+                    </div>
+                    <div class="dropdown-content">
+                        <div class="dropdown-inner">
+                            <h4 style="color: #4fc3f7; margin-bottom: 8px;">IF Instructions (Instruction Following)</h4>
+                            <p style="font-size: 13px; margin-bottom: 8px;">Constraints that can be <strong>verified automatically by code</strong> — regex patterns, word counters, format checkers, schema validators.</p>
+                            <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 16px;"><strong>Examples:</strong> <code>keywords:existence</code>, <code>sentence_count</code>, <code>forbidden_words</code>, <code>detectable_format:json</code>, <code>length_constraints:number_words</code></p>
+
+                            <h4 style="color: #f9ab00; margin-bottom: 8px;">LLM Eval Instructions</h4>
+                            <p style="font-size: 13px; margin-bottom: 8px;">Structured constraints about <strong>style, linguistics, or situation</strong> that require human judgment but follow defined categories.</p>
+                            <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 16px;"><strong>Examples:</strong> <code>stylistic:tone_formality</code>, <code>linguistic:grammatical_mood</code>, <code>situation:role_based</code>, <code>stylistic:emotional_tone</code></p>
+
+                            <h4 style="color: #e879f9; margin-bottom: 8px;">LLM Judge Instructions</h4>
+                            <p style="font-size: 13px; margin-bottom: 8px;">Completely <strong>subjective natural-language evaluations</strong> that cannot be checked by deterministic code OR predefined categories. Pure human/LLM judgment.</p>
+                            <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px;"><strong>Use when requirement is:</strong></p>
+                            <ul style="font-size: 12px; color: var(--text-muted); margin-left: 16px;">
+                                <li>"evenly and naturally distributed"</li>
+                                <li>"sounds organic, not forced"</li>
+                                <li>"the conclusion ties back to the intro"</li>
+                                <li>"facts are consistent and not contradictory"</li>
+                                <li>"argument is persuasive"</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="alert alert-warning" style="margin-top: 12px;">
+                    <strong>🎯 Focus on COMPLEXITY, not just formatting</strong>
+                    <p style="margin-top: 8px; font-size: 13px;">Don't give the LLM a simple sentence to format — that's too easy. Instead, give it a <strong>structured, complex requirement</strong> and THEN add constraints on top. The task itself should be challenging before constraints are added.</p>
+                </div>
+
+                <div class="alert alert-info" style="margin-top: 12px;">
+                    <strong>⚠️ 20% LIMIT: Word Count Constraints</strong>
+                    <p style="margin-top: 8px; font-size: 13px;">These constraints should appear in <strong>at most 1 out of 5 tasks (20%)</strong>:</p>
+                    <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px;">
+                        <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 3px; font-size: 11px;">length_constraints:number_words</code>
+                        <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 3px; font-size: 11px;">length_constraints:unique_words</code>
+                        <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 3px; font-size: 11px;">length_constraints:number_characters</code>
+                        <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 3px; font-size: 11px;">length_constraints:word_repetition</code>
+                        <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 3px; font-size: 11px;">change_case:capital_word_frequency</code>
+                        <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 3px; font-size: 11px;">change_case:lower_word_frequency</code>
+                        <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 3px; font-size: 11px;">keywords:vowel_count</code>
+                        <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 3px; font-size: 11px;">keywords:consonant_count</code>
+                    </div>
+                    <p style="margin-top: 8px; font-size: 12px; color: var(--text-muted);">Track this from the initial phase. If you've used these recently, skip them for the next few tasks.</p>
+                </div>
+
+                <div class="dropdown">
+                    <div class="dropdown-header" onclick="toggleDropdown(this)">
+                        <span>High Failure Rate Constraints</span>
+                        <span class="dropdown-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></span>
+                    </div>
+                    <div class="dropdown-content">
+                        <div class="dropdown-inner">
+                            <table>
+                                <tr><td><code>sentence_count</code> (exact)</td><td>Hard to hit exact number</td></tr>
+                                <tr><td><code>word_length</code></td><td>Short/long words slip through</td></tr>
+                                <tr><td><code>alliteration</code></td><td>Hard to maintain pattern</td></tr>
+                                <tr><td><code>positioning</code></td><td>Exact word position tricky</td></tr>
+                                <tr><td><code>no_comma</code></td><td>Commas are habitual</td></tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="alert alert-success" style="margin-top: 16px;">
+                    <strong>💡 Pro-tip: Reverse Engineering</strong>
+                    <p style="margin-top: 8px; font-size: 13px;">After running the validator, you can adjust your turn_metadata based on the results:</p>
+                    <ol style="margin: 8px 0 0 16px; font-size: 13px;">
+                        <li>Run validator on your golden response</li>
+                        <li>Check which constraints passed/failed</li>
+                        <li>Adjust turn_metadata values to match what actually appears in the response</li>
+                        <li>Re-run validator to confirm 100% pass</li>
+                        <li>Regenerate alternatives if needed</li>
+                    </ol>
+                    <p style="margin-top: 8px; font-size: 12px; color: var(--text-muted);">This workflow lets you fine-tune constraints after seeing real outputs, rather than guessing upfront.</p>
+                </div>
+
+                <div class="input-group">
+                    <label class="input-label">Your turn_metadata JSON:</label>
+                    <textarea class="input-field" style="min-height: 200px;" placeholder='{"metadata": ["add"], "instructions": [...]}'></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 7 -->
+        <div class="step-card collapsible" id="step7">
+            <div class="step-header" onclick="toggleStep(this)">
+                <div class="step-number">7</div>
+                <div class="step-meta">
+                    <h2>Generate Alternative Model Responses</h2>
+                    <p>Test if real LLMs struggle with your constraints</p>
+                </div>
+            </div>
+            <div class="step-body">
+                <div class="help-wrapper">
+                    <span style="color: var(--text-secondary);">Test if real LLMs struggle with your constraints</span>
+                    <span class="help-bubble" onclick="toggleHelp(this)">?</span>
+                    <div class="help-popup">
+                        <div class="help-popup-header">
+                            <span class="help-popup-title">ChatHub comes in!</span>
+                            <button class="help-popup-close" onclick="closeHelp(this)">✕</button>
+                        </div>
+                        <div class="help-popup-content">
+                            <p>Generate 4 responses from <strong>Nemotron</strong> OR <strong>Qwen3</strong>.</p>
+                            <p><strong>Do NOT edit</strong> these responses! They must be natural model outputs to prove the task is challenging.</p>
+                            <p><strong>Tool:</strong> ChatHub</p>
+                            <p><strong>Models:</strong> Nemotron OR Qwen3 (pick ONE)</p>
+                            <p><strong>Responses:</strong> 4 different</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tools">
+                    <span class="tool danger">ChatHub</span>
+                </div>
+
+                <h4>How to use ChatHub:</h4>
+                <ol>
+                    <li>Go to <a href="https://chathub.turing.com/" target="_blank">chathub.turing.com</a></li>
+                    <li>Select model: <strong>Nemotron</strong> OR <strong>Qwen3</strong> (use same model for all 4)</li>
+                    <li>Paste your COMPLETE conversation (system + all turns + final query)</li>
+                    <li>Generate response</li>
+                    <li>Repeat 3 more times for 4 total responses</li>
+                </ol>
+
+                <div class="alert alert-danger">
+                    <strong>System Prompt in ChatHub</strong>
+                    The system prompt must be pasted into the <strong>System Prompt field</strong> in ALL 4 ChatHub tabs — not just in the chat message. Each tab has its own system prompt input area at the top. Make sure to fill it in for every model you're testing.
+                </div>
+
+                <div class="alert alert-danger">
+                    <strong>Task Challenge Level (Dec 2025 Rules)</strong>
+                    <ul style="margin-top: 8px;">
+                        <li>At most <strong>50% of 4 passes can PASS all</strong> instructions (max 2 passes)</li>
+                        <li>At least <strong>1 instruction must have both PASS and FAIL</strong> across the 4 responses</li>
+                    </ul>
+                    <table style="margin-top: 12px; width: 100%; font-size: 12px;">
+                        <tr style="background: rgba(0,0,0,0.2);"><td style="padding: 6px;"><strong>Pass 1</strong></td><td style="padding: 6px;">Fail at least 3 instructions</td></tr>
+                        <tr><td style="padding: 6px;"><strong>Pass 2</strong></td><td style="padding: 6px;">Fail at least 1 instruction</td></tr>
+                        <tr style="background: rgba(0,0,0,0.2);"><td style="padding: 6px;"><strong>Pass 3</strong></td><td style="padding: 6px;">Can pass all (only 1 of 4 allowed)</td></tr>
+                        <tr><td style="padding: 6px;"><strong>Pass 4</strong></td><td style="padding: 6px;">Must pass at least 1 that failed elsewhere</td></tr>
+                    </table>
+                </div>
+
+                <div class="alert alert-info">
+                    <strong>Model Distribution</strong>
+                    <p style="margin-top: 8px; font-size: 13px;"><strong>qwen3 : nemotron = 60:40</strong> across all your tasks. Pick ONE model per task. Track which model you used.</p>
+                </div>
+
+                <div class="tip" style="margin-top: 12px;">
+                    <div class="tip-title">If models pass too much</div>
+                    <ul style="font-size: 13px;">
+                        <li>Add more constraints (especially high-failure ones)</li>
+                        <li>Use "equal to" instead of "at least"</li>
+                        <li>Combine conflicting constraints</li>
+                        <li>Update final user query to match new constraints</li>
+                    </ul>
+                </div>
+
+                <div class="tip" style="margin-top: 12px;">
+                    <div class="tip-title">If models fail everything</div>
+                    <ul style="font-size: 13px;">
+                        <li>Simplify some constraints</li>
+                        <li>Use "at least" instead of "equal to"</li>
+                        <li>Remove conflicting constraint combinations</li>
+                    </ul>
+                </div>
+
+                <div class="alert alert-success">
+                    <strong>Thinking for alternatives: Copy from ChatHub!</strong>
+                    <p style="margin-top: 8px;">Unlike intermediate turns, the thinking for alternative models is <strong>NOT fabricated</strong>. Copy the thinking/reasoning output directly from ChatHub when the model generates its response.</p>
+                </div>
+
+                <div class="tip" style="margin-top: 12px;">
+                    <div class="tip-title">If model refuses or has server error</div>
+                    <p style="font-size: 13px; margin-top: 8px;">Simply resend the <strong>same query</strong> without modifications. Don't emphasize or reinforce any constraints — just try again naturally. Server delays or temporary issues are common.</p>
+                </div>
+
+                <div class="alert alert-danger" style="margin-top: 20px;">
+                    <strong>⚠️ REQUIRED: Creating validator_human cells</strong>
+                    <p style="margin-top: 8px;">You must create a <code>validator_human</code> cell for the Golden response AND for each of the 4 alternative responses (5 total).</p>
+                </div>
+
+                <h4 style="margin-top: 20px;">How to fill validator_human:</h4>
+
+                <div class="help-wrapper">
+                    <p><strong>Step 1:</strong> Find your LLM-based constraints in turn_metadata</p>
+                    <span class="help-bubble" onclick="toggleHelp(this)">?</span>
+                    <div class="help-popup">
+                        <div class="help-popup-header">
+                            <span class="help-popup-title">What are LLM-based constraints?</span>
+                            <button class="help-popup-close" onclick="closeHelp(this)">✕</button>
+                        </div>
+                        <div class="help-popup-content">
+                            <p>These are constraints that cannot be automatically validated and require human judgment:</p>
+                            <p>• <code>llm_judge</code> — subjective quality checks</p>
+                            <p>• <code>stylistic</code> — tone/style requirements</p>
+                            <p>• <code>linguistic:grammatical_mood</code> — grammar mood</p>
+                            <p>You should have at least 2 of these in your turn_metadata (the "LLM Eval" constraints).</p>
+                        </div>
+                    </div>
+                </div>
+                <p style="color: var(--text-muted); font-size: 13px;">Look in your turn_metadata for instructions like <code>llm_judge</code>, <code>stylistic</code>, <code>linguistic:*</code>, etc.</p>
+
+                <p style="margin-top: 16px;"><strong>Step 2:</strong> Read the assistant response and judge each LLM constraint yourself</p>
+                <p style="color: var(--text-muted); font-size: 13px;">As a human, did the response truly satisfy this constraint? Don't trust the LLM validator — use your own judgment.</p>
+
+                <p style="margin-top: 16px;"><strong>Step 3:</strong> Fill the JSON with your judgment</p>
+
+                <div class="prompt-box" style="margin: 12px 0;">
+                    <div class="prompt-header">
+                        <span class="prompt-label">validator_human Template</span>
+                        <button class="copy-btn" onclick="copyPrompt(this)">Copy</button>
+                    </div>
+                    <div class="prompt-content">[
+  {
+    "id": "INSTRUCTION_ID_FROM_TURN_METADATA",
+    "status": "Passed",
+    "message": "Brief explanation of why this passed or failed"
+  },
+  {
+    "id": "SECOND_LLM_INSTRUCTION_ID",
+    "status": "Failed",
+    "message": "The response did not meet this requirement because..."
+  }
+]</div>
+                </div>
+
+                <div class="alert alert-info" style="margin: 12px 0;">
+                    <strong>📋 Example: turn_metadata → validator_human</strong>
+                    <p style="margin-top: 8px;"><strong>If turn_metadata has:</strong></p>
+                    <code style="display: block; background: rgba(0,0,0,0.3); padding: 6px; border-radius: 4px; font-size: 11px; margin: 4px 0;">"llm_judge": {"criteria": "encouraging"}</code>
+
+                    <p style="margin-top: 8px;"><strong>Then validator_human:</strong></p>
+                    <code style="display: block; background: rgba(0,0,0,0.3); padding: 6px; border-radius: 4px; font-size: 11px; margin: 4px 0;">[{"id": "llm_judge", "status": "Passed", "message": "Uses positive language"}]</code>
+                </div>
+
+                <div class="alert alert-warning">
+                    <strong>Important Rules:</strong>
+                    <ul style="margin: 8px 0;">
+                        <li><strong>Golden validator_human:</strong> All LLM constraints should show "Passed" (since Golden must pass 100%)</li>
+                        <li><strong>Alternative validator_human:</strong> Judge honestly — mark "Failed" if the response didn't meet the constraint</li>
+                        <li><strong>Always include "message":</strong> Explain your reasoning, even for "Passed" status</li>
+                        <li><strong>Use exact IDs:</strong> Copy the instruction ID exactly as it appears in turn_metadata</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 8 -->
+        <div class="step-card collapsible" id="step8">
+            <div class="step-header" onclick="toggleStep(this)">
+                <div class="step-number">8</div>
+                <div class="step-meta">
+                    <h2>Final Review & Submit</h2>
+                    <p>Last checks before submission</p>
+                </div>
+            </div>
+            <div class="step-body">
+                <div class="help-wrapper">
+                    <span style="color: var(--text-secondary);">Complete review before submission</span>
+                    <span class="help-bubble" onclick="toggleHelp(this)">?</span>
+                    <div class="help-popup">
+                        <div class="help-popup-header">
+                            <span class="help-popup-title">READ EVERYTHING</span>
+                            <button class="help-popup-close" onclick="closeHelp(this)">✕</button>
+                        </div>
+                        <div class="help-popup-content">
+                            <p>Complete review of your <strong>entire notebook</strong>.</p>
+                            <p>Don't trust what you THINK you wrote — verify it.</p>
+                            <p>10 minutes of checking saves days of revision.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tools">
+                    <span class="tool warning">Google Colab</span>
+                    <span class="tool">Manual Review</span>
+                </div>
+
+                <div class="alert alert-danger">
+                    <strong>Before submitting, verify:</strong>
+                    <ul>
+                        <li>Read ENTIRE notebook manually</li>
+                        <li>No hallucinations in any response</li>
+                        <li>Golden response passes ALL constraints (100%)</li>
+                        <li>50% failure rule met for alternatives</li>
+                        <li>All cells in correct order with correct names</li>
+                        <li>Thinking cells: fabricated for intermediates + Golden; copied from ChatHub for the 4 challenge models</li>
+                        <li>Thinking cell length: 2.5x-3x of corresponding assistant response</li>
+                        <li>validator_human cells present for Golden + all 4 alternatives (if using LLM-based constraints)</li>
+                        <li>Natural, human-like language throughout</li>
+                        <li>Minimum 6 constraints (4 IF + 1 LLM Eval + 1 LLM Judge)</li>
+                    </ul>
+                </div>
+
+                <div class="footer">
+                    <p>CFBench Documentation</p>
+                    <p><a href="structure.html">← Back to Structure Guide</a></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- FAQ Section -->
+        <section class="faq-section">
+            <h2>Common Questions & Troubleshooting</h2>
+
+            <div class="faq-item">
+                <div class="faq-question" onclick="toggleFaq(this)">My Golden response fails validation — what now?</div>
+                <div class="faq-answer">
+                    <div class="faq-answer-inner">
+                        <p><strong>Don't manually edit the response.</strong> Instead:</p>
+                        <ol>
+                            <li>Identify which constraints failed</li>
+                            <li>Go back to the external LLM and emphasize those specific constraints in your prompt</li>
+                            <li>Regenerate the response</li>
+                            <li>Repeat until all constraints pass</li>
+                        </ol>
+                        <p>Manual editing should only be a last resort for small adjustments.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question" onclick="toggleFaq(this)">All alternative models are passing — what do I do?</div>
+                <div class="faq-answer">
+                    <div class="faq-answer-inner">
+                        <p>Your constraints are too easy. Try these strategies:</p>
+                        <ul>
+                            <li>Use <strong>"equal to"</strong> instead of "at least" for counts</li>
+                            <li>Add more constraints (especially high-failure ones like <code>sentence_count</code>, <code>alliteration</code>, <code>positioning</code>)</li>
+                            <li>Combine conflicting constraints (e.g., "many words" + "short sentences")</li>
+                            <li>Require unusual keywords unrelated to the topic</li>
+                        </ul>
+                        <p>Remember to update your final user query to reflect the new constraints!</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question" onclick="toggleFaq(this)">What if I can't reach 50% failure rate?</div>
+                <div class="faq-answer">
+                    <div class="faq-answer-inner">
+                        <p>Keep adding complexity until models struggle. High-failure constraints include:</p>
+                        <ul>
+                            <li><code>sentence_count</code> with "equal to" (exact counts are hard)</li>
+                            <li><code>word_length</code> with min/max (short or long words slip through)</li>
+                            <li><code>alliteration</code> (maintaining patterns is difficult)</li>
+                            <li><code>positioning</code> (exact word positions)</li>
+                            <li><code>no_comma</code> (commas are habitual)</li>
+                            <li><code>forbidden_words</code> (banning common words related to the topic)</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question" onclick="toggleFaq(this)">My task was rejected — common reasons</div>
+                <div class="faq-answer">
+                    <div class="faq-answer-inner">
+                        <p>Check these common issues:</p>
+                        <ul>
+                            <li><strong>Cell naming:</strong> Must use <code>**[cell_name]**</code> format</li>
+                            <li><strong>Invalid JSON:</strong> Validate your turn_metadata JSON syntax</li>
+                            <li><strong>Missing 20% LLM Eval:</strong> At least 20% of instructions must be LLM Evaluations</li>
+                            <li><strong>Wrong cell order:</strong> Follow the exact structure from the tutorial</li>
+                            <li><strong>Golden not 100%:</strong> validator_assistant must show ALL PASS</li>
+                            <li><strong>50% rule not met:</strong> At least 3 of 4 alternatives must fail 50%+ constraints</li>
+                            <li><strong>Missing thinking cells:</strong> All 5 responses need thinking cells</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+</div>
+
+<script>
+function toggleDropdown(header) {
+    header.parentElement.classList.toggle('open');
+}
+
+function copyPrompt(btn) {
+    const content = btn.closest('.prompt-box').querySelector('.prompt-content').innerText;
+    navigator.clipboard.writeText(content).then(() => {
+        btn.textContent = 'Copied!';
+        setTimeout(() => btn.textContent = 'Copy', 2000);
+    });
+}
+
+function toggleHelp(bubble) {
+    const popup = bubble.nextElementSibling;
+    const isActive = popup.classList.contains('active');
+
+    // Close all other popups first
+    document.querySelectorAll('.help-popup.active').forEach(p => {
+        p.classList.remove('active');
+        p.previousElementSibling.classList.remove('active');
+    });
+
+    // Toggle this one
+    if (!isActive) {
+        bubble.classList.add('active');
+        popup.classList.add('active');
+
+        // Position the popup near the bubble
+        const rect = bubble.getBoundingClientRect();
+        const popupWidth = 360;
+        const popupHeight = popup.offsetHeight || 200;
+
+        // Try to position to the right of the bubble
+        let left = rect.right + 16;
+        let top = rect.top + (rect.height / 2) - (popupHeight / 2);
+
+        // If it goes off the right edge, position to the left
+        if (left + popupWidth > window.innerWidth - 20) {
+            left = rect.left - popupWidth - 16;
+        }
+
+        // If it goes off the left edge, center it
+        if (left < 20) {
+            left = Math.max(20, (window.innerWidth - popupWidth) / 2);
+        }
+
+        // Keep within vertical bounds
+        if (top < 20) top = 20;
+        if (top + popupHeight > window.innerHeight - 20) {
+            top = window.innerHeight - popupHeight - 20;
+        }
+
+        popup.style.left = left + 'px';
+        popup.style.top = top + 'px';
+    }
+}
+
+function closeHelp(btn) {
+    const popup = btn.closest('.help-popup');
+    const bubble = popup.previousElementSibling;
+    popup.classList.remove('active');
+    bubble.classList.remove('active');
+}
+
+// Collapsible Steps
+function toggleStep(header) {
+    const card = header.parentElement;
+    card.classList.toggle('collapsed');
+}
+
+// FAQ Toggle
+function toggleFaq(question) {
+    const item = question.parentElement;
+    item.classList.toggle('open');
+}
+
+// Theme Toggle
+function toggleTheme() {
+    const html = document.documentElement;
+    const currentTheme = html.getAttribute('data-theme');
+    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+
+    html.setAttribute('data-theme', newTheme);
+    localStorage.setItem('theme', newTheme);
+
+    // Toggle icons
+    document.getElementById('sunIcon').style.display = newTheme === 'light' ? 'none' : 'block';
+    document.getElementById('moonIcon').style.display = newTheme === 'light' ? 'block' : 'none';
+}
+
+// Apply saved theme on load
+(function() {
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+
+    // Set correct icon visibility after DOM loads
+    document.addEventListener('DOMContentLoaded', function() {
+        const sunIcon = document.getElementById('sunIcon');
+        const moonIcon = document.getElementById('moonIcon');
+        if (sunIcon && moonIcon) {
+            sunIcon.style.display = savedTheme === 'light' ? 'none' : 'block';
+            moonIcon.style.display = savedTheme === 'light' ? 'block' : 'none';
+        }
+    });
+})();
+
+// Search Functionality
+const searchData = [
+    { title: 'Overview', id: 'overview', keywords: 'introduction start begin workflow phases' },
+    { title: 'Step 0: Metadata', id: 'step0', keywords: 'metadata domain taxonomy scenario length' },
+    { title: 'Step 1: System Prompt', id: 'step1', keywords: 'system prompt role personality instructions' },
+    { title: 'Step 2: Intermediate Queries', id: 'step2', keywords: 'intermediate turns conversation context' },
+    { title: 'Step 3: Final Query', id: 'step3', keywords: 'final query constraints natural language turn_metadata' },
+    { title: 'Step 4: Golden Response', id: 'step4', keywords: 'golden response pass validation perfect' },
+    { title: 'Step 5: Thinking Cells', id: 'step5', keywords: 'thinking reasoning internal monologue' },
+    { title: 'Step 6: turn_metadata', id: 'step6', keywords: 'turn_metadata json constraints validator tool IF LLM eval' },
+    { title: 'Step 7: Alternative Responses', id: 'step7', keywords: 'chathub alternatives nemotron qwen3 failure' },
+    { title: 'Step 8: Final Review', id: 'step8', keywords: 'review submit checklist validation' },
+    { title: 'FAQ', id: 'faq-section', keywords: 'faq questions troubleshooting problems errors' }
+];
+
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('searchInput');
+    const searchResults = document.getElementById('searchResults');
+
+    if (searchInput && searchResults) {
+        searchInput.addEventListener('input', function() {
+            const query = this.value.toLowerCase().trim();
+
+            if (query.length < 2) {
+                searchResults.classList.remove('active');
+                return;
+            }
+
+            const matches = searchData.filter(item =>
+                item.title.toLowerCase().includes(query) ||
+                item.keywords.toLowerCase().includes(query)
+            );
+
+            if (matches.length > 0) {
+                searchResults.innerHTML = matches.map(item =>
+                    `<div class="search-result-item" onclick="navigateTo('${item.id}')">
+                        <strong>${item.title}</strong>
+                        <span>Click to navigate</span>
+                    </div>`
+                ).join('');
+                searchResults.classList.add('active');
+            } else {
+                searchResults.innerHTML = '<div class="search-no-results">No results found</div>';
+                searchResults.classList.add('active');
+            }
+        });
+
+        // Close search results when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.search-wrapper')) {
+                searchResults.classList.remove('active');
+            }
+        });
+    }
+});
+
+function navigateTo(id) {
+    const element = document.getElementById(id) || document.querySelector('.' + id);
+    if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        // Expand if collapsed
+        if (element.classList.contains('collapsed')) {
+            element.classList.remove('collapsed');
+        }
+    }
+    document.getElementById('searchResults').classList.remove('active');
+    document.getElementById('searchInput').value = '';
+}
+
+// Close popups when clicking outside
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.help-wrapper')) {
+        document.querySelectorAll('.help-popup.active').forEach(popup => {
+            popup.classList.remove('active');
+            popup.previousElementSibling.classList.remove('active');
+        });
+    }
+});
+
+// Scroll spy
+window.addEventListener('scroll', function() {
+    const cards = document.querySelectorAll('.step-card, .section');
+    const links = document.querySelectorAll('.sidebar-nav a[href^="#"]');
+
+    let current = '';
+    cards.forEach(card => {
+        if (scrollY >= card.offsetTop - 120) {
+            current = card.id;
+        }
+    });
+
+    links.forEach(link => {
+        link.classList.remove('active');
+        if (link.getAttribute('href') === '#' + current) {
+            link.classList.add('active');
+        }
+    });
+});
+
+// ==========================================
+// NOTEBOOK BUILDER FUNCTIONS
+// ==========================================
+
+let currentModel = 'nemotron';
+let currentTurns = 2;
+
+// Base cells that are always visible (Turn 1 + Final Turn + Alternatives)
+const baseCells = [
+    'system', 'user-int1', 'thinking-int1', 'assistant-int1',
+    'user-final', 'thinking-golden', 'turn-metadata', 'assistant-golden', 'validator-golden', 'validator-human-golden',
+    'thinking-alt1', 'assistant-alt1', 'validator-alt1', 'validator-human-alt1',
+    'thinking-alt2', 'assistant-alt2', 'validator-alt2', 'validator-human-alt2',
+    'thinking-alt3', 'assistant-alt3', 'validator-alt3', 'validator-human-alt3',
+    'thinking-alt4', 'assistant-alt4', 'validator-alt4', 'validator-human-alt4'
+];
+
+// Turn 2 cells
+const turn2Cells = ['user-int2', 'thinking-int2', 'assistant-int2'];
+
+// Turn 3 cells
+const turn3Cells = ['user-int3', 'thinking-int3', 'assistant-int3'];
+
+// Dynamic cell order based on turn count
+function getCellOrder() {
+    let cells = ['system', 'user-int1', 'thinking-int1', 'assistant-int1'];
+
+    if (currentTurns >= 3) {
+        cells = cells.concat(turn2Cells);
+    }
+    if (currentTurns >= 4) {
+        cells = cells.concat(turn3Cells);
+    }
+
+    // Add dynamic turns (5+ total turns means turn 4, 5, 6... intermediate)
+    for (let i = 4; i < currentTurns; i++) {
+        cells = cells.concat([
+            'user-int' + i,
+            'thinking-int' + i,
+            'assistant-int' + i
+        ]);
+    }
+
+    cells = cells.concat([
+        'user-final', 'thinking-golden', 'turn-metadata', 'assistant-golden', 'validator-golden', 'validator-human-golden',
+        'thinking-alt1', 'assistant-alt1', 'validator-alt1', 'validator-human-alt1',
+        'thinking-alt2', 'assistant-alt2', 'validator-alt2', 'validator-human-alt2',
+        'thinking-alt3', 'assistant-alt3', 'validator-alt3', 'validator-human-alt3',
+        'thinking-alt4', 'assistant-alt4', 'validator-alt4', 'validator-human-alt4'
+    ]);
+
+    return cells;
+}
+
+const baseCellNames = {
+    'system': 'system',
+    'user-int1': 'user',
+    'thinking-int1': 'thinking',
+    'assistant-int1': 'assistant',
+    'user-int2': 'user',
+    'thinking-int2': 'thinking',
+    'assistant-int2': 'assistant',
+    'user-int3': 'user',
+    'thinking-int3': 'thinking',
+    'assistant-int3': 'assistant',
+    'user-final': 'user',
+    'thinking-golden': 'thinking',
+    'turn-metadata': 'turn_metadata',
+    'assistant-golden': 'assistant',
+    'validator-golden': 'validator_assistant',
+    'validator-human-golden': 'validator_human'
+};
+
+function getCellName(cellId) {
+    if (baseCellNames[cellId]) {
+        return baseCellNames[cellId];
+    }
+
+    const modelPrefix = currentModel === 'nemotron' ? 'nemotron' : 'qwen3';
+
+    // Handle alternative model cells
+    if (cellId.startsWith('thinking-alt')) {
+        const num = cellId.replace('thinking-alt', '');
+        return 'thinking_' + modelPrefix + '_' + num;
+    }
+    if (cellId.startsWith('assistant-alt')) {
+        const num = cellId.replace('assistant-alt', '');
+        return 'assistant_' + modelPrefix + '_' + num;
+    }
+    if (cellId.startsWith('validator-human-alt')) {
+        const num = cellId.replace('validator-human-alt', '');
+        return 'validator_human_' + modelPrefix + '_' + num;
+    }
+    if (cellId.startsWith('validator-alt')) {
+        const num = cellId.replace('validator-alt', '');
+        return 'validator_assistant_' + modelPrefix + '_' + num;
+    }
+
+    // Handle dynamic intermediate turn cells (user-int4, thinking-int4, etc.)
+    if (cellId.startsWith('user-int')) {
+        return 'user';
+    }
+    if (cellId.startsWith('thinking-int')) {
+        return 'thinking';
+    }
+    if (cellId.startsWith('assistant-int')) {
+        return 'assistant';
+    }
+
+    return cellId;
+}
+
+function switchModel(model) {
+    currentModel = model;
+
+    // Update toggle buttons
+    const buttons = document.querySelectorAll('.nb-model-toggle button');
+    buttons.forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.textContent.toLowerCase() === model) {
+            btn.classList.add('active');
+        }
+    });
+
+    // Update all cell names in UI
+    updateAllCellNames();
+
+    // Save preference
+    localStorage.setItem('notebookModel', model);
+}
+
+function switchTurns(turns) {
+    currentTurns = turns;
+
+    // Update turn count display
+    const turnCount = document.getElementById('turnCount');
+    if (turnCount) {
+        turnCount.textContent = turns;
+    }
+
+    // Update +/- button states
+    const btnDecrease = document.getElementById('btnDecrease');
+    const btnIncrease = document.getElementById('btnIncrease');
+    if (btnDecrease) {
+        btnDecrease.disabled = (turns <= 2);
+    }
+    if (btnIncrease) {
+        btnIncrease.disabled = (turns >= 10); // Allow up to 10 turns
+    }
+
+    // Update turn info text
+    const turnInfo = document.getElementById('turnInfo');
+    if (turnInfo) {
+        const intermediateCount = turns - 1;
+        turnInfo.textContent = intermediateCount + ' intermediate + 1 final';
+    }
+
+    // Show/hide intermediate turn blocks
+    const turn2Block = document.getElementById('turn2-block');
+    const turn3Block = document.getElementById('turn3-block');
+
+    if (turn2Block) {
+        if (turns >= 3) {
+            turn2Block.classList.add('visible');
+        } else {
+            turn2Block.classList.remove('visible');
+        }
+    }
+
+    if (turn3Block) {
+        if (turns >= 4) {
+            turn3Block.classList.add('visible');
+        } else {
+            turn3Block.classList.remove('visible');
+        }
+    }
+
+    // For turns > 4, dynamically create/remove intermediate turn blocks
+    manageDynamicTurns(turns);
+
+    // Update progress bar
+    updateProgress();
+
+    // Save preference
+    localStorage.setItem('notebookTurns', turns);
+}
+
+// Create HTML for a dynamic intermediate turn
+function createIntermediateTurnHTML(turnNum) {
+    return `
+        <div class="nb-intermediate-turn visible" id="turn${turnNum}-block">
+            <div class="nb-section-divider">
+                <span>Intermediate Turn ${turnNum}</span>
+                <span class="nb-section-help" onclick="toggleSectionHelp(event, this)">?
+                    <span class="nb-section-tooltip">
+                        <strong>Intermediate Turn ${turnNum}</strong>
+                        User query + Thinking (FABRICATED) + Assistant response. Continues the conversation naturally.
+                    </span>
+                </span>
+            </div>
+
+            <div class="nb-cell collapsed" data-cell="user-int${turnNum}">
+                <div class="nb-cell-header" onclick="toggleNbCell(this)">
+                    <span class="nb-cell-name">**[user]**</span>
+                    <span class="nb-cell-help" onclick="toggleCellHelp(event, this)">?<span class="nb-cell-tooltip"><strong>Step 2:</strong> Intermediate query #${turnNum}. Continues the conversation naturally.</span></span>
+                    <div class="nb-cell-actions">
+                        <button class="nb-cell-copy" onclick="event.stopPropagation(); copyCellContent('user-int${turnNum}')">Copy</button>
+                        <span class="nb-cell-status" id="status-user-int${turnNum}"></span>
+                        <svg class="nb-cell-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                    </div>
+                </div>
+                <div class="nb-cell-content">
+                    <textarea class="nb-cell-textarea" id="cell-user-int${turnNum}" placeholder="Paste intermediate user query #${turnNum} here..." oninput="updateCellStatus('user-int${turnNum}')"></textarea>
+                </div>
+            </div>
+
+            <div class="nb-cell collapsed" data-cell="thinking-int${turnNum}">
+                <div class="nb-cell-header" onclick="toggleNbCell(this)">
+                    <span class="nb-cell-name">**[thinking]**</span>
+                    <span class="nb-cell-help" onclick="toggleCellHelp(event, this)">?<span class="nb-cell-tooltip"><strong>Step 5:</strong> FABRICATED reasoning. Use the prompt from Step 5 to generate thinking.</span></span>
+                    <div class="nb-cell-actions">
+                        <button class="nb-cell-copy" onclick="event.stopPropagation(); copyCellContent('thinking-int${turnNum}')">Copy</button>
+                        <span class="nb-cell-status" id="status-thinking-int${turnNum}"></span>
+                        <svg class="nb-cell-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                    </div>
+                </div>
+                <div class="nb-cell-content">
+                    <textarea class="nb-cell-textarea" id="cell-thinking-int${turnNum}" placeholder="Paste intermediate thinking #${turnNum} here..." oninput="updateCellStatus('thinking-int${turnNum}')"></textarea>
+                </div>
+            </div>
+
+            <div class="nb-cell collapsed" data-cell="assistant-int${turnNum}">
+                <div class="nb-cell-header" onclick="toggleNbCell(this)">
+                    <span class="nb-cell-name">**[assistant]**</span>
+                    <span class="nb-cell-help" onclick="toggleCellHelp(event, this)">?<span class="nb-cell-tooltip"><strong>Step 2:</strong> Response to intermediate query #${turnNum}.</span></span>
+                    <div class="nb-cell-actions">
+                        <button class="nb-cell-copy" onclick="event.stopPropagation(); copyCellContent('assistant-int${turnNum}')">Copy</button>
+                        <span class="nb-cell-status" id="status-assistant-int${turnNum}"></span>
+                        <svg class="nb-cell-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                    </div>
+                </div>
+                <div class="nb-cell-content">
+                    <textarea class="nb-cell-textarea" id="cell-assistant-int${turnNum}" placeholder="Paste intermediate assistant response #${turnNum} here..." oninput="updateCellStatus('assistant-int${turnNum}')"></textarea>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// Manage dynamic turns (4+)
+function manageDynamicTurns(totalTurns) {
+    const container = document.getElementById('dynamic-turns-container');
+    if (!container) return;
+
+    // We have pre-built turns 1, 2, 3 (for 2, 3, 4 total turns)
+    // For 5+ total turns, we need dynamic turns starting from turn 4
+    const dynamicStartTurn = 4; // Turn 4 is the first dynamic one (5 total turns = 4 intermediate)
+    const neededDynamicTurns = Math.max(0, totalTurns - 4); // How many turns beyond the 3 pre-built
+
+    // Get current dynamic turn blocks
+    const existingBlocks = container.querySelectorAll('.nb-intermediate-turn');
+    const existingCount = existingBlocks.length;
+
+    if (neededDynamicTurns > existingCount) {
+        // Add more turns
+        for (let i = existingCount; i < neededDynamicTurns; i++) {
+            const turnNum = dynamicStartTurn + i; // Turn 4, 5, 6, etc.
+            container.insertAdjacentHTML('beforeend', createIntermediateTurnHTML(turnNum));
+        }
+    } else if (neededDynamicTurns < existingCount) {
+        // Remove extra turns (from the end)
+        for (let i = existingCount - 1; i >= neededDynamicTurns; i--) {
+            existingBlocks[i].remove();
+        }
+    }
+}
+
+function increaseTurns() {
+    if (currentTurns < 10) {
+        switchTurns(currentTurns + 1);
+    }
+}
+
+function decreaseTurns() {
+    if (currentTurns > 2) {
+        switchTurns(currentTurns - 1);
+    }
+}
+
+function updateAllCellNames() {
+    const altCells = ['thinking-alt1', 'assistant-alt1', 'validator-alt1',
+                      'thinking-alt2', 'assistant-alt2', 'validator-alt2',
+                      'thinking-alt3', 'assistant-alt3', 'validator-alt3',
+                      'thinking-alt4', 'assistant-alt4', 'validator-alt4'];
+
+    altCells.forEach(cellId => {
+        const cell = document.querySelector(`[data-cell="${cellId}"] .nb-cell-name`);
+        if (cell) {
+            cell.textContent = '**[' + getCellName(cellId) + ']**';
+        }
+    });
+}
+
+// Toggle Notebook Builder minimize/expand
+function toggleBuilder() {
+    const builder = document.getElementById('notebookBuilder');
+    builder.classList.toggle('minimized');
+}
+
+// Toggle individual cell collapse
+function toggleNbCell(header) {
+    const cell = header.parentElement;
+    cell.classList.toggle('collapsed');
+}
+
+// Toggle section help tooltip on click
+function toggleSectionHelp(event, helpBtn) {
+    event.stopPropagation();
+
+    const tooltip = helpBtn.querySelector('.nb-section-tooltip');
+    const isVisible = tooltip.classList.contains('visible');
+
+    // Close all other tooltips first
+    document.querySelectorAll('.nb-section-tooltip.visible').forEach(t => {
+        t.classList.remove('visible');
+        t.parentElement.classList.remove('active');
+    });
+
+    if (!isVisible && tooltip) {
+        // Position the tooltip
+        const rect = helpBtn.getBoundingClientRect();
+        const tooltipWidth = 320;
+
+        // Position to the left of the button, above it
+        let left = rect.right - tooltipWidth;
+        let top = rect.top - 10;
+
+        // Make sure it doesn't go off screen
+        if (left < 10) left = 10;
+        if (top < 10) top = rect.bottom + 10;
+
+        tooltip.style.left = left + 'px';
+        tooltip.style.top = 'auto';
+        tooltip.style.bottom = (window.innerHeight - rect.top + 10) + 'px';
+
+        tooltip.classList.add('visible');
+        helpBtn.classList.add('active');
+    }
+}
+
+// Toggle cell help tooltip on click
+function toggleCellHelp(event, helpBtn) {
+    event.stopPropagation();
+
+    const tooltip = helpBtn.querySelector('.nb-cell-tooltip');
+    const isVisible = tooltip.classList.contains('visible');
+
+    // Close all other tooltips first (both section and cell)
+    document.querySelectorAll('.nb-section-tooltip.visible, .nb-cell-tooltip.visible').forEach(t => {
+        t.classList.remove('visible');
+        t.parentElement.classList.remove('active');
+    });
+
+    if (!isVisible && tooltip) {
+        // Position the tooltip
+        const rect = helpBtn.getBoundingClientRect();
+        const tooltipWidth = 300;
+
+        // Position to the left of the button, above it
+        let left = rect.right - tooltipWidth;
+        let bottom = window.innerHeight - rect.top + 10;
+
+        // Make sure it doesn't go off screen
+        if (left < 10) left = 10;
+
+        // If tooltip would go above viewport, show below instead
+        if (bottom > window.innerHeight - 100) {
+            tooltip.style.top = (rect.bottom + 10) + 'px';
+            tooltip.style.bottom = 'auto';
+        } else {
+            tooltip.style.top = 'auto';
+            tooltip.style.bottom = bottom + 'px';
+        }
+
+        tooltip.style.left = left + 'px';
+        tooltip.classList.add('visible');
+        helpBtn.classList.add('active');
+    }
+}
+
+// Close tooltips when clicking outside
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.nb-section-help') && !e.target.closest('.nb-cell-help')) {
+        document.querySelectorAll('.nb-section-tooltip.visible, .nb-cell-tooltip.visible').forEach(t => {
+            t.classList.remove('visible');
+            t.parentElement.classList.remove('active');
+        });
+    }
+});
+
+// Update cell status indicator
+function updateCellStatus(cellId) {
+    const textarea = document.getElementById('cell-' + cellId);
+    const status = document.getElementById('status-' + cellId);
+
+    if (textarea && status) {
+        if (textarea.value.trim().length > 0) {
+            status.classList.add('filled');
+        } else {
+            status.classList.remove('filled');
+        }
+    }
+
+    updateProgress();
+    saveToLocalStorage();
+}
+
+// Update progress bar
+function updateProgress() {
+    const cellOrder = getCellOrder();
+    let filled = 0;
+    const total = cellOrder.length;
+
+    cellOrder.forEach(cellId => {
+        const textarea = document.getElementById('cell-' + cellId);
+        if (textarea && textarea.value.trim().length > 0) {
+            filled++;
+        }
+    });
+
+    const percentage = (filled / total) * 100;
+    document.getElementById('progressText').textContent = filled + ' / ' + total + ' cells';
+    document.getElementById('progressFill').style.width = percentage + '%';
+}
+
+// Copy single cell content
+function copyCellContent(cellId) {
+    const textarea = document.getElementById('cell-' + cellId);
+    if (textarea) {
+        const cellName = getCellName(cellId);
+        let cellContent = textarea.value;
+
+        // Check if this is a JSON cell (turn_metadata or any validator)
+        const isJsonCell = cellId === 'turn-metadata' ||
+                          cellId === 'validator-golden' ||
+                          cellId.startsWith('validator-alt');
+
+        // Wrap JSON content with ```json ... ``` if it's a JSON cell
+        if (isJsonCell && cellContent.trim()) {
+            cellContent = '```json\n' + cellContent.trim() + '\n```';
+        }
+
+        const content = '**[' + cellName + ']**\n\n' + cellContent;
+
+        navigator.clipboard.writeText(content).then(() => {
+            // Visual feedback
+            const btn = event.target;
+            const originalText = btn.textContent;
+            btn.textContent = 'Copied!';
+            setTimeout(() => btn.textContent = originalText, 1500);
+        });
+    }
+}
+
+// Copy all cells content
+function copyAllCells() {
+    const cellOrder = getCellOrder();
+    let fullNotebook = '';
+
+    // Calculate the last intermediate turn dynamically
+    const lastIntTurnNum = currentTurns - 1;
+    const lastIntTurn = 'assistant-int' + lastIntTurnNum;
+
+    cellOrder.forEach((cellId, index) => {
+        const textarea = document.getElementById('cell-' + cellId);
+        if (textarea) {
+            const cellName = getCellName(cellId);
+            let content = textarea.value.trim();
+
+            if (content) {
+                // Check if this is a JSON cell (turn_metadata or any validator)
+                const isJsonCell = cellId === 'turn-metadata' ||
+                                  cellId === 'validator-golden' ||
+                                  cellId.startsWith('validator-alt') ||
+                                  cellId.startsWith('validator-human');
+
+                // Wrap JSON content with ```json ... ```
+                if (isJsonCell) {
+                    content = '```json\n' + content + '\n```';
+                }
+
+                fullNotebook += '**[' + cellName + ']**\n\n' + content + '\n\n';
+
+                // Add separator between major sections
+                if (cellId === lastIntTurn || cellId === 'validator-human-golden' ||
+                    cellId === 'validator-human-alt4') {
+                    fullNotebook += '---\n\n';
+                }
+            }
+        }
+    });
+
+    if (fullNotebook.trim()) {
+        navigator.clipboard.writeText(fullNotebook.trim()).then(() => {
+            const btn = event.target;
+            const originalText = btn.textContent;
+            btn.textContent = 'Copied All!';
+            setTimeout(() => btn.textContent = originalText, 2000);
+        });
+    } else {
+        alert('No content to copy. Fill in some cells first!');
+    }
+}
+
+// Clear all cells
+function clearAllCells() {
+    if (confirm('Clear all cells? This cannot be undone.')) {
+        // Clear all cells using getCellOrder (includes dynamic turns)
+        const allCells = getCellOrder();
+        allCells.forEach(cellId => {
+            const textarea = document.getElementById('cell-' + cellId);
+            const status = document.getElementById('status-' + cellId);
+            if (textarea) {
+                textarea.value = '';
+            }
+            if (status) {
+                status.classList.remove('filled');
+            }
+        });
+        updateProgress();
+        localStorage.removeItem('notebookBuilderData');
+    }
+}
+
+// Save to localStorage
+function saveToLocalStorage() {
+    const data = {};
+    // Save all possible cells (including hidden Turn 2/3 cells)
+    const allCells = baseCells.concat(turn2Cells, turn3Cells);
+    allCells.forEach(cellId => {
+        const textarea = document.getElementById('cell-' + cellId);
+        if (textarea) {
+            data[cellId] = textarea.value;
+        }
+    });
+    localStorage.setItem('notebookBuilderData', JSON.stringify(data));
+}
+
+// Load from localStorage
+function loadFromLocalStorage() {
+    // Load saved model preference
+    const savedModel = localStorage.getItem('notebookModel');
+    if (savedModel && (savedModel === 'nemotron' || savedModel === 'qwen3')) {
+        currentModel = savedModel;
+        // Update toggle buttons
+        const buttons = document.querySelectorAll('.nb-model-toggle button');
+        buttons.forEach(btn => {
+            btn.classList.remove('active');
+            if (btn.textContent.toLowerCase() === savedModel) {
+                btn.classList.add('active');
+            }
+        });
+        updateAllCellNames();
+    }
+
+    // Load saved turns preference
+    const savedTurns = localStorage.getItem('notebookTurns');
+    if (savedTurns) {
+        const turns = parseInt(savedTurns);
+        if (turns >= 2 && turns <= 4) {
+            switchTurns(turns);
+        }
+    }
+
+    // Load saved cell data (all possible cells)
+    const saved = localStorage.getItem('notebookBuilderData');
+    if (saved) {
+        try {
+            const data = JSON.parse(saved);
+            const allCells = baseCells.concat(turn2Cells, turn3Cells);
+            allCells.forEach(cellId => {
+                const textarea = document.getElementById('cell-' + cellId);
+                const status = document.getElementById('status-' + cellId);
+                if (textarea && data[cellId]) {
+                    textarea.value = data[cellId];
+                    if (status && data[cellId].trim()) {
+                        status.classList.add('filled');
+                    }
+                }
+            });
+            updateProgress();
+        } catch (e) {
+            console.log('Error loading notebook data');
+        }
+    }
+}
+
+// Load saved data on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadFromLocalStorage();
+});
+</script>
+
+
+</body>
+<script src="../js/main.js"></script>
+</html>
