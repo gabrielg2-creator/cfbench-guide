@@ -22,9 +22,9 @@
             <a href="review.html" class="nav-link active">Review<span class="nav-badge">Lead</span></a>
         </div>
         <div class="nav-actions">
-            <a href="how-to-task.html" class="help-link" title="Interactive tutorial">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                Struggling? Walkthrough
+            <a href="how-to-task.html" class="help-link" title="Common mistakes to avoid">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                Common Errors
             </a>
             <button class="print-btn" onclick="window.print()">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
@@ -69,8 +69,8 @@
                     </a>
                     <a href="#phase-llm" class="sidebar-link">
                         <span class="step-num">2</span>
-                        LLM Review
-                        <span class="phase-tag llm">LLM</span>
+                        Detailed Checks
+                        <span class="phase-tag llm">CHECK</span>
                     </a>
                     <a href="#phase-human" class="sidebar-link">
                         <span class="step-num">3</span>
@@ -197,50 +197,75 @@
                     <p style="margin-top: 8px; font-size: 13px;">Use LLM prompts to speed up review, but <strong>NEVER trust them blindly</strong>. Always read the actual content yourself and confirm the LLM's analysis is correct. External LLMs can miss things or make mistakes!</p>
                 </div>
 
-                <!-- Master Review Prompt -->
-                <div class="check-card" id="quick-master" style="border: 2px solid #dc2626;">
-                    <div class="check-header" onclick="toggleCheck('quick-master')" style="background: rgba(220, 38, 38, 0.1);">
+                <!-- LLM-Assisted Review Prompts -->
+                <div class="check-card" id="quick-llm-prompts" style="border: 2px solid #dc2626;">
+                    <div class="check-header" onclick="toggleCheck('quick-llm-prompts')" style="background: rgba(220, 38, 38, 0.1);">
                         <span class="check-number" style="background: #dc2626;">★</span>
-                        <span class="check-title">Master Review Prompt (Use This First!)</span>
+                        <span class="check-title">LLM-Assisted Review Prompts</span>
                         <span class="check-chevron">▼</span>
                     </div>
                     <div class="check-content">
                         <div class="check-inner">
-                            <p style="margin-bottom: 12px; color: var(--text-secondary);">This single prompt validates the entire cascade. Copy and use with DeepSeek/GPT/Claude.</p>
+                            <p style="margin-bottom: 16px; color: var(--text-secondary);">Use these prompts with DeepSeek/GPT/Claude to speed up your review. Each prompt focuses on a specific validation.</p>
 
-                            <div class="prompt-box" style="border-color: #dc2626;">
-                                <div class="prompt-header" style="background: rgba(220, 38, 38, 0.1);">
-                                    <span class="prompt-label" style="color: #dc2626;">Master Review Prompt</span>
-                                    <button class="copy-btn" onclick="copyPrompt(this)">Copy</button>
+                            <!-- Prompt 1: Cascade Validation -->
+                            <details open style="margin-bottom: 16px; border: 1px solid var(--border); border-radius: 8px;">
+                                <summary style="padding: 12px; background: var(--bg-tertiary); cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                                    <span style="background: #7c3aed; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px;">1</span>
+                                    Cascade Validation (turn_metadata → user query)
+                                </summary>
+                                <div style="padding: 12px;">
+                                    <div class="prompt-box" style="border-color: #7c3aed;">
+                                        <div class="prompt-header" style="background: rgba(124, 58, 237, 0.1);">
+                                            <span class="prompt-label" style="color: #7c3aed;">Cascade Check</span>
+                                            <button class="copy-btn" onclick="copyPrompt(this)">Copy</button>
+                                        </div>
+                                        <div class="prompt-content">For each constraint in turn_metadata with "source": "user", verify it appears NATURALLY in the user query.
+
+Instructions:
+1. List each constraint with source: "user"
+2. For EACH one, quote the exact text in user query where it appears
+3. Flag any MISSING or UNNATURAL constraints
+4. Check if numeric values match EXACTLY (paragraphs, words, characters)
+
+**TURN_METADATA:**
+```
+<span class="placeholder">//PASTE TURN_METADATA JSON</span>
+```
+
+**USER QUERY:**
+```
+<span class="placeholder">//PASTE FINAL USER QUERY</span>
+```
+
+Output: List each constraint → where it appears → PASS/FAIL</div>
+                                    </div>
                                 </div>
-                                <div class="prompt-content">You are a CFBench task reviewer. Analyze this task in 3 steps:
+                            </details>
 
-**STEP 1: METADATA → SYSTEM PROMPT ALIGNMENT**
-Check if the system prompt correctly reflects the metadata (domain, use case, task type).
-- Does the system prompt define a role matching the domain?
-- Are there any metadata terms (L1, L2, use case, taxonomy) visible in the system prompt? (They should NOT appear)
-- Does it contain at least 1 LLM Eval constraint (tone, style, behavior)?
+                            <!-- Prompt 2: System Prompt Check -->
+                            <details style="margin-bottom: 16px; border: 1px solid var(--border); border-radius: 8px;">
+                                <summary style="padding: 12px; background: var(--bg-tertiary); cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                                    <span style="background: #1e40af; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px;">2</span>
+                                    System Prompt Validation
+                                </summary>
+                                <div style="padding: 12px;">
+                                    <div class="prompt-box" style="border-color: #1e40af;">
+                                        <div class="prompt-header" style="background: rgba(30, 64, 175, 0.1);">
+                                            <span class="prompt-label" style="color: #1e40af;">System Check</span>
+                                            <button class="copy-btn" onclick="copyPrompt(this)">Copy</button>
+                                        </div>
+                                        <div class="prompt-content">Analyze the system prompt for these issues:
 
-**STEP 2: TURN_METADATA → USER QUERY ALIGNMENT**
-For each constraint in turn_metadata with "source": "user", verify it appears naturally in the user query.
-- List each user-source constraint
-- For each one, quote where it appears in the user query
-- Flag any MISSING constraints
+1. Does it define a clear ROLE matching the metadata domain?
+2. Does it contain at least 1 LLM Eval constraint (tone, style, behavior)?
+3. Are there any FORBIDDEN terms visible? (L1, L2, taxonomy, use case, CFBench)
+4. Is it consistent with the conversation topic?
+5. Any contradictory or impossible-to-follow rules?
 
-**STEP 3: GOLDEN RESPONSE VERIFICATION**
-Check if the golden response follows ALL constraints:
-- Does it pass every IF instruction? (word count, forbidden words, format, etc.)
-- Does it follow LLM Eval requirements? (tone, style)
-- Does it satisfy LLM Judge requirements? (factual accuracy, logical connections)
-- Any formatting issues? (emojis, em-dash, currency symbols, LaTeX)
-
-**OUTPUT FORMAT:**
-For each step, give: ✅ PASS or ❌ FAIL with specific issues found.
-
----
 **METADATA:**
 ```
-<span class="placeholder">//PASTE TASK METADATA JSON</span>
+<span class="placeholder">//PASTE TASK METADATA</span>
 ```
 
 **SYSTEM PROMPT:**
@@ -248,24 +273,162 @@ For each step, give: ✅ PASS or ❌ FAIL with specific issues found.
 <span class="placeholder">//PASTE SYSTEM PROMPT</span>
 ```
 
-**TURN_METADATA (constraints):**
+Output: Check each item → PASS/FAIL with explanation</div>
+                                    </div>
+                                </div>
+                            </details>
+
+                            <!-- Prompt 3: Golden Response Check -->
+                            <details style="margin-bottom: 16px; border: 1px solid var(--border); border-radius: 8px;">
+                                <summary style="padding: 12px; background: var(--bg-tertiary); cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                                    <span style="background: #059669; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px;">3</span>
+                                    Golden Response Verification
+                                </summary>
+                                <div style="padding: 12px;">
+                                    <div class="prompt-box" style="border-color: #059669;">
+                                        <div class="prompt-header" style="background: rgba(5, 150, 105, 0.1);">
+                                            <span class="prompt-label" style="color: #059669;">Golden Check</span>
+                                            <button class="copy-btn" onclick="copyPrompt(this)">Copy</button>
+                                        </div>
+                                        <div class="prompt-content">Verify the golden response passes ALL constraints:
+
+For each constraint in turn_metadata:
+1. IF constraints: Does it satisfy the exact requirement? (count words, check forbidden terms, verify format)
+2. LLM Eval: Does tone/style match the requirement?
+3. LLM Judge: Is it factually accurate? Logically connected?
+
+Also check:
+- No emojis anywhere
+- No em-dash (use hyphens)
+- No currency symbols ($, €) - use ISO codes
+- No LaTeX
+- No preambles ("Sure!", "Of course!")
+
+**TURN_METADATA:**
 ```
 <span class="placeholder">//PASTE TURN_METADATA JSON</span>
-```
-
-**LAST USER QUERY:**
-```
-<span class="placeholder">//PASTE FINAL USER QUERY</span>
 ```
 
 **GOLDEN RESPONSE:**
 ```
 <span class="placeholder">//PASTE GOLDEN ASSISTANT RESPONSE</span>
-```</div>
-                            </div>
+```
 
-                            <div class="alert alert-info" style="margin-top: 16px;">
-                                <strong>After LLM Analysis:</strong> Read the golden response yourself! Confirm each constraint the LLM checked. Don't blindly trust the verdict.
+Output: Each constraint → PASS/FAIL. List ALL violations found.</div>
+                                    </div>
+                                </div>
+                            </details>
+
+                            <!-- Prompt 4: Model Breaking Analysis -->
+                            <details style="margin-bottom: 16px; border: 1px solid var(--border); border-radius: 8px;">
+                                <summary style="padding: 12px; background: var(--bg-tertiary); cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                                    <span style="background: #dc2626; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px;">4</span>
+                                    Model Breaking Analysis
+                                </summary>
+                                <div style="padding: 12px;">
+                                    <div class="prompt-box" style="border-color: #dc2626;">
+                                        <div class="prompt-header" style="background: rgba(220, 38, 38, 0.1);">
+                                            <span class="prompt-label" style="color: #dc2626;">Breaking Check</span>
+                                            <button class="copy-btn" onclick="copyPrompt(this)">Copy</button>
+                                        </div>
+                                        <div class="prompt-content">Analyze if this model response fails enough constraints:
+
+Rule: At least 3 of 4 model responses must have FAIL >= 50%
+
+For this response, check each constraint in turn_metadata:
+1. Count total constraints
+2. For each constraint, determine PASS or FAIL
+3. Calculate failure percentage
+4. Identify which constraint FLIPS (PASS in golden, FAIL here or vice-versa)
+
+**TURN_METADATA:**
+```
+<span class="placeholder">//PASTE TURN_METADATA JSON</span>
+```
+
+**MODEL RESPONSE (assistant_{model}_N):**
+```
+<span class="placeholder">//PASTE MODEL RESPONSE</span>
+```
+
+Output:
+- Total constraints: X
+- Passed: Y
+- Failed: Z
+- Failure rate: Z/X = ??%
+- Constraints that flipped: [list]
+- Verdict: Meets 50% failure requirement? YES/NO</div>
+                                    </div>
+                                </div>
+                            </details>
+
+                            <!-- Prompt 5: Quick Full Review -->
+                            <details style="margin-bottom: 12px; border: 1px solid var(--border); border-radius: 8px;">
+                                <summary style="padding: 12px; background: var(--bg-tertiary); cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                                    <span style="background: #f59e0b; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px;">5</span>
+                                    Quick Full Review (All-in-One)
+                                </summary>
+                                <div style="padding: 12px;">
+                                    <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">Use this when you want a complete overview in one prompt.</p>
+                                    <div class="prompt-box" style="border-color: #f59e0b;">
+                                        <div class="prompt-header" style="background: rgba(245, 158, 11, 0.1);">
+                                            <span class="prompt-label" style="color: #f59e0b;">Full Review</span>
+                                            <button class="copy-btn" onclick="copyPrompt(this)">Copy</button>
+                                        </div>
+                                        <div class="prompt-content">You are a CFBench task reviewer. Analyze this task:
+
+**CHECK 1 - SYSTEM PROMPT:**
+- Role matches metadata domain?
+- Has at least 1 LLM Eval (tone/style)?
+- No forbidden terms (L1, L2, taxonomy)?
+
+**CHECK 2 - CASCADE:**
+- Every constraint with "source": "user" appears in user query?
+- Numeric values match exactly?
+
+**CHECK 3 - GOLDEN RESPONSE:**
+- Passes ALL constraints?
+- No formatting violations (emoji, em-dash, currency, LaTeX)?
+- No hallucinations?
+
+**CHECK 4 - REALISM:**
+- User query reads naturally?
+- Conversation flows logically?
+- 70% scenario / 30% constraints structure?
+
+---
+**METADATA:**
+```
+<span class="placeholder">//PASTE METADATA</span>
+```
+
+**SYSTEM PROMPT:**
+```
+<span class="placeholder">//PASTE SYSTEM PROMPT</span>
+```
+
+**TURN_METADATA:**
+```
+<span class="placeholder">//PASTE TURN_METADATA</span>
+```
+
+**USER QUERY:**
+```
+<span class="placeholder">//PASTE USER QUERY</span>
+```
+
+**GOLDEN RESPONSE:**
+```
+<span class="placeholder">//PASTE GOLDEN RESPONSE</span>
+```
+
+Output: For each CHECK give ✅ PASS or ❌ FAIL with issues found.</div>
+                                    </div>
+                                </div>
+                            </details>
+
+                            <div class="alert alert-warning" style="margin-top: 8px;">
+                                <strong>Remember:</strong> LLM prompts SPEED UP review but don't replace human judgment. Always verify critical findings yourself!
                             </div>
                         </div>
                     </div>
@@ -930,35 +1093,38 @@ For each step, give: ✅ PASS or ❌ FAIL with specific issues found.
                 </div>
             </section>
 
-            <!-- PHASE 2: LLM REVIEW -->
+            <!-- PHASE 2: DETAILED CHECKS -->
             <section class="section" id="phase-llm">
                 <div class="phase-header">
-                    <div class="phase-icon llm">🤖</div>
+                    <div class="phase-icon llm">🔎</div>
                     <div class="phase-meta">
                         <div class="help-wrapper">
-                            <h2 style="margin:0;padding:0;border:none;">Phase 2: LLM-Assisted Review</h2>
+                            <h2 style="margin:0;padding:0;border:none;">Phase 2: Detailed Validation</h2>
                             <span class="help-bubble" onclick="toggleHelp(this)">?</span>
                             <div class="help-popup">
                                 <div class="help-popup-header">
-                                    <span class="help-popup-title">About LLM Review</span>
+                                    <span class="help-popup-title">About Detailed Validation</span>
                                     <button class="help-popup-close" onclick="closeHelp(this)">×</button>
                                 </div>
                                 <div class="help-popup-content">
-                                    <p>These checks use AI to help you validate consistency and detect issues that are hard to spot manually.</p>
-                                    <p>Copy the provided prompts, paste task content where indicated, and analyze the AI's response.</p>
-                                    <p>This speeds up review and catches subtle problems.</p>
+                                    <p>After using the LLM prompts from Quick Review, go through these detailed checklists.</p>
+                                    <p>Mark each item as you verify it manually.</p>
                                 </div>
                             </div>
                         </div>
-                        <p>Use AI to validate consistency and quality</p>
+                        <p>Detailed checklists after LLM-assisted review</p>
                     </div>
+                </div>
+
+                <div class="alert alert-info" style="margin-bottom: 20px;">
+                    <strong>Use the LLM Prompts first!</strong> Go to <a href="#quick-review" style="color: #1e40af; font-weight: 600;">Quick Review</a> section and use the 5 prompts to speed up your review. Then come back here to mark off items.
                 </div>
 
                 <!-- Check 2.1 -->
                 <div class="check-card" id="check-2-1">
                     <div class="check-header" onclick="toggleCheck('check-2-1')">
                         <span class="check-number">2.1</span>
-                        <span class="check-title">System Instructions Validation</span>
+                        <span class="check-title">System Prompt Checklist</span>
                         <div class="check-status">
                             <button class="status-btn pass" onclick="event.stopPropagation(); setCheckStatus('check-2-1', 'pass')">PASS</button>
                             <button class="status-btn fail" onclick="event.stopPropagation(); setCheckStatus('check-2-1', 'fail')">FAIL</button>
@@ -967,48 +1133,26 @@ For each step, give: ✅ PASS or ❌ FAIL with specific issues found.
                     </div>
                     <div class="check-content">
                         <div class="check-inner">
-                            <div class="help-wrapper">
-                                <p>Check system instructions for consistency with conversation.</p>
-                                <span class="help-bubble" onclick="toggleHelp(this)">?</span>
-                                <div class="help-popup">
-                                    <div class="help-popup-header">
-                                        <span class="help-popup-title">What to Look For</span>
-                                        <button class="help-popup-close" onclick="closeHelp(this)">×</button>
-                                    </div>
-                                    <div class="help-popup-content">
-                                        <p><strong>Redundancy:</strong> If conversation mentions currency, system instructions should address currency handling.</p>
-                                        <p><strong>Metadata terms:</strong> Words like "L1 Taxonomy", "Use Case" should NOT appear in system instructions - they're internal terms.</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="prompt-box">
-                                <div class="prompt-header">
-                                    <span class="prompt-label">LLM Prompt</span>
-                                    <button class="copy-btn" onclick="copyPrompt(this)">Copy</button>
-                                </div>
-                                <div class="prompt-content">Below are the system instructions. I want to check:
-- Check that the instruction is not redundant with the conversation. For example, if the conversation discusses currency, then currency handling must be present. If not mentioned, it should be absent.
-- Check that metadata terms like 'L1 Taxonomy', 'Use Case' do NOT appear directly.
-- Give final verdict for each metric.
-
-system instructions:
-```
-<span class="placeholder">//PASTE SYSTEM INSTRUCTIONS</span>
-```
-
-Conversation:
-<span class="placeholder">//PASTE CONVERSATION</span></div>
-                            </div>
-
                             <ul class="checklist">
                                 <li class="checklist-item" onclick="toggleChecklist(this)">
                                     <span class="checklist-checkbox">✓</span>
-                                    <span class="checklist-text">No redundancy issues</span>
+                                    <span class="checklist-text">Defines a clear ROLE matching the metadata domain</span>
                                 </li>
                                 <li class="checklist-item" onclick="toggleChecklist(this)">
                                     <span class="checklist-checkbox">✓</span>
-                                    <span class="checklist-text">No metadata terms present</span>
+                                    <span class="checklist-text">Contains at least 1 LLM Eval constraint (tone, style, behavior)</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">No metadata terms (L1, L2, taxonomy, use case, CFBench)</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">Consistent with conversation topic</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">No contradictory or impossible rules</span>
                                 </li>
                             </ul>
                         </div>
@@ -1019,7 +1163,7 @@ Conversation:
                 <div class="check-card" id="check-2-2">
                     <div class="check-header" onclick="toggleCheck('check-2-2')">
                         <span class="check-number">2.2</span>
-                        <span class="check-title">Token Length Check</span>
+                        <span class="check-title">Cascade Alignment Checklist</span>
                         <div class="check-status">
                             <button class="status-btn pass" onclick="event.stopPropagation(); setCheckStatus('check-2-2', 'pass')">PASS</button>
                             <button class="status-btn fail" onclick="event.stopPropagation(); setCheckStatus('check-2-2', 'fail')">FAIL</button>
@@ -1028,25 +1172,30 @@ Conversation:
                     </div>
                     <div class="check-content">
                         <div class="check-inner">
-                            <div class="help-wrapper">
-                                <p>Verify user prompts have appropriate length.</p>
-                                <span class="help-bubble" onclick="toggleHelp(this)">?</span>
-                                <div class="help-popup">
-                                    <div class="help-popup-header">
-                                        <span class="help-popup-title">Token Length Guidelines</span>
-                                        <button class="help-popup-close" onclick="closeHelp(this)">×</button>
-                                    </div>
-                                    <div class="help-popup-content">
-                                        <p>User prompts shouldn't be too short (lacks context) or too long (unrealistic).</p>
-                                        <p>A reasonable prompt has enough detail to be clear but remains natural.</p>
-                                    </div>
-                                </div>
+                            <div class="alert alert-danger" style="margin-top: 0; margin-bottom: 16px;">
+                                <strong>THE CASCADE</strong>: turn_metadata → user query → golden response
                             </div>
 
                             <ul class="checklist">
                                 <li class="checklist-item" onclick="toggleChecklist(this)">
                                     <span class="checklist-checkbox">✓</span>
-                                    <span class="checklist-text">User prompts have reasonable length</span>
+                                    <span class="checklist-text">Every constraint with "source": "user" appears in user query</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">Constraints appear NATURALLY (not stacked at the end)</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">All numeric values match EXACTLY (paragraphs, chars, words)</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">User query reads naturally as human request (not assistant-style)</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">70% scenario / 30% constraints structure</span>
                                 </li>
                             </ul>
                         </div>
@@ -1057,7 +1206,7 @@ Conversation:
                 <div class="check-card" id="check-2-3">
                     <div class="check-header" onclick="toggleCheck('check-2-3')">
                         <span class="check-number">2.3</span>
-                        <span class="check-title">Query ↔ Metadata Alignment</span>
+                        <span class="check-title">Golden Response Checklist</span>
                         <div class="check-status">
                             <button class="status-btn pass" onclick="event.stopPropagation(); setCheckStatus('check-2-3', 'pass')">PASS</button>
                             <button class="status-btn fail" onclick="event.stopPropagation(); setCheckStatus('check-2-3', 'fail')">FAIL</button>
@@ -1066,71 +1215,42 @@ Conversation:
                     </div>
                     <div class="check-content">
                         <div class="check-inner">
-                            <div class="help-wrapper">
-                                <p>Every JSON instruction must appear naturally in the final user query.</p>
-                                <span class="help-bubble" onclick="toggleHelp(this)">?</span>
-                                <div class="help-popup">
-                                    <div class="help-popup-header">
-                                        <span class="help-popup-title">Why Alignment Matters</span>
-                                        <button class="help-popup-close" onclick="closeHelp(this)">×</button>
-                                    </div>
-                                    <div class="help-popup-content">
-                                        <p>The user query should "ask for" each constraint without using technical terms.</p>
-                                        <p>Example: If JSON has <code>number_words: 100</code>, user query should say "write about 100 words" or similar.</p>
-                                        <p>The query must read naturally as a human request.</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="alert alert-danger" style="margin-top: 12px;">
-                                <strong>VALUE CONSISTENCY - Must Match EXACTLY</strong>
-                                <p style="margin-top: 8px; font-size: 12px;">Values mentioned in user query text must match turn_metadata JSON exactly:</p>
-                                <ul style="margin: 8px 0 0 0; padding-left: 20px; font-size: 11px;">
-                                    <li>Query says "4 paragraphs" → JSON must have <code>num_paragraphs: 4</code></li>
-                                    <li>Query says "3097 characters" → JSON must have <code>num_chars: 3097</code></li>
-                                    <li>Any mismatch = FAIL</li>
-                                </ul>
-                            </div>
-
-                            <div class="prompt-box" style="margin-top: 12px;">
-                                <div class="prompt-header">
-                                    <span class="prompt-label">LLM Prompt</span>
-                                    <button class="copy-btn" onclick="copyPrompt(this)">Copy</button>
-                                </div>
-                                <div class="prompt-content">Check TWO things:
-1. Are all instructions in the JSON present naturally in the user query?
-2. Do all NUMERIC VALUES match exactly between query text and JSON?
-
-Compare: paragraphs, characters, words, repetition limits, etc.
-List any mismatches found.
-
-User query:
-```
-<span class="placeholder">//PASTE FINAL USER QUERY</span>
-```
-
-Instruction JSON:
-```
-<span class="placeholder">//PASTE TURN_METADATA</span>
-```</div>
-                            </div>
-
                             <ul class="checklist">
                                 <li class="checklist-item" onclick="toggleChecklist(this)">
                                     <span class="checklist-checkbox">✓</span>
-                                    <span class="checklist-text">All instructions present naturally in query</span>
+                                    <span class="checklist-text">Passes ALL IF constraints (word count, forbidden words, format)</span>
                                 </li>
                                 <li class="checklist-item" onclick="toggleChecklist(this)">
                                     <span class="checklist-checkbox">✓</span>
-                                    <span class="checklist-text">Query reads naturally as human request</span>
+                                    <span class="checklist-text">Follows all LLM Eval requirements (tone, style)</span>
                                 </li>
                                 <li class="checklist-item" onclick="toggleChecklist(this)">
                                     <span class="checklist-checkbox">✓</span>
-                                    <span class="checklist-text">All numeric values match exactly (paragraphs, chars, words)</span>
+                                    <span class="checklist-text">Satisfies LLM Judge requirements (factual accuracy)</span>
                                 </li>
                                 <li class="checklist-item" onclick="toggleChecklist(this)">
                                     <span class="checklist-checkbox">✓</span>
-                                    <span class="checklist-text">llm_judge content appears naturally in query text</span>
+                                    <span class="checklist-text">No emojis anywhere</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">No em-dash (use hyphens only)</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">No currency symbols ($, €, £) - use ISO codes</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">No LaTeX formatting</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">No preambles ("Sure!", "Of course!", "Certainly!")</span>
+                                </li>
+                                <li class="checklist-item" onclick="toggleChecklist(this)">
+                                    <span class="checklist-checkbox">✓</span>
+                                    <span class="checklist-text">No hallucinations or fabricated facts</span>
                                 </li>
                             </ul>
                         </div>
@@ -1141,7 +1261,7 @@ Instruction JSON:
                 <div class="check-card" id="check-2-4">
                     <div class="check-header" onclick="toggleCheck('check-2-4')">
                         <span class="check-number">2.4</span>
-                        <span class="check-title">Conversation Quality</span>
+                        <span class="check-title">Conversation Quality Checklist</span>
                         <div class="check-status">
                             <button class="status-btn pass" onclick="event.stopPropagation(); setCheckStatus('check-2-4', 'pass')">PASS</button>
                             <button class="status-btn fail" onclick="event.stopPropagation(); setCheckStatus('check-2-4', 'fail')">FAIL</button>
@@ -1153,98 +1273,21 @@ Instruction JSON:
                             <ul class="checklist">
                                 <li class="checklist-item" onclick="toggleChecklist(this)">
                                     <span class="checklist-checkbox">✓</span>
-                                    <span class="checklist-text">Conversation flows naturally</span>
+                                    <span class="checklist-text">Conversation flows naturally between turns</span>
                                 </li>
                                 <li class="checklist-item" onclick="toggleChecklist(this)">
                                     <span class="checklist-checkbox">✓</span>
                                     <span class="checklist-text">No contradictions between turns</span>
                                 </li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Check 2.5 -->
-                <div class="check-card" id="check-2-5">
-                    <div class="check-header" onclick="toggleCheck('check-2-5')">
-                        <span class="check-number">2.5</span>
-                        <span class="check-title">User Query Structure (70/30 Rule)</span>
-                        <div class="check-status">
-                            <button class="status-btn pass" onclick="event.stopPropagation(); setCheckStatus('check-2-5', 'pass')">PASS</button>
-                            <button class="status-btn fail" onclick="event.stopPropagation(); setCheckStatus('check-2-5', 'fail')">FAIL</button>
-                        </div>
-                        <span class="check-chevron">▼</span>
-                    </div>
-                    <div class="check-content">
-                        <div class="check-inner">
-                            <div class="alert alert-danger" style="margin-top: 0;">
-                                <strong>CRITICAL: User Query Must Be a Real REQUEST</strong>
-                                <p style="margin-top: 8px; font-size: 12px;">The final user query must be an actual request, NOT meta-commentary or assistant-style explanation.</p>
-                            </div>
-
-                            <div class="help-wrapper" style="margin-top: 12px;">
-                                <p>Verify the final user query follows the 70/30 structure.</p>
-                                <span class="help-bubble" onclick="toggleHelp(this)">?</span>
-                                <div class="help-popup">
-                                    <div class="help-popup-header">
-                                        <span class="help-popup-title">70/30 Structure</span>
-                                        <button class="help-popup-close" onclick="closeHelp(this)">×</button>
-                                    </div>
-                                    <div class="help-popup-content">
-                                        <p>A good user query has:</p>
-                                        <p><strong>70% Scenario/Context:</strong> Natural explanation of the situation, background, what the user needs</p>
-                                        <p><strong>30% Constraints:</strong> Requirements naturally integrated into the request, NOT stacked at the end</p>
-                                        <p>The scenario in metadata is practically a TEMPLATE for how to write the query!</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <h4 style="margin-top: 16px;">Red Flags (Instant Fail):</h4>
-                            <ul class="checklist">
                                 <li class="checklist-item" onclick="toggleChecklist(this)">
                                     <span class="checklist-checkbox">✓</span>
-                                    <span class="checklist-text">Query is NOT assistant-style explanation ("Prima di procedere...", "Desidero chiarire...")</span>
+                                    <span class="checklist-text">User prompts have reasonable length</span>
                                 </li>
                                 <li class="checklist-item" onclick="toggleChecklist(this)">
                                     <span class="checklist-checkbox">✓</span>
-                                    <span class="checklist-text">Query contains an actual REQUEST (asks for something specific)</span>
-                                </li>
-                                <li class="checklist-item" onclick="toggleChecklist(this)">
-                                    <span class="checklist-checkbox">✓</span>
-                                    <span class="checklist-text">Constraints are naturally integrated, NOT stacked at the end</span>
-                                </li>
-                                <li class="checklist-item" onclick="toggleChecklist(this)">
-                                    <span class="checklist-checkbox">✓</span>
-                                    <span class="checklist-text">Query reads like a human user would naturally write</span>
+                                    <span class="checklist-text">Scenario is realistic and plausible</span>
                                 </li>
                             </ul>
-
-                            <div class="prompt-box" style="margin-top: 12px;">
-                                <div class="prompt-header">
-                                    <span class="prompt-label">AI Validation Prompt</span>
-                                    <button class="copy-btn" onclick="copyPrompt(this)">Copy</button>
-                                </div>
-                                <div class="prompt-content">Analyze this user query:
-1. Is it an actual REQUEST asking for something specific?
-2. Or is it meta-commentary/explanation like an assistant would write?
-3. Does it follow 70/30 structure (70% scenario, 30% constraints)?
-4. Are constraints naturally integrated or stacked at the end?
-
-User query:
-```
-<span class="placeholder">//PASTE FINAL USER QUERY</span>
-```</div>
-                            </div>
-
-                            <div class="tip" style="margin-top: 12px;">
-                                <div class="tip-title">How to Fix Bad User Queries</div>
-                                <p style="font-size: 11px; margin-top: 8px;">
-                                    1. Look at the <strong>scenario in metadata</strong> - it's your template!<br>
-                                    2. Write 70% explaining the situation naturally<br>
-                                    3. Integrate the 30% constraints into the narrative<br>
-                                    4. End with a clear request asking for something
-                                </p>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -1822,7 +1865,7 @@ Thinking Process1: [paste]</div>
                 </div>
 
                 <div class="decision-section">
-                    <div class="decision-section-title">Phase 2: LLM Review</div>
+                    <div class="decision-section-title">Phase 2: Detailed Checks</div>
                     <div class="decision-item" id="decision-2-1">
                         <div class="decision-item-header">
                             <span class="decision-item-name">2.1 System Instr.</span>
