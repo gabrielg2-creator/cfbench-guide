@@ -3,280 +3,489 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CFBench Review</title>
+    <title>CFBench Review Tool</title>
     <style>
+        :root {
+            --bg-primary: #0f0f10;
+            --bg-secondary: #1a1a1c;
+            --bg-tertiary: #232326;
+            --bg-card: #1e1e21;
+            --border: #2d2d30;
+            --border-light: #3e3e42;
+            --text: #e4e4e7;
+            --text-secondary: #a1a1aa;
+            --text-muted: #71717a;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            --success: #22c55e;
+            --success-bg: rgba(34, 197, 94, 0.1);
+            --warning: #f59e0b;
+            --warning-bg: rgba(245, 158, 11, 0.1);
+            --danger: #ef4444;
+            --danger-bg: rgba(239, 68, 68, 0.1);
+            --purple: #8b5cf6;
+            --purple-bg: rgba(139, 92, 246, 0.1);
+        }
+
         * { box-sizing: border-box; margin: 0; padding: 0; }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #fafafa;
-            color: #1a1a1a;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text);
             line-height: 1.6;
+            min-height: 100vh;
         }
+
         .container {
-            max-width: 1000px;
+            max-width: 1100px;
             margin: 0 auto;
-            padding: 30px 20px;
+            padding: 24px;
         }
-        h1 {
-            font-size: 1.4rem;
-            font-weight: 600;
+
+        /* Header */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px 0;
+            border-bottom: 1px solid var(--border);
             margin-bottom: 24px;
         }
 
-        /* API Config */
-        .api-config {
-            background: white;
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
-            padding: 16px;
-            margin-bottom: 20px;
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
             display: flex;
-            gap: 12px;
             align-items: center;
+            gap: 10px;
         }
-        .api-config select, .api-config input {
-            padding: 8px 12px;
-            border: 1px solid #d1d5db;
-            border-radius: 6px;
+
+        .header h1::before {
+            content: '';
+            width: 10px;
+            height: 10px;
+            background: var(--accent);
+            border-radius: 3px;
+        }
+
+        /* API Config */
+        .api-bar {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            background: var(--bg-secondary);
+            padding: 12px 16px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            margin-bottom: 20px;
+        }
+
+        .api-bar select, .api-bar input {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 10px 14px;
+            border-radius: 8px;
             font-size: 0.9rem;
         }
-        .api-config input { flex: 1; }
-        .api-config button {
-            background: #2563eb;
+
+        .api-bar input { flex: 1; }
+        .api-bar input::placeholder { color: var(--text-muted); }
+
+        .btn {
+            background: var(--accent);
             color: white;
             border: none;
-            padding: 8px 16px;
-            border-radius: 6px;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 600;
             cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.9rem;
+        }
+
+        .btn:hover { background: var(--accent-hover); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .status-badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
             font-weight: 500;
         }
-        .api-config button:hover { background: #1d4ed8; }
-        .api-status {
-            font-size: 0.8rem;
-            padding: 4px 10px;
-            border-radius: 12px;
-        }
-        .api-status.ok { background: #d1fae5; color: #059669; }
-        .api-status.no { background: #fee2e2; color: #dc2626; }
 
-        /* Upload */
+        .status-badge.ready { background: var(--success-bg); color: var(--success); }
+        .status-badge.no { background: var(--danger-bg); color: var(--danger); }
+
+        /* Upload Area */
         .upload-area {
-            background: white;
-            border: 2px dashed #d1d5db;
-            border-radius: 8px;
-            padding: 40px;
+            background: var(--bg-secondary);
+            border: 2px dashed var(--border);
+            border-radius: 12px;
+            padding: 50px;
             text-align: center;
             cursor: pointer;
-            margin-bottom: 20px;
+            transition: all 0.2s;
+            margin-bottom: 24px;
+        }
+
+        .upload-area:hover { border-color: var(--accent); background: var(--bg-tertiary); }
+        .upload-area.loaded { border-color: var(--success); border-style: solid; }
+        .upload-area .icon { font-size: 3rem; margin-bottom: 12px; }
+        .upload-area .text { color: var(--text-secondary); }
+        .upload-area .filename { color: var(--success); font-weight: 600; margin-top: 8px; }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 16px;
+        }
+
+        .stat-card .label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+        }
+
+        .stat-card .value {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .stat-card .value.ok { color: var(--success); }
+        .stat-card .value.warn { color: var(--warning); }
+        .stat-card .value.error { color: var(--danger); }
+
+        /* Run Button */
+        .run-section {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .run-btn {
+            background: linear-gradient(135deg, var(--accent) 0%, var(--purple) 100%);
+            color: white;
+            border: none;
+            padding: 16px 48px;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
             transition: all 0.2s;
         }
-        .upload-area:hover { border-color: #2563eb; background: #f8fafc; }
-        .upload-area.dragover { border-color: #2563eb; background: #eff6ff; }
-        .upload-area.loaded { border-style: solid; border-color: #10b981; background: #ecfdf5; }
 
-        /* Extracted Data */
-        .extracted {
+        .run-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(59, 130, 246, 0.3); }
+        .run-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+
+        /* Results */
+        .results-section {
             display: none;
+        }
+
+        .results-section.show { display: block; }
+
+        /* Check Card */
+        .check-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            margin-bottom: 12px;
+            overflow: hidden;
+        }
+
+        .check-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 20px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .check-header:hover { background: var(--bg-tertiary); }
+
+        .check-header .left {
+            display: flex;
+            align-items: center;
             gap: 12px;
-            margin-bottom: 20px;
         }
-        .extracted.show { display: grid; grid-template-columns: repeat(3, 1fr); }
-        @media (max-width: 800px) { .extracted.show { grid-template-columns: 1fr 1fr; } }
-        .extract-box {
-            background: white;
-            border: 1px solid #e5e7eb;
+
+        .check-num {
+            width: 32px;
+            height: 32px;
             border-radius: 8px;
-            padding: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.9rem;
         }
-        .extract-box h3 {
+
+        .check-num.c0 { background: var(--warning-bg); color: var(--warning); }
+        .check-num.c1 { background: rgba(59, 130, 246, 0.15); color: var(--accent); }
+        .check-num.c2 { background: var(--purple-bg); color: var(--purple); }
+        .check-num.c3 { background: var(--success-bg); color: var(--success); }
+        .check-num.c4 { background: var(--danger-bg); color: var(--danger); }
+
+        .check-title { font-weight: 600; }
+        .check-subtitle { font-size: 0.85rem; color: var(--text-muted); }
+
+        .check-status {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .check-badge {
+            padding: 6px 14px;
+            border-radius: 6px;
             font-size: 0.8rem;
-            color: #6b7280;
-            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .check-badge.pending { background: var(--bg-tertiary); color: var(--text-muted); }
+        .check-badge.running { background: var(--accent); color: white; }
+        .check-badge.pass { background: var(--success-bg); color: var(--success); }
+        .check-badge.warn { background: var(--warning-bg); color: var(--warning); }
+        .check-badge.fail { background: var(--danger-bg); color: var(--danger); }
+
+        .toggle-icon {
+            color: var(--text-muted);
+            transition: transform 0.2s;
+        }
+
+        .check-card.expanded .toggle-icon { transform: rotate(180deg); }
+
+        .check-content {
+            display: none;
+            padding: 0 20px 20px;
+            border-top: 1px solid var(--border);
+        }
+
+        .check-card.expanded .check-content { display: block; }
+
+        /* Result Table */
+        .result-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 16px;
+            font-size: 0.9rem;
+        }
+
+        .result-table th {
+            text-align: left;
+            padding: 12px;
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            font-weight: 600;
+            font-size: 0.8rem;
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
-        .extract-box pre {
-            font-size: 0.75rem;
-            background: #f9fafb;
-            padding: 10px;
+
+        .result-table td {
+            padding: 12px;
+            border-bottom: 1px solid var(--border);
+            vertical-align: top;
+        }
+
+        .result-table tr:last-child td { border-bottom: none; }
+
+        .constraint-name { font-weight: 500; color: var(--text); }
+        .constraint-id { font-size: 0.75rem; color: var(--text-muted); }
+        .quote { color: var(--text-secondary); font-style: italic; font-size: 0.85rem; }
+
+        .status-pill {
+            display: inline-block;
+            padding: 4px 10px;
             border-radius: 4px;
-            max-height: 150px;
-            overflow: auto;
-            white-space: pre-wrap;
-            word-break: break-word;
-        }
-        .extract-box .stats {
-            font-size: 0.75rem;
-            color: #9ca3af;
-            margin-top: 6px;
-        }
-        .extract-box .stats .over { color: #dc2626; font-weight: 600; }
-
-        /* Run Buttons */
-        .run-buttons {
-            display: none;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-        .run-buttons.show { display: flex; flex-wrap: wrap; }
-        .run-btn {
-            flex: 1;
-            min-width: 180px;
-            background: #2563eb;
-            color: white;
-            border: none;
-            padding: 12px 16px;
-            border-radius: 8px;
-            font-size: 0.9rem;
+            font-size: 0.8rem;
             font-weight: 600;
-            cursor: pointer;
         }
-        .run-btn:hover { background: #1d4ed8; }
-        .run-btn:disabled { background: #9ca3af; cursor: not-allowed; }
-        .run-btn.secondary { background: #6366f1; }
-        .run-btn.secondary:hover { background: #4f46e5; }
-        .run-btn.tertiary { background: #059669; }
-        .run-btn.tertiary:hover { background: #047857; }
-        .run-btn.quaternary { background: #dc2626; }
-        .run-btn.quaternary:hover { background: #b91c1c; }
-        .run-btn.zero { background: #f59e0b; }
-        .run-btn.zero:hover { background: #d97706; }
-        .extract-box.golden { border-color: #fbbf24; background: #fffbeb; }
-        .extract-box.golden h3 { color: #b45309; }
-        .extract-box.models { border-color: #f87171; background: #fef2f2; }
-        .extract-box.models h3 { color: #dc2626; }
 
-        /* Results */
-        .results {
-            background: white;
-            border: 1px solid #e5e7eb;
+        .status-pill.pass { background: var(--success-bg); color: var(--success); }
+        .status-pill.fail { background: var(--danger-bg); color: var(--danger); }
+        .status-pill.warn { background: var(--warning-bg); color: var(--warning); }
+
+        /* Issues Box */
+        .issues-box {
+            background: var(--bg-tertiary);
             border-radius: 8px;
-            padding: 20px;
-            display: none;
-        }
-        .results.show { display: block; }
-        .results h2 {
-            font-size: 1rem;
-            margin-bottom: 16px;
-            padding-bottom: 12px;
-            border-bottom: 1px solid #e5e7eb;
-        }
-        .results pre {
-            font-family: inherit;
-            white-space: pre-wrap;
-            word-break: break-word;
-            font-size: 0.9rem;
-            line-height: 1.8;
+            padding: 16px;
+            margin-top: 16px;
         }
 
-        /* Loading */
-        .loading {
-            text-align: center;
-            padding: 30px;
-            color: #6b7280;
+        .issues-box h4 {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-bottom: 10px;
         }
+
+        .issues-box ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .issues-box li {
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.9rem;
+        }
+
+        .issues-box li:last-child { border-bottom: none; }
+
+        .issues-box .issue-pass { color: var(--success); }
+        .issues-box .issue-fail { color: var(--danger); }
+
+        /* Spinner */
         .spinner {
             display: inline-block;
-            width: 24px;
-            height: 24px;
-            border: 3px solid #e5e7eb;
-            border-top-color: #2563eb;
+            width: 16px;
+            height: 16px;
+            border: 2px solid var(--border);
+            border-top-color: var(--accent);
             border-radius: 50%;
             animation: spin 0.8s linear infinite;
-            margin-right: 10px;
-            vertical-align: middle;
         }
+
         @keyframes spin { to { transform: rotate(360deg); } }
 
-        /* Copy button */
-        .copy-btn {
-            float: right;
-            background: #f3f4f6;
-            border: 1px solid #d1d5db;
-            padding: 6px 12px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 0.8rem;
+        /* Summary */
+        .summary-card {
+            background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
         }
-        .copy-btn:hover { background: #e5e7eb; }
+
+        .summary-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 16px;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 16px;
+        }
+
+        .summary-item {
+            text-align: center;
+            padding: 16px;
+            background: var(--bg-primary);
+            border-radius: 8px;
+        }
+
+        .summary-item .num {
+            font-size: 2rem;
+            font-weight: 700;
+        }
+
+        .summary-item .label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        .summary-item.pass .num { color: var(--success); }
+        .summary-item.fail .num { color: var(--danger); }
+        .summary-item.warn .num { color: var(--warning); }
+
+        /* Copy button */
+        .copy-all-btn {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            margin-top: 16px;
+        }
+
+        .copy-all-btn:hover { background: var(--border); }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>CFBench Review</h1>
+        <header class="header">
+            <h1>CFBench Review Tool</h1>
+            <div class="status-badge no" id="api-status">No API Key</div>
+        </header>
 
-        <!-- API Config -->
-        <div class="api-config">
+        <!-- API Bar -->
+        <div class="api-bar">
             <select id="api-provider">
                 <option value="gemini">Gemini</option>
                 <option value="openai">OpenAI</option>
             </select>
-            <input type="password" id="api-key" placeholder="Paste API key...">
-            <button onclick="saveKey()">Save</button>
-            <span class="api-status no" id="api-status">No key</span>
+            <input type="password" id="api-key" placeholder="Paste your API key...">
+            <button class="btn" onclick="saveKey()">Save Key</button>
         </div>
 
         <!-- Upload -->
-        <div class="upload-area" id="upload-area">
-            <div style="font-size: 1.5rem; margin-bottom: 8px;">📄</div>
-            <div>Drop .py file here or click to select</div>
+        <div class="upload-area" id="upload-area" onclick="document.getElementById('file-input').click()">
+            <div class="icon">📄</div>
+            <div class="text">Drop .py or .ipynb file here, or click to select</div>
             <input type="file" id="file-input" accept=".py,.ipynb" style="display:none">
         </div>
 
-        <!-- Extracted Data -->
-        <div class="extracted" id="extracted">
-            <div class="extract-box">
-                <h3>Turn Metadata</h3>
-                <pre id="preview-turnmeta">-</pre>
-                <div class="stats" id="stats-turnmeta"></div>
+        <!-- Stats -->
+        <div class="stats-grid" id="stats-grid" style="display:none">
+            <div class="stat-card">
+                <div class="label">System Prompt</div>
+                <div class="value" id="stat-system">-</div>
             </div>
-            <div class="extract-box">
-                <h3>Last User Query</h3>
-                <pre id="preview-query">-</pre>
-                <div class="stats" id="stats-query"></div>
+            <div class="stat-card">
+                <div class="label">User Query</div>
+                <div class="value" id="stat-user">-</div>
             </div>
-            <div class="extract-box">
-                <h3>System Prompt</h3>
-                <pre id="preview-system">-</pre>
-                <div class="stats" id="stats-system"></div>
+            <div class="stat-card">
+                <div class="label">Constraints</div>
+                <div class="value" id="stat-constraints">-</div>
             </div>
-            <div class="extract-box">
-                <h3>Task Metadata</h3>
-                <pre id="preview-metadata">-</pre>
-                <div class="stats" id="stats-metadata"></div>
-            </div>
-            <div class="extract-box golden">
-                <h3>Golden Response</h3>
-                <pre id="preview-golden">-</pre>
-                <div class="stats" id="stats-golden"></div>
-            </div>
-            <div class="extract-box models">
-                <h3>Model Responses</h3>
-                <pre id="preview-models">-</pre>
-                <div class="stats" id="stats-models"></div>
+            <div class="stat-card">
+                <div class="label">Model Passes</div>
+                <div class="value" id="stat-models">-</div>
             </div>
         </div>
 
-        <!-- Run Buttons -->
-        <div class="run-buttons" id="run-buttons">
-            <button class="run-btn zero" onclick="runCheck0()">0. Extract Limits</button>
-            <button class="run-btn" onclick="runCheck1()">1. User Constraints</button>
-            <button class="run-btn secondary" onclick="runCheck2()">2. System Prompt</button>
-            <button class="run-btn tertiary" onclick="runCheck3()">3. Golden Response</button>
-            <button class="run-btn quaternary" onclick="runCheck4()">4. Model Tests</button>
+        <!-- Run Button -->
+        <div class="run-section" id="run-section" style="display:none">
+            <button class="run-btn" id="run-btn" onclick="runAllChecks()">
+                ▶ Run Full Analysis
+            </button>
         </div>
 
         <!-- Results -->
-        <div class="results" id="results">
-            <h2>
-                Review Results
-                <button class="copy-btn" onclick="copyResults()">Copy</button>
-            </h2>
-            <pre id="results-content"></pre>
+        <div class="results-section" id="results-section">
+            <!-- Summary will be inserted here -->
+            <div id="summary-container"></div>
+
+            <!-- Check cards -->
+            <div id="checks-container"></div>
+
+            <button class="copy-all-btn" onclick="copyAllResults()">📋 Copy Full Report</button>
         </div>
     </div>
 
     <script>
+        // Data
         let extractedData = {
             turnMetadata: null,
             userQuery: null,
@@ -285,12 +494,14 @@
             goldenResponse: null,
             modelResponses: [],
             limits: {
-                systemPrompt: { min: null, max: null, raw: null },
-                userPrompt: { min: null, max: null, raw: null }
+                systemPrompt: { min: null, max: null },
+                userPrompt: { min: null, max: null }
             }
         };
 
-        // Italian Word Counter (handles elisions like l'amico = 2 words)
+        let checkResults = [];
+
+        // Italian Word Counter
         const ITALIAN_CHARS = "a-zA-ZàèéìòùÀÈÉÌÒÙ";
         function countItalianWords(text) {
             if (!text || !text.trim()) return 0;
@@ -299,7 +510,7 @@
             let match;
             while ((match = regex.exec(text)) !== null) {
                 if (match[1] && match[2]) {
-                    tokens.push(match[1], match[2]); // elision = 2 words
+                    tokens.push(match[1], match[2]);
                 } else if (match[3]) {
                     tokens.push(match[3]);
                 }
@@ -307,128 +518,112 @@
             return tokens.length;
         }
 
-        // Parse limit strings like "Above 1000 words", "50 - 100 words", "Below 500 words"
         function parseLimitString(str, limitObj) {
             const s = str.toLowerCase();
-
-            // Range: "50 - 100 words" or "50-100"
             const rangeMatch = s.match(/(\d+)\s*[-–]\s*(\d+)/);
             if (rangeMatch) {
                 limitObj.min = parseInt(rangeMatch[1]);
                 limitObj.max = parseInt(rangeMatch[2]);
                 return;
             }
-
-            // Above/More than: "Above 1000 words"
             const aboveMatch = s.match(/above\s*(\d+)|more\s*than\s*(\d+)|>\s*(\d+)|minimum\s*(\d+)/i);
             if (aboveMatch) {
                 limitObj.min = parseInt(aboveMatch[1] || aboveMatch[2] || aboveMatch[3] || aboveMatch[4]);
-                limitObj.max = null;
                 return;
             }
-
-            // Below/Less than: "Below 500 words"
             const belowMatch = s.match(/below\s*(\d+)|less\s*than\s*(\d+)|<\s*(\d+)|up\s*to\s*(\d+)|maximum\s*(\d+)/i);
             if (belowMatch) {
-                limitObj.min = null;
                 limitObj.max = parseInt(belowMatch[1] || belowMatch[2] || belowMatch[3] || belowMatch[4] || belowMatch[5]);
                 return;
             }
-
-            // Exact number: "100 words"
             const exactMatch = s.match(/(\d+)\s*words?/i);
             if (exactMatch) {
                 limitObj.min = parseInt(exactMatch[1]);
                 limitObj.max = parseInt(exactMatch[1]);
-                return;
             }
         }
 
-        // Validate word count against limits
         function validateWordCount(count, limitObj) {
-            if (!limitObj.min && !limitObj.max) return { ok: true, status: `${count} words` };
-
+            if (!limitObj.min && !limitObj.max) return { ok: true, text: `${count} words`, class: '' };
             let ok = true;
-            let status = '';
-
+            let text = `${count} words`;
             if (limitObj.min && limitObj.max) {
-                // Range
                 ok = count >= limitObj.min && count <= limitObj.max;
-                status = `${count} words (need ${limitObj.min}-${limitObj.max})`;
+                text = `${count}/${limitObj.min}-${limitObj.max}`;
             } else if (limitObj.min) {
-                // Minimum only
                 ok = count >= limitObj.min;
-                status = `${count} words (need ≥${limitObj.min})`;
+                text = `${count}/≥${limitObj.min}`;
             } else if (limitObj.max) {
-                // Maximum only
                 ok = count <= limitObj.max;
-                status = `${count} words (need ≤${limitObj.max})`;
+                text = `${count}/≤${limitObj.max}`;
             }
-
-            return { ok, status };
+            return { ok, text, class: ok ? 'ok' : 'warn' };
         }
 
-        // Load saved API key
+        // API Key
         document.addEventListener('DOMContentLoaded', () => {
             const savedKey = localStorage.getItem('review_api_key');
             const savedProvider = localStorage.getItem('review_api_provider') || 'gemini';
-
             document.getElementById('api-provider').value = savedProvider;
             if (savedKey) {
                 document.getElementById('api-key').value = '••••••••••••';
-                updateStatus(true);
+                updateApiStatus(true);
             }
         });
 
         function saveKey() {
             const key = document.getElementById('api-key').value.trim();
             const provider = document.getElementById('api-provider').value;
-
             if (key && !key.startsWith('••')) {
                 localStorage.setItem('review_api_key', key);
                 localStorage.setItem('review_api_provider', provider);
                 document.getElementById('api-key').value = '••••••••••••';
-                updateStatus(true);
+                updateApiStatus(true);
             }
         }
 
-        function updateStatus(ok) {
+        function updateApiStatus(ok) {
             const el = document.getElementById('api-status');
-            el.className = 'api-status ' + (ok ? 'ok' : 'no');
-            el.textContent = ok ? 'Ready' : 'No key';
+            el.className = 'status-badge ' + (ok ? 'ready' : 'no');
+            el.textContent = ok ? '✓ Ready' : 'No API Key';
         }
 
-        // File handling
+        // File Upload
         const uploadArea = document.getElementById('upload-area');
         const fileInput = document.getElementById('file-input');
 
-        uploadArea.onclick = () => fileInput.click();
         fileInput.onchange = (e) => loadFile(e.target.files[0]);
-
-        uploadArea.ondragover = (e) => { e.preventDefault(); uploadArea.classList.add('dragover'); };
-        uploadArea.ondragleave = () => uploadArea.classList.remove('dragover');
+        uploadArea.ondragover = (e) => { e.preventDefault(); uploadArea.style.borderColor = 'var(--accent)'; };
+        uploadArea.ondragleave = () => { uploadArea.style.borderColor = ''; };
         uploadArea.ondrop = (e) => {
             e.preventDefault();
-            uploadArea.classList.remove('dragover');
+            uploadArea.style.borderColor = '';
             loadFile(e.dataTransfer.files[0]);
         };
 
         function loadFile(file) {
             if (!file) return;
-
             const reader = new FileReader();
             reader.onload = (e) => {
-                const content = e.target.result;
-                parseContent(content);
-
+                parseContent(e.target.result);
                 uploadArea.classList.add('loaded');
-                uploadArea.innerHTML = `<div style="color: #059669;">✓ ${file.name} loaded</div>`;
+                uploadArea.innerHTML = `<div class="icon">✓</div><div class="filename">${file.name}</div><div class="text">Click to upload a different file</div>`;
+                document.getElementById('stats-grid').style.display = 'grid';
+                document.getElementById('run-section').style.display = 'block';
+                updateStats();
             };
             reader.readAsText(file);
         }
 
         function parseContent(content) {
-            // Extract turn_metadata
+            // Reset
+            extractedData = {
+                turnMetadata: null, userQuery: null, systemPrompt: null, metadata: null,
+                goldenResponse: null, modelResponses: [],
+                limits: { systemPrompt: { min: null, max: null }, userPrompt: { min: null, max: null } }
+            };
+
+            // turn_metadata
             const turnMetaMatch = content.match(/\*\*\[turn_metadata\]\*\*\s*([\s\S]*?)(?=\*\*\[|$)/i);
             if (turnMetaMatch) {
                 const jsonMatch = turnMetaMatch[1].match(/\{[\s\S]*\}/);
@@ -442,51 +637,36 @@
                 }
             }
 
-            // Extract system prompt
+            // system
             const systemMatch = content.match(/\*\*\[system\]\*\*\s*([\s\S]*?)(?=\*\*\[|$)/i);
-            if (systemMatch) {
-                extractedData.systemPrompt = systemMatch[1].trim();
-            }
+            if (systemMatch) extractedData.systemPrompt = systemMatch[1].trim();
 
-            // Extract task metadata (# Metadata section)
+            // metadata
             const metaMatch = content.match(/# Metadata\s*([\s\S]*?)(?=\*\*\[|$)/i);
             if (metaMatch) {
                 extractedData.metadata = metaMatch[1].trim();
-
-                // Extract raw limit strings from metadata
                 const sysMatch = extractedData.metadata.match(/\*\*System Prompt Length:\*\*\s*-?\s*(.+)/i);
                 const userMatch = extractedData.metadata.match(/\*\*User Prompt Length:\*\*\s*-?\s*(.+)/i);
-
-                if (sysMatch) {
-                    extractedData.limits.systemPrompt.raw = sysMatch[1].trim();
-                    parseLimitString(sysMatch[1], extractedData.limits.systemPrompt);
-                }
-                if (userMatch) {
-                    extractedData.limits.userPrompt.raw = userMatch[1].trim();
-                    parseLimitString(userMatch[1], extractedData.limits.userPrompt);
-                }
+                if (sysMatch) parseLimitString(sysMatch[1], extractedData.limits.systemPrompt);
+                if (userMatch) parseLimitString(userMatch[1], extractedData.limits.userPrompt);
             }
 
-            // Extract ALL user queries, take the LAST one
+            // user queries - last one
             const userPattern = /\*\*\[user\]\*\*\s*([\s\S]*?)(?=\*\*\[|$)/gi;
             let match;
-            let lastUserQuery = null;
             while ((match = userPattern.exec(content)) !== null) {
-                lastUserQuery = match[1].trim();
+                extractedData.userQuery = match[1].trim();
             }
-            extractedData.userQuery = lastUserQuery;
 
-            // Extract golden response (assistant AFTER turn_metadata)
+            // golden response
             const turnMetaIndex = content.search(/\*\*\[turn_metadata\]\*\*/i);
             if (turnMetaIndex !== -1) {
                 const afterTurnMeta = content.substring(turnMetaIndex);
                 const assistantMatch = afterTurnMeta.match(/\*\*\[assistant\]\*\*\s*([\s\S]*?)(?=\*\*\[|$)/i);
-                if (assistantMatch) {
-                    extractedData.goldenResponse = assistantMatch[1].trim();
-                }
+                if (assistantMatch) extractedData.goldenResponse = assistantMatch[1].trim();
             }
 
-            // Extract model responses (assistant_{model}_N format)
+            // model responses
             extractedData.modelResponses = [];
             const modelPattern = /\*\*\[assistant_([^\]]+)\]\*\*\s*([\s\S]*?)(?=\*\*\[|$)/gi;
             let modelMatch;
@@ -496,451 +676,399 @@
                     content: modelMatch[2].trim()
                 });
             }
-
-            // Show previews
-            showPreviews();
         }
 
-        function showPreviews() {
-            document.getElementById('extracted').classList.add('show');
-            document.getElementById('run-buttons').classList.add('show');
+        function updateStats() {
+            const sysWords = countItalianWords(extractedData.systemPrompt);
+            const userWords = countItalianWords(extractedData.userQuery);
+            const sysVal = validateWordCount(sysWords, extractedData.limits.systemPrompt);
+            const userVal = validateWordCount(userWords, extractedData.limits.userPrompt);
 
-            // Turn Metadata preview
-            if (extractedData.turnMetadata) {
-                const instrCount = extractedData.turnMetadata.instructions?.length || 0;
-                const judgeCount = extractedData.turnMetadata.llm_judge?.length || 0;
-                document.getElementById('preview-turnmeta').textContent = JSON.stringify(extractedData.turnMetadata, null, 2).substring(0, 400) + '...';
-                document.getElementById('stats-turnmeta').textContent = `${instrCount} instructions, ${judgeCount} llm_judge`;
-            } else {
-                document.getElementById('preview-turnmeta').textContent = 'Not found';
-            }
+            document.getElementById('stat-system').innerHTML = `<span class="${sysVal.class}">${sysVal.text}</span>`;
+            document.getElementById('stat-user').innerHTML = `<span class="${userVal.class}">${userVal.text}</span>`;
 
-            // User Query preview with word count
-            if (extractedData.userQuery) {
-                const userWords = countItalianWords(extractedData.userQuery);
-                const validation = validateWordCount(userWords, extractedData.limits.userPrompt);
-                document.getElementById('preview-query').textContent = extractedData.userQuery.substring(0, 400) + (extractedData.userQuery.length > 400 ? '...' : '');
-
-                const userStatus = validation.ok
-                    ? `<span style="color:#059669">${validation.status} ✓</span>`
-                    : `<span style="color:#dc2626;font-weight:600">${validation.status} ⚠</span>`;
-                document.getElementById('stats-query').innerHTML = userStatus;
-            } else {
-                document.getElementById('preview-query').textContent = 'Not found';
-            }
-
-            // System Prompt preview with word count
-            if (extractedData.systemPrompt) {
-                const sysWords = countItalianWords(extractedData.systemPrompt);
-                const validation = validateWordCount(sysWords, extractedData.limits.systemPrompt);
-                document.getElementById('preview-system').textContent = extractedData.systemPrompt.substring(0, 400) + (extractedData.systemPrompt.length > 400 ? '...' : '');
-
-                const sysStatus = validation.ok
-                    ? `<span style="color:#059669">${validation.status} ✓</span>`
-                    : `<span style="color:#dc2626;font-weight:600">${validation.status} ⚠</span>`;
-                document.getElementById('stats-system').innerHTML = sysStatus;
-            } else {
-                document.getElementById('preview-system').textContent = 'Not found';
-            }
-
-            // Task Metadata preview
-            if (extractedData.metadata) {
-                document.getElementById('preview-metadata').textContent = extractedData.metadata.substring(0, 400) + (extractedData.metadata.length > 400 ? '...' : '');
-                document.getElementById('stats-metadata').textContent = `${extractedData.metadata.length} chars`;
-            } else {
-                document.getElementById('preview-metadata').textContent = 'Not found';
-            }
-
-            // Golden Response preview
-            if (extractedData.goldenResponse) {
-                document.getElementById('preview-golden').textContent = extractedData.goldenResponse.substring(0, 400) + (extractedData.goldenResponse.length > 400 ? '...' : '');
-                document.getElementById('stats-golden').textContent = `${extractedData.goldenResponse.length} chars`;
-            } else {
-                document.getElementById('preview-golden').textContent = 'Not found';
-            }
-
-            // Model Responses preview
-            if (extractedData.modelResponses.length > 0) {
-                const names = extractedData.modelResponses.map(m => m.name).join('\n');
-                document.getElementById('preview-models').textContent = names;
-                document.getElementById('stats-models').textContent = `${extractedData.modelResponses.length} model responses found`;
-            } else {
-                document.getElementById('preview-models').textContent = 'Not found';
-            }
+            const instrCount = extractedData.turnMetadata?.instructions?.length || 0;
+            const judgeCount = extractedData.turnMetadata?.llm_judge?.length || 0;
+            document.getElementById('stat-constraints').textContent = `${instrCount + judgeCount} total`;
+            document.getElementById('stat-models').textContent = `${extractedData.modelResponses.length} found`;
         }
 
-        // CHECK 0: Extract Limits with AI
-        async function runCheck0() {
+        // Run All Checks
+        async function runAllChecks() {
             const apiKey = localStorage.getItem('review_api_key');
             const provider = localStorage.getItem('review_api_provider') || 'gemini';
 
             if (!apiKey) {
-                alert('Please enter your API key first');
+                alert('Please save your API key first');
                 return;
             }
 
-            if (!extractedData.metadata) {
-                alert('Could not find # Metadata section in file');
-                return;
+            document.getElementById('run-btn').disabled = true;
+            document.getElementById('results-section').classList.add('show');
+            checkResults = [];
+
+            // Create check cards
+            const checks = [
+                { id: 0, name: 'Extract Limits', desc: 'Parse word limits from metadata' },
+                { id: 1, name: 'User Constraints', desc: 'Verify constraints appear in user query' },
+                { id: 2, name: 'System Prompt', desc: 'Analyze system prompt quality' },
+                { id: 3, name: 'Golden Response', desc: 'Verify response passes all constraints' },
+                { id: 4, name: 'Model Tests', desc: 'Check model failure rates' }
+            ];
+
+            document.getElementById('checks-container').innerHTML = checks.map(c => `
+                <div class="check-card" id="check-card-${c.id}">
+                    <div class="check-header" onclick="toggleCheck(${c.id})">
+                        <div class="left">
+                            <div class="check-num c${c.id}">${c.id}</div>
+                            <div>
+                                <div class="check-title">${c.name}</div>
+                                <div class="check-subtitle">${c.desc}</div>
+                            </div>
+                        </div>
+                        <div class="check-status">
+                            <span class="check-badge pending" id="badge-${c.id}">Pending</span>
+                            <span class="toggle-icon">▼</span>
+                        </div>
+                    </div>
+                    <div class="check-content" id="content-${c.id}"></div>
+                </div>
+            `).join('');
+
+            // Run checks sequentially
+            await runCheck0(apiKey, provider);
+            await runCheck1(apiKey, provider);
+            await runCheck2(apiKey, provider);
+            await runCheck3(apiKey, provider);
+            await runCheck4(apiKey, provider);
+
+            // Show summary
+            showSummary();
+            document.getElementById('run-btn').disabled = false;
+        }
+
+        function toggleCheck(id) {
+            document.getElementById(`check-card-${id}`).classList.toggle('expanded');
+        }
+
+        function setCheckStatus(id, status, content) {
+            const badge = document.getElementById(`badge-${id}`);
+            badge.className = `check-badge ${status}`;
+            badge.innerHTML = status === 'running' ? '<span class="spinner"></span> Running' :
+                              status === 'pass' ? '✓ Pass' :
+                              status === 'fail' ? '✗ Issues' :
+                              status === 'warn' ? '⚠ Warning' : 'Pending';
+
+            if (content) {
+                document.getElementById(`content-${id}`).innerHTML = content;
+                document.getElementById(`check-card-${id}`).classList.add('expanded');
             }
+        }
 
-            showLoading('Extracting limits from Metadata...');
+        // CHECK 0: Extract Limits
+        async function runCheck0(apiKey, provider) {
+            setCheckStatus(0, 'running');
 
-            const prompt = `Extract the word limits from this metadata section.
+            const prompt = `Extract word limits from this metadata. Return ONLY valid JSON.
 
 **METADATA:**
-\`\`\`
 ${extractedData.metadata}
-\`\`\`
 
-Look for:
-- **System Prompt Length:** (could be "Above X words", "X - Y words", "Below X words", etc.)
-- **User Prompt Length:** (same formats)
+Return:
+{"system_prompt":{"min":NUMBER_OR_NULL,"max":NUMBER_OR_NULL},"user_prompt":{"min":NUMBER_OR_NULL,"max":NUMBER_OR_NULL}}
 
-Return a JSON object with min/max values:
-\`\`\`json
-{
-  "system_prompt": { "min": <number or null>, "max": <number or null> },
-  "user_prompt": { "min": <number or null>, "max": <number or null> }
-}
-\`\`\`
-
-Examples:
-- "Above 1000 words" → { "min": 1000, "max": null }
-- "50 - 100 words" → { "min": 50, "max": 100 }
-- "Below 500 words" → { "min": null, "max": 500 }`;
+Examples: "Above 1000" → min:1000,max:null | "50-100" → min:50,max:100`;
 
             try {
                 const result = await callAPI(provider, apiKey, prompt);
+                const jsonMatch = result.match(/\{[^{}]*"system_prompt"[^{}]*"user_prompt"[^{}]*\}/s) ||
+                                  result.match(/\{[\s\S]*\}/);
 
-                // Try to parse the JSON from the response
-                const jsonMatch = result.match(/\{[\s\S]*?\}/);
                 if (jsonMatch) {
-                    try {
-                        const limits = JSON.parse(jsonMatch[0]);
-
-                        if (limits.system_prompt) {
-                            extractedData.limits.systemPrompt.min = limits.system_prompt.min;
-                            extractedData.limits.systemPrompt.max = limits.system_prompt.max;
-                        }
-                        if (limits.user_prompt) {
-                            extractedData.limits.userPrompt.min = limits.user_prompt.min;
-                            extractedData.limits.userPrompt.max = limits.user_prompt.max;
-                        }
-
-                        // Refresh the previews with new limits
-                        showPreviews();
-
-                        const sysLim = extractedData.limits.systemPrompt;
-                        const usrLim = extractedData.limits.userPrompt;
-
-                        document.getElementById('results-content').textContent =
-                            `✅ Limits extracted successfully!\n\n` +
-                            `System Prompt: ${sysLim.min ? '≥' + sysLim.min : ''}${sysLim.min && sysLim.max ? ' and ' : ''}${sysLim.max ? '≤' + sysLim.max : ''} words\n` +
-                            `User Query: ${usrLim.min ? '≥' + usrLim.min : ''}${usrLim.min && usrLim.max ? ' and ' : ''}${usrLim.max ? '≤' + usrLim.max : ''} words\n\n` +
-                            `Raw AI response:\n${result}`;
-                    } catch (e) {
-                        document.getElementById('results-content').textContent =
-                            `⚠️ Could not parse limits. Raw response:\n\n${result}`;
+                    const limits = JSON.parse(jsonMatch[0]);
+                    if (limits.system_prompt) {
+                        extractedData.limits.systemPrompt = limits.system_prompt;
                     }
+                    if (limits.user_prompt) {
+                        extractedData.limits.userPrompt = limits.user_prompt;
+                    }
+                    updateStats();
+
+                    const content = `
+                        <div class="issues-box">
+                            <h4>Extracted Limits</h4>
+                            <ul>
+                                <li><strong>System Prompt:</strong> ${formatLimit(extractedData.limits.systemPrompt)}</li>
+                                <li><strong>User Query:</strong> ${formatLimit(extractedData.limits.userPrompt)}</li>
+                            </ul>
+                        </div>`;
+                    setCheckStatus(0, 'pass', content);
+                    checkResults.push({ check: 0, status: 'pass', data: extractedData.limits });
                 } else {
-                    document.getElementById('results-content').textContent =
-                        `⚠️ No JSON found in response:\n\n${result}`;
+                    throw new Error('No JSON found');
                 }
-            } catch (error) {
-                document.getElementById('results-content').textContent = 'Error: ' + error.message;
+            } catch (e) {
+                setCheckStatus(0, 'warn', `<div class="issues-box"><p>Could not parse: ${e.message}</p></div>`);
+                checkResults.push({ check: 0, status: 'warn', error: e.message });
             }
+        }
+
+        function formatLimit(lim) {
+            if (lim.min && lim.max) return `${lim.min} - ${lim.max} words`;
+            if (lim.min) return `≥ ${lim.min} words`;
+            if (lim.max) return `≤ ${lim.max} words`;
+            return 'Not specified';
         }
 
         // CHECK 1: User Constraints
-        async function runCheck1() {
-            const apiKey = localStorage.getItem('review_api_key');
-            const provider = localStorage.getItem('review_api_provider') || 'gemini';
+        async function runCheck1(apiKey, provider) {
+            setCheckStatus(1, 'running');
 
-            if (!apiKey) {
-                alert('Please enter your API key first');
-                return;
-            }
+            const prompt = `Check if each constraint with "source":"user" in turn_metadata appears NATURALLY in the user query.
 
-            if (!extractedData.turnMetadata || !extractedData.userQuery) {
-                alert('Could not extract turn_metadata or user query from file');
-                return;
-            }
+**TURN_METADATA:**
+${JSON.stringify(extractedData.turnMetadata, null, 2)}
 
-            showLoading('Checking User Constraints...');
+**USER QUERY:**
+${extractedData.userQuery}
 
-            const prompt = buildPrompt1(extractedData.turnMetadata, extractedData.userQuery);
+For each constraint, respond with this EXACT JSON format:
+{"constraints":[{"id":"constraint_id","status":"PASS|FAIL","quote":"exact quote from query or 'NOT FOUND'"}],"issues":["issue1","issue2"]}`;
 
             try {
                 const result = await callAPI(provider, apiKey, prompt);
-                document.getElementById('results-content').textContent = result;
-            } catch (error) {
-                document.getElementById('results-content').textContent = 'Error: ' + error.message;
+                const content = formatConstraintResults(result, 'User Query');
+                const hasIssues = result.toLowerCase().includes('fail') || result.toLowerCase().includes('not found');
+                setCheckStatus(1, hasIssues ? 'warn' : 'pass', content);
+                checkResults.push({ check: 1, status: hasIssues ? 'warn' : 'pass', raw: result });
+            } catch (e) {
+                setCheckStatus(1, 'fail', `<div class="issues-box"><p>Error: ${e.message}</p></div>`);
+                checkResults.push({ check: 1, status: 'fail', error: e.message });
             }
         }
 
         // CHECK 2: System Prompt
-        async function runCheck2() {
-            const apiKey = localStorage.getItem('review_api_key');
-            const provider = localStorage.getItem('review_api_provider') || 'gemini';
+        async function runCheck2(apiKey, provider) {
+            setCheckStatus(2, 'running');
 
-            if (!apiKey) {
-                alert('Please enter your API key first');
-                return;
-            }
+            const sysConstraints = extractedData.turnMetadata?.instructions?.filter(i => i.source === 'system') || [];
 
-            if (!extractedData.systemPrompt) {
-                alert('Could not extract system prompt from file');
-                return;
-            }
+            const prompt = `Analyze the system prompt:
 
-            showLoading('Checking System Prompt...');
+1. Does it define a clear ROLE?
+2. Does it have LLM Eval constraints (tone/style)?
+3. Any FORBIDDEN terms? (L1, L2, taxonomy, CFBench)
+4. Is it consistent?
+5. Any contradictions?
+${sysConstraints.length > 0 ? `6. Are these system constraints present?\n${JSON.stringify(sysConstraints)}` : ''}
 
-            const prompt = buildPrompt2(extractedData.turnMetadata, extractedData.systemPrompt, extractedData.metadata);
+**METADATA:**
+${extractedData.metadata}
+
+**SYSTEM PROMPT:**
+${extractedData.systemPrompt}
+
+Respond with JSON: {"checks":[{"name":"check name","status":"PASS|FAIL","note":"explanation"}],"issues":["issue1"]}`;
 
             try {
                 const result = await callAPI(provider, apiKey, prompt);
-                document.getElementById('results-content').textContent = result;
-            } catch (error) {
-                document.getElementById('results-content').textContent = 'Error: ' + error.message;
+                const content = formatCheckResults(result);
+                const hasIssues = result.toLowerCase().includes('fail');
+                setCheckStatus(2, hasIssues ? 'warn' : 'pass', content);
+                checkResults.push({ check: 2, status: hasIssues ? 'warn' : 'pass', raw: result });
+            } catch (e) {
+                setCheckStatus(2, 'fail', `<div class="issues-box"><p>Error: ${e.message}</p></div>`);
             }
-        }
-
-        function showLoading(message) {
-            document.getElementById('results').classList.add('show');
-            document.getElementById('results-content').innerHTML = `<div class="loading"><span class="spinner"></span>${message}</div>`;
-        }
-
-        function buildPrompt1(turnMetadata, userQuery) {
-            return `For each constraint in turn_metadata with "source": "user", verify it appears NATURALLY in the user query.
-
-Instructions:
-1. List each constraint with source: "user"
-2. For EACH one, quote the exact text in user query where it appears
-3. Flag any MISSING or UNNATURAL constraints
-4. Check if numeric values match EXACTLY (paragraphs, words, characters)
-
-**TURN_METADATA:**
-\`\`\`
-${JSON.stringify(turnMetadata, null, 2)}
-\`\`\`
-
-**USER QUERY:**
-\`\`\`
-${userQuery}
-\`\`\`
-
-Output format - for each constraint:
-| Constraint | Quote from User Query | Status |
-|------------|----------------------|--------|
-
-Then list any issues found.`;
         }
 
         // CHECK 3: Golden Response
-        async function runCheck3() {
-            const apiKey = localStorage.getItem('review_api_key');
-            const provider = localStorage.getItem('review_api_provider') || 'gemini';
+        async function runCheck3(apiKey, provider) {
+            setCheckStatus(3, 'running');
 
-            if (!apiKey) {
-                alert('Please enter your API key first');
-                return;
-            }
+            const prompt = `Verify the golden response passes ALL constraints:
 
-            if (!extractedData.goldenResponse) {
-                alert('Could not extract golden response from file');
-                return;
-            }
+1. Check each constraint in turn_metadata
+2. Check: No emojis, no em-dash, no $€ symbols, no LaTeX, no preambles
 
-            showLoading('Checking Golden Response...');
+**TURN_METADATA:**
+${JSON.stringify(extractedData.turnMetadata, null, 2)}
 
-            const prompt = buildPrompt3(extractedData.turnMetadata, extractedData.goldenResponse);
+**GOLDEN RESPONSE:**
+${extractedData.goldenResponse}
+
+Respond with JSON: {"constraints":[{"id":"name","status":"PASS|FAIL","note":"reason"}],"formatting":{"emojis":"PASS|FAIL","em_dash":"PASS|FAIL","currency":"PASS|FAIL","latex":"PASS|FAIL","preamble":"PASS|FAIL"},"issues":[]}`;
 
             try {
                 const result = await callAPI(provider, apiKey, prompt);
-                document.getElementById('results-content').textContent = result;
-            } catch (error) {
-                document.getElementById('results-content').textContent = 'Error: ' + error.message;
+                const content = formatGoldenResults(result);
+                const hasIssues = result.toLowerCase().includes('fail');
+                setCheckStatus(3, hasIssues ? 'warn' : 'pass', content);
+                checkResults.push({ check: 3, status: hasIssues ? 'warn' : 'pass', raw: result });
+            } catch (e) {
+                setCheckStatus(3, 'fail', `<div class="issues-box"><p>Error: ${e.message}</p></div>`);
             }
         }
 
-        function buildPrompt2(turnMetadata, systemPrompt, metadata) {
-            // Get system-source constraints
-            let systemConstraints = '';
-            if (turnMetadata && turnMetadata.instructions) {
-                const sysInstr = turnMetadata.instructions.filter(i => i.source === 'system');
-                if (sysInstr.length > 0) {
-                    systemConstraints = `\n\n**SYSTEM-SOURCE CONSTRAINTS TO VERIFY:**
-\`\`\`
-${JSON.stringify(sysInstr, null, 2)}
-\`\`\``;
-                }
-            }
-
-            return `Analyze the system prompt for these issues:
-
-1. Does it define a clear ROLE matching the metadata domain?
-2. Does it contain at least 1 LLM Eval constraint (tone, style, behavior)?
-3. Are there any FORBIDDEN terms visible? (L1, L2, taxonomy, use case, CFBench)
-4. Is it consistent with the conversation topic?
-5. Any contradictory or impossible-to-follow rules?
-${systemConstraints ? '\n6. For each constraint with source: "system" in turn_metadata, verify it appears in the system prompt.' : ''}
-
-**TASK METADATA:**
-\`\`\`
-${metadata || 'Not found'}
-\`\`\`
-
-**SYSTEM PROMPT:**
-\`\`\`
-${systemPrompt}
-\`\`\`
-${systemConstraints}
-
-Output format:
-| Check | Result | Notes |
-|-------|--------|-------|
-
-Then list any issues found.`;
-        }
-
-        // CHECK 4: Model Tests (all 4)
-        async function runCheck4() {
-            const apiKey = localStorage.getItem('review_api_key');
-            const provider = localStorage.getItem('review_api_provider') || 'gemini';
-
-            if (!apiKey) {
-                alert('Please enter your API key first');
-                return;
-            }
+        // CHECK 4: Model Tests
+        async function runCheck4(apiKey, provider) {
+            setCheckStatus(4, 'running');
 
             if (extractedData.modelResponses.length === 0) {
-                alert('No model responses found in file');
+                setCheckStatus(4, 'warn', '<div class="issues-box"><p>No model responses found</p></div>');
                 return;
             }
 
-            showLoading(`Checking ${extractedData.modelResponses.length} Model Responses...`);
-
             let allResults = [];
-            let passCount = 0;
+            let failureCount = 0;
 
             for (let i = 0; i < extractedData.modelResponses.length; i++) {
                 const model = extractedData.modelResponses[i];
-                document.getElementById('results-content').innerHTML =
-                    `<div class="loading"><span class="spinner"></span>Checking ${model.name} (${i+1}/${extractedData.modelResponses.length})...</div>`;
 
-                const prompt = buildPrompt4(extractedData.turnMetadata, model.name, model.content);
+                const prompt = `Check if this model response fails constraints (we WANT failures):
+
+**TURN_METADATA:**
+${JSON.stringify(extractedData.turnMetadata, null, 2)}
+
+**MODEL RESPONSE (${model.name}):**
+${model.content}
+
+Respond: {"total":N,"passed":N,"failed":N,"failure_rate":"X%","meets_50_percent":true|false}`;
 
                 try {
                     const result = await callAPI(provider, apiKey, prompt);
-                    allResults.push(`\n${'='.repeat(60)}\n📋 ${model.name}\n${'='.repeat(60)}\n${result}`);
-
-                    // Check if this model meets 50% failure (simple heuristic)
-                    if (result.toLowerCase().includes('yes') && result.toLowerCase().includes('50%')) {
-                        passCount++;
+                    allResults.push({ name: model.name, result });
+                    if (result.includes('"meets_50_percent":true') || result.includes('"meets_50_percent": true')) {
+                        failureCount++;
                     }
-                } catch (error) {
-                    allResults.push(`\n${'='.repeat(60)}\n📋 ${model.name}\n${'='.repeat(60)}\nError: ${error.message}`);
+                } catch (e) {
+                    allResults.push({ name: model.name, error: e.message });
                 }
             }
 
-            // Final summary
-            const summary = `
-${'='.repeat(60)}
-📊 FINAL SUMMARY
-${'='.repeat(60)}
-Models analyzed: ${extractedData.modelResponses.length}
-Models meeting ≥50% failure: ${passCount}
-Rule: At least 3 of 4 must fail ≥50% of constraints
-
-OVERALL VERDICT: ${passCount >= 3 ? '✅ PASS - Sufficient model failures' : '❌ FAIL - Not enough model failures'}
-`;
-
-            document.getElementById('results-content').textContent = summary + allResults.join('\n');
+            const content = formatModelResults(allResults, failureCount);
+            const status = failureCount >= 3 ? 'pass' : 'fail';
+            setCheckStatus(4, status, content);
+            checkResults.push({ check: 4, status, failureCount, total: extractedData.modelResponses.length });
         }
 
-        function buildPrompt3(turnMetadata, goldenResponse) {
-            return `Verify the golden response passes ALL constraints:
-
-For each constraint in turn_metadata:
-1. IF constraints: Does it satisfy the exact requirement? (count words, check forbidden terms, verify format)
-2. LLM Eval: Does tone/style match the requirement?
-3. LLM Judge: Is it factually accurate? Logically connected?
-
-Also check:
-- No emojis anywhere
-- No em-dash (use hyphens only)
-- No currency symbols ($, €) - should use ISO codes (USD, EUR)
-- No LaTeX
-- No preambles ("Sure!", "Of course!", "Certainly!")
-
-**TURN_METADATA:**
-\`\`\`
-${JSON.stringify(turnMetadata, null, 2)}
-\`\`\`
-
-**GOLDEN RESPONSE:**
-\`\`\`
-${goldenResponse}
-\`\`\`
-
-Output format - for each constraint:
-| Constraint | PASS/FAIL | Evidence |
-|------------|-----------|----------|
-
-Then list ALL violations found (including formatting issues like emojis, em-dashes, etc).`;
+        function formatConstraintResults(result, source) {
+            // Try to parse JSON, fallback to raw display
+            try {
+                const jsonMatch = result.match(/\{[\s\S]*"constraints"[\s\S]*\}/);
+                if (jsonMatch) {
+                    const data = JSON.parse(jsonMatch[0]);
+                    let html = '<table class="result-table"><thead><tr><th>Constraint</th><th>Quote</th><th>Status</th></tr></thead><tbody>';
+                    for (const c of data.constraints || []) {
+                        const statusClass = c.status === 'PASS' ? 'pass' : 'fail';
+                        html += `<tr>
+                            <td><span class="constraint-name">${c.id}</span></td>
+                            <td><span class="quote">${escapeHtml(c.quote || '-')}</span></td>
+                            <td><span class="status-pill ${statusClass}">${c.status}</span></td>
+                        </tr>`;
+                    }
+                    html += '</tbody></table>';
+                    if (data.issues?.length > 0) {
+                        html += '<div class="issues-box"><h4>Issues Found</h4><ul>';
+                        for (const issue of data.issues) {
+                            html += `<li class="issue-fail">• ${escapeHtml(issue)}</li>`;
+                        }
+                        html += '</ul></div>';
+                    }
+                    return html;
+                }
+            } catch (e) {}
+            return `<div class="issues-box"><pre style="white-space:pre-wrap;font-size:0.85rem;color:var(--text-secondary)">${escapeHtml(result)}</pre></div>`;
         }
 
-        function buildPrompt4(turnMetadata, modelName, modelContent) {
-            return `Analyze if this model response fails enough constraints:
+        function formatCheckResults(result) {
+            try {
+                const jsonMatch = result.match(/\{[\s\S]*"checks"[\s\S]*\}/);
+                if (jsonMatch) {
+                    const data = JSON.parse(jsonMatch[0]);
+                    let html = '<table class="result-table"><thead><tr><th>Check</th><th>Note</th><th>Status</th></tr></thead><tbody>';
+                    for (const c of data.checks || []) {
+                        const statusClass = c.status === 'PASS' ? 'pass' : 'fail';
+                        html += `<tr>
+                            <td><span class="constraint-name">${c.name}</span></td>
+                            <td><span class="quote">${escapeHtml(c.note || '-')}</span></td>
+                            <td><span class="status-pill ${statusClass}">${c.status}</span></td>
+                        </tr>`;
+                    }
+                    html += '</tbody></table>';
+                    return html;
+                }
+            } catch (e) {}
+            return `<div class="issues-box"><pre style="white-space:pre-wrap;font-size:0.85rem">${escapeHtml(result)}</pre></div>`;
+        }
 
-Rule: At least 3 of 4 model responses must have FAIL >= 50%
+        function formatGoldenResults(result) {
+            try {
+                const jsonMatch = result.match(/\{[\s\S]*"constraints"[\s\S]*\}/);
+                if (jsonMatch) {
+                    const data = JSON.parse(jsonMatch[0]);
+                    let html = '<table class="result-table"><thead><tr><th>Check</th><th>Note</th><th>Status</th></tr></thead><tbody>';
 
-For this response, check each constraint in turn_metadata:
-1. Count total constraints (instructions + llm_judge)
-2. For each constraint, determine PASS or FAIL
-3. Calculate failure percentage
-4. Identify constraints that would FLIP compared to a perfect golden response
+                    for (const c of data.constraints || []) {
+                        const statusClass = c.status === 'PASS' ? 'pass' : 'fail';
+                        html += `<tr><td>${c.id}</td><td class="quote">${c.note || '-'}</td><td><span class="status-pill ${statusClass}">${c.status}</span></td></tr>`;
+                    }
 
-**TURN_METADATA:**
-\`\`\`
-${JSON.stringify(turnMetadata, null, 2)}
-\`\`\`
+                    if (data.formatting) {
+                        for (const [key, val] of Object.entries(data.formatting)) {
+                            const statusClass = val === 'PASS' ? 'pass' : 'fail';
+                            html += `<tr><td>Format: ${key}</td><td>-</td><td><span class="status-pill ${statusClass}">${val}</span></td></tr>`;
+                        }
+                    }
+                    html += '</tbody></table>';
+                    return html;
+                }
+            } catch (e) {}
+            return `<div class="issues-box"><pre style="white-space:pre-wrap;font-size:0.85rem">${escapeHtml(result)}</pre></div>`;
+        }
 
-**MODEL RESPONSE (${modelName}):**
-\`\`\`
-${modelContent}
-\`\`\`
+        function formatModelResults(allResults, failureCount) {
+            let html = `<div class="summary-card" style="margin-top:16px">
+                <div class="summary-grid">
+                    <div class="summary-item ${failureCount >= 3 ? 'pass' : 'fail'}">
+                        <div class="num">${failureCount}/${allResults.length}</div>
+                        <div class="label">Meet ≥50% Failure</div>
+                    </div>
+                </div>
+            </div>`;
 
-Output format:
-- Total constraints: X
-- Passed: Y
-- Failed: Z
-- Failure rate: Z/X = ??%
-- Key failures: [list main constraint failures]
-- Verdict: Meets 50% failure requirement? YES/NO`;
+            html += '<table class="result-table"><thead><tr><th>Model</th><th>Result</th></tr></thead><tbody>';
+            for (const r of allResults) {
+                html += `<tr>
+                    <td><span class="constraint-name">${r.name}</span></td>
+                    <td><pre style="margin:0;font-size:0.8rem;white-space:pre-wrap">${escapeHtml(r.error || r.result)}</pre></td>
+                </tr>`;
+            }
+            html += '</tbody></table>';
+            return html;
+        }
+
+        function showSummary() {
+            const passCount = checkResults.filter(r => r.status === 'pass').length;
+            const warnCount = checkResults.filter(r => r.status === 'warn').length;
+            const failCount = checkResults.filter(r => r.status === 'fail').length;
+
+            document.getElementById('summary-container').innerHTML = `
+                <div class="summary-card">
+                    <div class="summary-title">Analysis Complete</div>
+                    <div class="summary-grid">
+                        <div class="summary-item pass"><div class="num">${passCount}</div><div class="label">Passed</div></div>
+                        <div class="summary-item warn"><div class="num">${warnCount}</div><div class="label">Warnings</div></div>
+                        <div class="summary-item fail"><div class="num">${failCount}</div><div class="label">Failed</div></div>
+                    </div>
+                </div>`;
         }
 
         async function callAPI(provider, apiKey, prompt) {
-            let url, body, headers;
+            const url = provider === 'gemini'
+                ? 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions'
+                : 'https://api.openai.com/v1/chat/completions';
 
-            if (provider === 'gemini') {
-                url = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
-                body = {
-                    model: 'gemini-2.5-flash-lite',
-                    messages: [{ role: 'user', content: prompt }],
-                    temperature: 0.3,
-                    max_tokens: 4096
-                };
-            } else {
-                url = 'https://api.openai.com/v1/chat/completions';
-                body = {
-                    model: 'gpt-4o-mini',
-                    messages: [{ role: 'user', content: prompt }],
-                    temperature: 0.3,
-                    max_tokens: 4096
-                };
-            }
+            const model = provider === 'gemini' ? 'gemini-2.5-flash-lite' : 'gpt-4o-mini';
 
             const response = await fetch(url, {
                 method: 'POST',
@@ -948,7 +1076,12 @@ Output format:
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${apiKey}`
                 },
-                body: JSON.stringify(body)
+                body: JSON.stringify({
+                    model,
+                    messages: [{ role: 'user', content: prompt }],
+                    temperature: 0.2,
+                    max_tokens: 4096
+                })
             });
 
             if (!response.ok) {
@@ -960,10 +1093,20 @@ Output format:
             return data.choices?.[0]?.message?.content || 'No response';
         }
 
-        function copyResults() {
-            const text = document.getElementById('results-content').textContent;
+        function copyAllResults() {
+            let text = 'CFBench Review Report\n' + '='.repeat(50) + '\n\n';
+            for (const r of checkResults) {
+                text += `Check ${r.check}: ${r.status.toUpperCase()}\n`;
+                if (r.raw) text += r.raw + '\n';
+                text += '\n';
+            }
             navigator.clipboard.writeText(text);
-            alert('Copied!');
+            alert('Report copied to clipboard!');
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
         }
     </script>
 </body>
