@@ -208,15 +208,47 @@ class ReportGenerator {
             </div>`;
         }
 
-        // Check 4.2 - Pass/Fail Distribution (Instruction Matrix)
-        if (check.id === '4.2' && check.details?.instructionMatrix?.length > 0) {
+        // Check 4.2 - Pass/Fail Distribution (Model Breaking Rule)
+        if (check.id === '4.2') {
+            // Show Model Breaking Rule summary first
+            const failRates = check.details?.failRates || [];
+            const passesOver50 = check.details?.passesWithOver50PercentFail || 0;
+            const ruleStatus = passesOver50 >= 3 ? 'pass' : 'fail';
+
             html += `<div class="verification-table-container">
-                <h5>Instruction Distribution Matrix:</h5>
-                <div class="distribution-summary">
-                    <span><strong>Golden Status:</strong> ${check.details.summary?.goldenStatus || 'N/A'}</span>
-                    <span><strong>Passes with 100%:</strong> ${check.details.summary?.passesPassingAll || 0}/4</span>
-                </div>
-                <table class="verification-table matrix-table">
+                <h5>Model Breaking Rule: ≥3 of 4 must fail ≥50%</h5>
+                <div class="distribution-summary" style="margin-bottom: 12px;">
+                    <span class="${ruleStatus === 'pass' ? 'summary-item pass' : 'summary-item fail'}">
+                        <strong>Passes with ≥50% fail:</strong> ${passesOver50}/4 ${ruleStatus === 'pass' ? '✓' : '✗'}
+                    </span>
+                </div>`;
+
+            if (failRates.length > 0) {
+                html += `<table class="verification-table">
+                    <thead><tr><th>Model Pass</th><th>Failed</th><th>Total</th><th>Fail Rate</th><th>Status</th></tr></thead>
+                    <tbody>
+                        ${failRates.map(f => `
+                            <tr class="${f.failRate >= 50 ? 'row-pass' : 'row-fail'}">
+                                <td><strong>${this.escapeHTML(f.id)}</strong></td>
+                                <td>${f.failed}</td>
+                                <td>${f.total}</td>
+                                <td><strong>${f.failRate}%</strong></td>
+                                <td>${f.failRate >= 50 ? '✓ OK' : '✗ Too low'}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>`;
+            }
+
+            html += `<div class="distribution-summary" style="margin-top: 12px;">
+                    <span><strong>Golden Status:</strong> ${check.details?.summary?.goldenStatus || 'N/A'}</span>
+                </div>`;
+
+            // Show instruction matrix if available
+            if (check.details?.instructionMatrix?.length > 0) {
+                html += `<details style="margin-top: 16px;">
+                    <summary style="cursor: pointer; font-weight: 600;">View Instruction Matrix (${check.details.instructionMatrix.length} instructions)</summary>
+                <table class="verification-table matrix-table" style="margin-top: 8px;">
                     <thead>
                         <tr>
                             <th>Instruction</th>
@@ -242,7 +274,9 @@ class ReportGenerator {
                 </table>
                 ${check.details.instructionMatrix.length > 10 ?
                     `<div class="table-note">Showing first 10 of ${check.details.instructionMatrix.length} instructions</div>` : ''}
-            </div>`;
+                </details>`;
+            }
+            html += `</div>`;
         }
 
         // Check 4.4 - Validator-Content Match
@@ -269,6 +303,89 @@ class ReportGenerator {
                 </div>`;
             }
             html += `</div>`;
+        }
+
+        // Check 2.7 - System Source Constraints
+        if (check.id === '2.7' && check.details?.verificationResults?.length > 0) {
+            html += `<div class="verification-table-container">
+                <h5>System Source Constraints (source: "system")</h5>
+                <table class="verification-table">
+                    <thead>
+                        <tr>
+                            <th>Instruction ID</th>
+                            <th>Source</th>
+                            <th>In System Prompt?</th>
+                            <th>Evidence</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${check.details.verificationResults.map(r => `
+                            <tr class="${r.found ? 'row-pass' : 'row-warn'}">
+                                <td class="inst-id">${this.escapeHTML(r.instruction_id)}</td>
+                                <td>${this.escapeHTML(r.source)}</td>
+                                <td>${r.found ? '✓ Found' : '⚠ Not verified'}</td>
+                                <td class="inst-evidence">${this.escapeHTML(r.evidence || '-')}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+                <div class="verification-summary">
+                    <span class="summary-item pass">✓ Verified: ${check.details.verified || 0}</span>
+                    <span class="summary-item warn">⚠ Not found: ${check.details.notFound || 0}</span>
+                </div>
+            </div>`;
+        }
+
+        // Check 2.8 - Forbidden Terms
+        if (check.id === '2.8' && check.details) {
+            const foundTerms = check.details.foundTerms || [];
+            const checkedTerms = check.details.checkedTerms || [];
+
+            html += `<div class="check-details-box">
+                <h5>Forbidden Terms Check</h5>
+                <div class="detail-row">
+                    <strong>Terms checked:</strong> ${checkedTerms.join(', ')}
+                </div>
+                ${foundTerms.length > 0 ? `
+                <div class="detail-row" style="color: var(--error);">
+                    <strong>Found (FORBIDDEN):</strong> ${foundTerms.join(', ')}
+                </div>` : `
+                <div class="detail-row" style="color: var(--success);">
+                    ✓ No forbidden terms found in system prompt
+                </div>`}
+            </div>`;
+        }
+
+        // Check 2.9 - Golden Formatting
+        if (check.id === '2.9' && check.details?.foundIssues?.length > 0) {
+            html += `<div class="verification-table-container">
+                <h5>Golden Response Formatting Issues</h5>
+                <table class="verification-table">
+                    <thead>
+                        <tr>
+                            <th>Issue Type</th>
+                            <th>Details</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${check.details.foundIssues.map(issue => `
+                            <tr class="row-fail">
+                                <td><strong>${this.escapeHTML(issue.type)}</strong></td>
+                                <td class="inst-evidence">${
+                                    issue.type === 'emoji' ? `${issue.count} emoji(s): ${(issue.examples || []).join(' ')}` :
+                                    issue.type === 'em-dash' ? `${issue.count} em-dash(es) found` :
+                                    issue.type === 'currency' ? `Symbols: ${(issue.symbols || []).join(', ')}` :
+                                    issue.type === 'latex' ? `${issue.count} LaTeX expression(s)` :
+                                    issue.type === 'preamble' ? `Starts with: "${issue.found}"` :
+                                    JSON.stringify(issue)
+                                }</td>
+                                <td style="color: var(--error);">✗ FORBIDDEN</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>`;
         }
 
         return html;
@@ -544,16 +661,19 @@ class ReportGenerator {
             report += `Golden: ${goldenVA.passed}/${goldenVA.totalChecks} ${allPassed ? '✅' : '❌'}\n`;
         }
 
-        // Model Passes (compact)
+        // Model Passes (compact) with Model Breaking Rule
         if (p?.modelPasses?.length > 0) {
-            report += `Model Passes:\n`;
+            let passesOver50 = 0;
+            report += `Model Breaking (≥3/4 must fail ≥50%):\n`;
             p.modelPasses.forEach(pass => {
                 const va = pass.validatorAssistant;
-                if (va) {
-                    const failRate = va.totalChecks > 0 ? Math.round((va.failed / va.totalChecks) * 100) : 0;
-                    report += `• ${pass.model}_${pass.passNumber}: ${failRate}% fail ${failRate >= 50 ? '✅' : '⚠️'}\n`;
+                if (va && va.totalChecks > 0) {
+                    const failRate = Math.round((va.failed / va.totalChecks) * 100);
+                    if (failRate >= 50) passesOver50++;
+                    report += `• ${pass.model}_${pass.passNumber}: ${failRate}% ${failRate >= 50 ? '✅' : '⚠️'}\n`;
                 }
             });
+            report += `→ ${passesOver50}/4 pass rule ${passesOver50 >= 3 ? '✅' : '❌'}\n`;
         }
         report += `\n`;
 

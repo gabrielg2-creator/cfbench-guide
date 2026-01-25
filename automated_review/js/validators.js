@@ -343,6 +343,15 @@ class Validators {
 
         // Check 2.6: Intermediate turns analysis
         this.check2_6_IntermediateTurns();
+
+        // Check 2.7: Source "system" constraints in system prompt
+        this.check2_7_SystemSourceConstraints();
+
+        // Check 2.8: Forbidden terms in system prompt
+        this.check2_8_ForbiddenTerms();
+
+        // Check 2.9: Golden response formatting
+        this.check2_9_GoldenFormatting();
     }
 
     /**
@@ -383,11 +392,29 @@ class Validators {
         if (!sys.hasRole) {
             warnings.push('System prompt may be missing role definition');
         }
-        if (!sys.hasTone) {
-            warnings.push('System prompt may be missing tone/style guidance');
-        }
         if (!sys.hasFormat) {
             warnings.push('System prompt may be missing output format specification');
+        }
+
+        // CRITICAL: System prompt MUST have at least 1 LLM Eval constraint (tone, style, behavior)
+        const content = sys.content || '';
+        const llmEvalPatterns = [
+            /tone|tono|stile|style/i,
+            /formal|informal|professionale|professional/i,
+            /friendly|amichevole|cordiale|warm/i,
+            /concise|conciso|brief|breve/i,
+            /detailed|dettagliato|thorough/i,
+            /empathetic|empatico|understanding/i,
+            /assertive|assertivo|confident/i,
+            /neutral|neutrale|objective/i,
+            /enthusiastic|entusiasta|energetic/i,
+            /manner|modo|approach|approccio/i,
+            /communicate|comunica|respond|rispondi/i
+        ];
+        const hasLLMEvalConstraint = llmEvalPatterns.some(p => p.test(content));
+
+        if (!hasLLMEvalConstraint) {
+            issues.push('CRITICAL: System prompt MUST contain at least 1 LLM Eval constraint (tone, style, or behavior guidance)');
         }
 
         this.results.phase2.push({
@@ -399,7 +426,7 @@ class Validators {
             details: {
                 wordCount: sys.wordCount,
                 hasRole: sys.hasRole,
-                hasTone: sys.hasTone,
+                hasLLMEvalConstraint: hasLLMEvalConstraint,
                 hasFormat: sys.hasFormat
             }
         });
@@ -1061,6 +1088,239 @@ class Validators {
             details: {
                 totalTurns: p.turns.length,
                 turnAnalysis: turnAnalysis
+            }
+        });
+    }
+
+    /**
+     * Check 2.7: Verify constraints with source: "system" are in system prompt
+     * These constraints should be defined in the system prompt, not just in turn_metadata
+     */
+    check2_7_SystemSourceConstraints() {
+        const issues = [];
+        const warnings = [];
+        const p = this.parsed;
+
+        if (!p.system?.content || !p.finalTurn?.turnMetadata?.instructions) {
+            this.results.phase2.push({
+                id: '2.7',
+                name: 'System Source Constraints',
+                status: 'skipped',
+                issues: ['Missing system prompt or turn_metadata']
+            });
+            return;
+        }
+
+        const systemContent = p.system.content.toLowerCase();
+        const instructions = p.finalTurn.turnMetadata.instructions || [];
+
+        // Filter constraints with source: "system"
+        const systemSourceConstraints = instructions.filter(inst =>
+            inst.source === 'system' || inst.source === 'system_prompt'
+        );
+
+        const verificationResults = [];
+
+        systemSourceConstraints.forEach(inst => {
+            const instId = inst.instruction_id || inst.id || 'unknown';
+            const kwargs = inst.kwargs || {};
+
+            // Try to find evidence of this constraint in system prompt
+            let found = false;
+            let evidence = '';
+
+            // Check based on instruction type
+            if (instId.includes('tone') || instId.includes('stylistic')) {
+                // Look for tone/style keywords
+                const tonePatterns = ['tone', 'tono', 'style', 'stile', 'manner', 'modo'];
+                found = tonePatterns.some(p => systemContent.includes(p));
+                if (found) evidence = 'Found tone/style reference in system prompt';
+            } else if (instId.includes('format')) {
+                const formatPatterns = ['format', 'formato', 'structure', 'struttura'];
+                found = formatPatterns.some(p => systemContent.includes(p));
+                if (found) evidence = 'Found format reference in system prompt';
+            } else if (kwargs.keyword || kwargs.value) {
+                // Check if specific keyword/value is mentioned
+                const keyword = (kwargs.keyword || kwargs.value || '').toLowerCase();
+                if (keyword && systemContent.includes(keyword)) {
+                    found = true;
+                    evidence = `Found "${keyword}" in system prompt`;
+                }
+            }
+
+            verificationResults.push({
+                instruction_id: instId,
+                source: inst.source,
+                found: found,
+                evidence: evidence || 'Not found in system prompt'
+            });
+
+            if (!found) {
+                warnings.push(`[${instId}] has source: "system" but couldn't verify it in system prompt`);
+            }
+        });
+
+        const verified = verificationResults.filter(r => r.found).length;
+        const notFound = verificationResults.filter(r => !r.found).length;
+
+        this.results.phase2.push({
+            id: '2.7',
+            name: 'System Source Constraints',
+            status: issues.length === 0 ? 'passed' : 'failed',
+            issues: issues,
+            warnings: warnings,
+            details: {
+                totalSystemSource: systemSourceConstraints.length,
+                verified: verified,
+                notFound: notFound,
+                verificationResults: verificationResults
+            }
+        });
+    }
+
+    /**
+     * Check 2.8: Forbidden terms in system prompt
+     * System prompt should NOT contain metadata terms like L1, L2, taxonomy, CFBench, etc.
+     */
+    check2_8_ForbiddenTerms() {
+        const issues = [];
+        const warnings = [];
+        const p = this.parsed;
+
+        if (!p.system?.content) {
+            this.results.phase2.push({
+                id: '2.8',
+                name: 'Forbidden Terms',
+                status: 'skipped',
+                issues: ['No system prompt content']
+            });
+            return;
+        }
+
+        const content = p.system.content;
+        const contentLower = content.toLowerCase();
+
+        // Forbidden terms that should NOT appear in system prompt
+        const forbiddenTerms = [
+            { term: 'L1', pattern: /\bL1\b/i, msg: 'Contains "L1" (taxonomy reference)' },
+            { term: 'L2', pattern: /\bL2\b/i, msg: 'Contains "L2" (taxonomy reference)' },
+            { term: 'L3', pattern: /\bL3\b/i, msg: 'Contains "L3" (taxonomy reference)' },
+            { term: 'taxonomy', pattern: /\btaxonom/i, msg: 'Contains "taxonomy" reference' },
+            { term: 'CFBench', pattern: /\bcfbench\b/i, msg: 'Contains "CFBench" reference' },
+            { term: 'use case', pattern: /\buse\s*case\b/i, msg: 'Contains "use case" reference' },
+            { term: 'metadata', pattern: /\bmetadata\b/i, msg: 'Contains "metadata" reference' },
+            { term: 'instruction_id', pattern: /\binstruction_id\b/i, msg: 'Contains "instruction_id" reference' },
+            { term: 'turn_metadata', pattern: /\bturn_metadata\b/i, msg: 'Contains "turn_metadata" reference' },
+            { term: 'validator', pattern: /\bvalidator\b/i, msg: 'Contains "validator" reference' }
+        ];
+
+        const foundTerms = [];
+
+        forbiddenTerms.forEach(({ term, pattern, msg }) => {
+            if (pattern.test(content)) {
+                issues.push(msg + ' - System prompt should NOT contain internal/metadata terms');
+                foundTerms.push(term);
+            }
+        });
+
+        this.results.phase2.push({
+            id: '2.8',
+            name: 'Forbidden Terms',
+            status: issues.length === 0 ? 'passed' : 'failed',
+            issues: issues,
+            warnings: warnings,
+            details: {
+                foundTerms: foundTerms,
+                checkedTerms: forbiddenTerms.map(f => f.term)
+            }
+        });
+    }
+
+    /**
+     * Check 2.9: Golden response formatting
+     * Checks for forbidden formatting in the golden assistant response
+     */
+    check2_9_GoldenFormatting() {
+        const issues = [];
+        const warnings = [];
+        const p = this.parsed;
+
+        if (!p.finalTurn?.assistant?.content) {
+            this.results.phase2.push({
+                id: '2.9',
+                name: 'Golden Formatting',
+                status: 'skipped',
+                issues: ['No golden response content']
+            });
+            return;
+        }
+
+        const content = p.finalTurn.assistant.content;
+        const foundIssues = [];
+
+        // Check for emojis
+        const emojiPattern = /[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]/gu;
+        const emojis = content.match(emojiPattern);
+        if (emojis && emojis.length > 0) {
+            issues.push(`Golden response contains ${emojis.length} emoji(s): ${emojis.slice(0, 3).join(' ')}... - Emojis are FORBIDDEN`);
+            foundIssues.push({ type: 'emoji', count: emojis.length, examples: emojis.slice(0, 5) });
+        }
+
+        // Check for em-dash (should use hyphens)
+        const emDashPattern = /[—–]/g;
+        const emDashes = content.match(emDashPattern);
+        if (emDashes && emDashes.length > 0) {
+            issues.push(`Golden response contains ${emDashes.length} em-dash(es) — use regular hyphens (-) instead`);
+            foundIssues.push({ type: 'em-dash', count: emDashes.length });
+        }
+
+        // Check for currency symbols (should use ISO codes)
+        const currencyPattern = /[$€£¥₹₽]/g;
+        const currencies = content.match(currencyPattern);
+        if (currencies && currencies.length > 0) {
+            issues.push(`Golden response contains currency symbols (${currencies.join(', ')}) - use ISO codes (USD, EUR, GBP) instead`);
+            foundIssues.push({ type: 'currency', symbols: [...new Set(currencies)] });
+        }
+
+        // Check for LaTeX
+        const latexPattern = /\$\$[\s\S]*?\$\$|\$[^$]+\$|\\frac|\\sqrt|\\sum|\\int|\\alpha|\\beta/g;
+        const latex = content.match(latexPattern);
+        if (latex && latex.length > 0) {
+            issues.push(`Golden response contains LaTeX formatting - LaTeX is FORBIDDEN`);
+            foundIssues.push({ type: 'latex', count: latex.length, examples: latex.slice(0, 2) });
+        }
+
+        // Check for preambles
+        const preamblePatterns = [
+            /^(sure|certo|certainly|certamente)[!,.\s]/i,
+            /^(of course|ovviamente|naturalmente)[!,.\s]/i,
+            /^(absolutely|assolutamente)[!,.\s]/i,
+            /^(great|ottimo|perfetto)[!,.\s]/i,
+            /^(i'?d be happy to|sarò felice di|volentieri)[!,.\s]/i,
+            /^(here'?s|ecco)[!,.\s]/i
+        ];
+
+        const hasPreamble = preamblePatterns.some(p => p.test(content.trim()));
+        if (hasPreamble) {
+            issues.push('Golden response starts with a preamble (Sure!, Of course!, etc.) - Start directly with content');
+            foundIssues.push({ type: 'preamble' });
+        }
+
+        // Check for markdown headers in non-markdown context (might be ok depending on task)
+        const markdownHeaders = content.match(/^#{1,6}\s+/gm);
+        if (markdownHeaders && markdownHeaders.length > 5) {
+            warnings.push(`Golden response has ${markdownHeaders.length} markdown headers - verify this is appropriate for the task`);
+        }
+
+        this.results.phase2.push({
+            id: '2.9',
+            name: 'Golden Formatting',
+            status: issues.length === 0 ? 'passed' : 'failed',
+            issues: issues,
+            warnings: warnings,
+            details: {
+                foundIssues: foundIssues,
+                contentLength: content.length
             }
         });
     }
@@ -1896,9 +2156,29 @@ class Validators {
             }
         });
 
-        // Rule 1: at most 50% (2 of 4) can pass all
+        // Rule 1: MODEL BREAKING RULE - ≥3 of 4 must fail ≥50% of constraints
+        let passesWithOver50PercentFail = 0;
+        const failRates = [];
+
+        p.modelPasses.forEach(pass => {
+            const passId = `${pass.model}_${pass.passNumber}`;
+            const va = pass.validatorAssistant;
+            if (va && va.totalChecks > 0) {
+                const failRate = (va.failed / va.totalChecks) * 100;
+                failRates.push({ id: passId, failRate: Math.round(failRate), failed: va.failed, total: va.totalChecks });
+                if (failRate >= 50) {
+                    passesWithOver50PercentFail++;
+                }
+            }
+        });
+
+        if (passesWithOver50PercentFail < 3) {
+            issues.push(`MODEL BREAKING RULE VIOLATED: Only ${passesWithOver50PercentFail}/4 model passes fail ≥50% of constraints (need ≥3). Check fail rates: ${failRates.map(f => `${f.id}: ${f.failRate}%`).join(', ')}`);
+        }
+
+        // Legacy check: at most 2 can pass all (still useful info)
         if (passesWithAllPassed.length > 2) {
-            issues.push(`${passesWithAllPassed.length} model passes pass ALL instructions (max 2 allowed). Passes: ${passesWithAllPassed.join(', ')}`);
+            warnings.push(`${passesWithAllPassed.length} model passes pass ALL instructions (max 2 recommended). Passes: ${passesWithAllPassed.join(', ')}`);
         }
 
         // Rule 2: Golden must pass all
@@ -1954,7 +2234,9 @@ class Validators {
                 passesWithFailures: passesWithFailures,
                 instructionMatrix: instructionVariation,
                 summary: distributionSummary,
-                rule: 'Golden: 100% pass, Model passes: max 50% can pass all'
+                rule: 'Golden: 100% pass, Model Breaking: ≥3 of 4 must fail ≥50%',
+                failRates: failRates,
+                passesWithOver50PercentFail: passesWithOver50PercentFail
             }
         });
     }

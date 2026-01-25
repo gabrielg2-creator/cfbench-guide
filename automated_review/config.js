@@ -1,12 +1,14 @@
 /**
  * CFBench Automated Review - Configuration
  *
- * IMPORTANT: Keep this file private! Do not commit to public repositories.
+ * API Key is stored in localStorage (entered by user in the UI)
+ * DO NOT hardcode API keys here!
  */
 
 const CONFIG = {
     // Gemini API Configuration (Free Tier - 1500 calls/day)
-    GEMINI_API_KEY: "",
+    // API key is entered by user and stored in localStorage
+    GEMINI_API_KEY: null,
     GEMINI_MODEL: "gemini-2.5-flash-lite",
     GEMINI_BASE_URL: "https://generativelanguage.googleapis.com/v1beta/openai",
 

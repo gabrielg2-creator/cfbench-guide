@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CFBench Automated Review</title>
+    <title>CFBench Review Tool</title>
     <link rel="stylesheet" href="css/validator.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -11,22 +11,29 @@
     <div class="validator-container">
         <!-- Header -->
         <header class="validator-header">
-            <h1><i class="fas fa-robot"></i> CFBench Automated Review</h1>
-            <p>Upload a notebook file (.ipynb or .py) to automatically validate against CFBench guidelines</p>
+            <h1>CFBench Review Tool</h1>
+            <p>Upload a notebook (.ipynb or .py) to validate against CFBench guidelines</p>
         </header>
 
         <!-- API Key Section -->
         <section class="api-key-section">
-            <h3><i class="fas fa-key"></i> Gemini API Configuration</h3>
+            <h3><i class="fas fa-key"></i> API Configuration</h3>
+            <div style="margin-bottom: 12px;">
+                <label style="font-size: 0.8rem; color: var(--text-secondary); display: block; margin-bottom: 6px;">Provider</label>
+                <select id="api-provider" onchange="changeProvider()" style="width: 100%; padding: 10px 14px; border: 1px solid var(--border-color); border-radius: var(--radius); background: var(--bg-primary); color: var(--text-primary); font-size: 0.875rem;">
+                    <option value="gemini">Gemini (gemini-2.5-flash-lite)</option>
+                    <option value="openai">OpenAI (gpt-4o-mini)</option>
+                </select>
+            </div>
             <div class="api-key-input-group">
-                <input type="password" id="api-key-input" placeholder="Enter your Gemini API key...">
-                <button onclick="saveApiKey()">Save Key</button>
+                <input type="password" id="api-key-input" placeholder="Paste your API key here...">
+                <button onclick="saveApiKey()">Save</button>
             </div>
             <div id="api-status" class="api-status disconnected">
-                <i class="fas fa-circle"></i> API not configured
+                <i class="fas fa-circle"></i> Not configured
             </div>
-            <p style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 10px;">
-                <i class="fas fa-info-circle"></i> Using Gemini 2.5 Flash-Lite (30 RPM, 1500 calls/day free)
+            <p style="color: var(--text-muted); font-size: 0.75rem; margin-top: 8px;">
+                API key is saved locally in your browser (localStorage). Not uploaded anywhere.
             </p>
         </section>
 
@@ -35,8 +42,8 @@
             <div class="upload-icon">
                 <i class="fas fa-cloud-upload-alt"></i>
             </div>
-            <h3>Drop your notebook here</h3>
-            <p>or click to select a file (.ipynb or .py)</p>
+            <h3>Drop your file here</h3>
+            <p>or click to select (.ipynb or .py)</p>
             <button class="upload-btn" onclick="document.getElementById('file-input').click()">
                 <i class="fas fa-folder-open"></i> Select File
             </button>
@@ -46,7 +53,7 @@
         <!-- File Info -->
         <section class="file-info" id="file-info" style="display: none;">
             <div>
-                <i class="fas fa-file-code" style="color: var(--primary-color); margin-right: 10px;"></i>
+                <i class="fas fa-file-code" style="color: var(--accent); margin-right: 10px;"></i>
                 <span class="file-name" id="file-name">filename.ipynb</span>
             </div>
             <span class="file-size" id="file-size">0 KB</span>
@@ -55,10 +62,10 @@
         <!-- Action Buttons -->
         <section class="action-buttons" id="action-buttons" style="display: none;">
             <button class="action-btn primary" id="run-basic-btn" onclick="runBasicValidation()">
-                <i class="fas fa-check-circle"></i> Run Basic Validation
+                <i class="fas fa-check-circle"></i> Basic Validation
             </button>
             <button class="action-btn secondary" id="run-full-btn" onclick="runFullValidation()">
-                <i class="fas fa-brain"></i> Run Full AI Analysis
+                <i class="fas fa-brain"></i> Full AI Analysis
             </button>
         </section>
 
@@ -77,16 +84,18 @@
             <!-- Export Buttons -->
             <div class="action-buttons" style="margin-top: 20px;">
                 <button class="action-btn secondary" onclick="exportReport('text')">
-                    <i class="fas fa-file-alt"></i> Export as Text
+                    <i class="fas fa-file-alt"></i> Export Report
                 </button>
                 <button class="action-btn secondary" onclick="resetValidator()">
-                    <i class="fas fa-redo"></i> Analyze Another
+                    <i class="fas fa-redo"></i> New Analysis
                 </button>
             </div>
         </section>
     </div>
 
     <!-- Scripts -->
+    <!-- env.js is optional - users can paste API key directly -->
+    <script src="env.js" onerror="console.log('env.js not found - enter API key manually')"></script>
     <script src="config.js"></script>
     <script src="js/notebook_parser.js"></script>
     <script src="js/validators.js"></script>
@@ -104,14 +113,19 @@
 
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
-            // Check for API key - priority: CONFIG > localStorage
-            const configKey = typeof CONFIG !== 'undefined' ? CONFIG.GEMINI_API_KEY : null;
-            const savedKey = localStorage.getItem('gemini_api_key');
+            // Load saved provider
+            const savedProvider = localStorage.getItem('api_provider') || 'gemini';
+            document.getElementById('api-provider').value = savedProvider;
+            apiHandler.setProvider(savedProvider);
 
-            if (configKey || savedKey) {
-                if (configKey) {
-                    apiHandler.setApiKey(configKey);
-                    document.getElementById('api-key-input').placeholder = 'Loaded from config.js';
+            // Check for API key - priority: env.js > localStorage
+            const envKey = typeof ENV !== 'undefined' ? ENV.GEMINI_API_KEY : null;
+            const savedKey = localStorage.getItem('api_key');
+
+            if (envKey || savedKey) {
+                if (envKey) {
+                    apiHandler.setApiKey(envKey);
+                    document.getElementById('api-key-input').placeholder = 'Loaded from env.js';
                 } else if (savedKey) {
                     apiHandler.setApiKey(savedKey);
                 }
@@ -122,6 +136,21 @@
             // Setup drag and drop
             setupDragDrop();
         });
+
+        // Change API provider
+        function changeProvider() {
+            const provider = document.getElementById('api-provider').value;
+            apiHandler.setProvider(provider);
+
+            // Clear saved key when changing provider (different key needed)
+            const currentKey = localStorage.getItem('api_key');
+            if (currentKey) {
+                // Keep the key but update status
+                updateApiStatus(true);
+            }
+
+            showToast(`Switched to ${apiHandler.getProviderName()}`, 'success');
+        }
 
         // Setup drag and drop
         function setupDragDrop() {
@@ -152,23 +181,25 @@
             const key = keyInput.value.trim();
 
             if (key && !key.startsWith('••')) {
-                localStorage.setItem('gemini_api_key', key);
-                apiHandler.setApiKey(key);
+                apiHandler.setApiKey(key); // This also saves to localStorage
                 keyInput.value = '••••••••••••••••';
                 updateApiStatus(true);
-                showToast('API key saved!', 'success');
+                showToast(`${apiHandler.getProviderName()} API key saved!`, 'success');
             }
         }
 
         // Update API status
         function updateApiStatus(connected) {
             const status = document.getElementById('api-status');
+            const providerName = apiHandler.getProviderName();
+            const model = apiHandler.getModel();
+
             if (connected) {
                 status.className = 'api-status connected';
-                status.innerHTML = '<i class="fas fa-check-circle"></i> API configured';
+                status.innerHTML = `<i class="fas fa-check-circle"></i> ${providerName} connected (${model})`;
             } else {
                 status.className = 'api-status disconnected';
-                status.innerHTML = '<i class="fas fa-circle"></i> API not configured';
+                status.innerHTML = '<i class="fas fa-circle"></i> Not configured';
             }
         }
 

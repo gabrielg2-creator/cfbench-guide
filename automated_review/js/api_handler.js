@@ -1,25 +1,56 @@
 /**
  * CFBench API Handler
- * Handles Gemini 2.5 Flash-Lite API calls with rate limiting
+ * Supports both Gemini and OpenAI/GPT APIs
  */
 
 class APIHandler {
-    constructor(apiKey) {
-        // Load from CONFIG if available, otherwise use provided key or localStorage
-        const config = typeof CONFIG !== 'undefined' ? CONFIG : {};
+    constructor(apiKey, provider = null) {
+        // Load saved settings from localStorage
+        this.provider = provider || localStorage.getItem('api_provider') || 'gemini';
+        this.apiKey = apiKey || localStorage.getItem('api_key') || '';
 
-        this.apiKey = apiKey || config.GEMINI_API_KEY || localStorage.getItem('gemini_api_key') || '';
-        this.model = config.GEMINI_MODEL || 'gemini-2.5-flash-lite';
-        this.baseUrl = config.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta/openai';
+        // Provider configurations
+        this.providers = {
+            gemini: {
+                name: 'Gemini',
+                model: 'gemini-2.5-flash-lite',
+                baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
+                rateLimit: 3000
+            },
+            openai: {
+                name: 'OpenAI/GPT',
+                model: 'gpt-4o-mini',
+                baseUrl: 'https://api.openai.com/v1',
+                rateLimit: 1000
+            }
+        };
 
-        // Rate limiting - increased delay to avoid 429 errors
-        this.RATE_LIMIT_DELAY = config.RATE_LIMIT_DELAY_MS || 3000; // 3 seconds between calls
+        // Rate limiting
+        this.RATE_LIMIT_DELAY = this.providers[this.provider]?.rateLimit || 3000;
         this.lastCallTime = 0;
         this.dailyCallCount = 0;
-        this.DAILY_LIMIT = config.RATE_LIMIT_RPD || 1500;
+        this.DAILY_LIMIT = 1500;
 
         // Load prompts
         this.prompts = {};
+    }
+
+    /**
+     * Set API provider (gemini or openai)
+     */
+    setProvider(provider) {
+        if (this.providers[provider]) {
+            this.provider = provider;
+            this.RATE_LIMIT_DELAY = this.providers[provider].rateLimit;
+            localStorage.setItem('api_provider', provider);
+        }
+    }
+
+    /**
+     * Get current provider name
+     */
+    getProviderName() {
+        return this.providers[this.provider]?.name || 'Unknown';
     }
 
     /**
@@ -27,6 +58,7 @@ class APIHandler {
      */
     setApiKey(key) {
         this.apiKey = key;
+        localStorage.setItem('api_key', key);
     }
 
     /**
@@ -34,6 +66,13 @@ class APIHandler {
      */
     hasApiKey() {
         return !!this.apiKey && this.apiKey.length > 0;
+    }
+
+    /**
+     * Get current model
+     */
+    getModel() {
+        return this.providers[this.provider]?.model || 'unknown';
     }
 
     /**
@@ -68,22 +107,23 @@ class APIHandler {
     }
 
     /**
-     * Make API call to Gemini (OpenAI-compatible format)
+     * Make API call (supports both Gemini and OpenAI)
      * Includes automatic retry with exponential backoff for rate limits
      */
     async callGemini(prompt, options = {}) {
         if (!this.hasApiKey()) {
-            throw new Error('API key not set. Please configure your Gemini API key.');
+            throw new Error(`API key not set. Please configure your ${this.getProviderName()} API key.`);
         }
 
         this.checkDailyLimit();
         await this.applyRateLimit();
 
-        // OpenAI-compatible endpoint
-        const url = `${this.baseUrl}/chat/completions`;
+        // Get provider config
+        const providerConfig = this.providers[this.provider];
+        const url = `${providerConfig.baseUrl}/chat/completions`;
 
         const requestBody = {
-            model: this.model,
+            model: providerConfig.model,
             messages: [
                 {
                     role: 'user',
