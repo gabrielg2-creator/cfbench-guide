@@ -284,7 +284,10 @@
             metadata: null,
             goldenResponse: null,
             modelResponses: [],
-            limits: { systemPromptLength: null, userPromptLength: null }
+            limits: {
+                systemPrompt: { min: null, max: null, raw: null },
+                userPrompt: { min: null, max: null, raw: null }
+            }
         };
 
         // Italian Word Counter (handles elisions like l'amico = 2 words)
@@ -302,6 +305,67 @@
                 }
             }
             return tokens.length;
+        }
+
+        // Parse limit strings like "Above 1000 words", "50 - 100 words", "Below 500 words"
+        function parseLimitString(str, limitObj) {
+            const s = str.toLowerCase();
+
+            // Range: "50 - 100 words" or "50-100"
+            const rangeMatch = s.match(/(\d+)\s*[-–]\s*(\d+)/);
+            if (rangeMatch) {
+                limitObj.min = parseInt(rangeMatch[1]);
+                limitObj.max = parseInt(rangeMatch[2]);
+                return;
+            }
+
+            // Above/More than: "Above 1000 words"
+            const aboveMatch = s.match(/above\s*(\d+)|more\s*than\s*(\d+)|>\s*(\d+)|minimum\s*(\d+)/i);
+            if (aboveMatch) {
+                limitObj.min = parseInt(aboveMatch[1] || aboveMatch[2] || aboveMatch[3] || aboveMatch[4]);
+                limitObj.max = null;
+                return;
+            }
+
+            // Below/Less than: "Below 500 words"
+            const belowMatch = s.match(/below\s*(\d+)|less\s*than\s*(\d+)|<\s*(\d+)|up\s*to\s*(\d+)|maximum\s*(\d+)/i);
+            if (belowMatch) {
+                limitObj.min = null;
+                limitObj.max = parseInt(belowMatch[1] || belowMatch[2] || belowMatch[3] || belowMatch[4] || belowMatch[5]);
+                return;
+            }
+
+            // Exact number: "100 words"
+            const exactMatch = s.match(/(\d+)\s*words?/i);
+            if (exactMatch) {
+                limitObj.min = parseInt(exactMatch[1]);
+                limitObj.max = parseInt(exactMatch[1]);
+                return;
+            }
+        }
+
+        // Validate word count against limits
+        function validateWordCount(count, limitObj) {
+            if (!limitObj.min && !limitObj.max) return { ok: true, status: `${count} words` };
+
+            let ok = true;
+            let status = '';
+
+            if (limitObj.min && limitObj.max) {
+                // Range
+                ok = count >= limitObj.min && count <= limitObj.max;
+                status = `${count} words (need ${limitObj.min}-${limitObj.max})`;
+            } else if (limitObj.min) {
+                // Minimum only
+                ok = count >= limitObj.min;
+                status = `${count} words (need ≥${limitObj.min})`;
+            } else if (limitObj.max) {
+                // Maximum only
+                ok = count <= limitObj.max;
+                status = `${count} words (need ≤${limitObj.max})`;
+            }
+
+            return { ok, status };
         }
 
         // Load saved API key
@@ -389,11 +453,18 @@
             if (metaMatch) {
                 extractedData.metadata = metaMatch[1].trim();
 
-                // Extract word limits from metadata
-                const sysLimitMatch = extractedData.metadata.match(/system_prompt_length[:\s]+(\d+)/i);
-                const userLimitMatch = extractedData.metadata.match(/user_prompt_length[:\s]+(\d+)/i);
-                if (sysLimitMatch) extractedData.limits.systemPromptLength = parseInt(sysLimitMatch[1]);
-                if (userLimitMatch) extractedData.limits.userPromptLength = parseInt(userLimitMatch[1]);
+                // Extract raw limit strings from metadata
+                const sysMatch = extractedData.metadata.match(/\*\*System Prompt Length:\*\*\s*-?\s*(.+)/i);
+                const userMatch = extractedData.metadata.match(/\*\*User Prompt Length:\*\*\s*-?\s*(.+)/i);
+
+                if (sysMatch) {
+                    extractedData.limits.systemPrompt.raw = sysMatch[1].trim();
+                    parseLimitString(sysMatch[1], extractedData.limits.systemPrompt);
+                }
+                if (userMatch) {
+                    extractedData.limits.userPrompt.raw = userMatch[1].trim();
+                    parseLimitString(userMatch[1], extractedData.limits.userPrompt);
+                }
             }
 
             // Extract ALL user queries, take the LAST one
@@ -447,16 +518,12 @@
             // User Query preview with word count
             if (extractedData.userQuery) {
                 const userWords = countItalianWords(extractedData.userQuery);
-                const userLimit = extractedData.limits.userPromptLength;
+                const validation = validateWordCount(userWords, extractedData.limits.userPrompt);
                 document.getElementById('preview-query').textContent = extractedData.userQuery.substring(0, 400) + (extractedData.userQuery.length > 400 ? '...' : '');
 
-                let userStatus = `${userWords} words`;
-                if (userLimit) {
-                    const ok = userWords <= userLimit;
-                    userStatus = ok
-                        ? `<span style="color:#059669">${userWords}/${userLimit} words ✓</span>`
-                        : `<span style="color:#dc2626;font-weight:600">${userWords}/${userLimit} words ⚠ OVER LIMIT</span>`;
-                }
+                const userStatus = validation.ok
+                    ? `<span style="color:#059669">${validation.status} ✓</span>`
+                    : `<span style="color:#dc2626;font-weight:600">${validation.status} ⚠</span>`;
                 document.getElementById('stats-query').innerHTML = userStatus;
             } else {
                 document.getElementById('preview-query').textContent = 'Not found';
@@ -465,16 +532,12 @@
             // System Prompt preview with word count
             if (extractedData.systemPrompt) {
                 const sysWords = countItalianWords(extractedData.systemPrompt);
-                const sysLimit = extractedData.limits.systemPromptLength;
+                const validation = validateWordCount(sysWords, extractedData.limits.systemPrompt);
                 document.getElementById('preview-system').textContent = extractedData.systemPrompt.substring(0, 400) + (extractedData.systemPrompt.length > 400 ? '...' : '');
 
-                let sysStatus = `${sysWords} words`;
-                if (sysLimit) {
-                    const ok = sysWords <= sysLimit;
-                    sysStatus = ok
-                        ? `<span style="color:#059669">${sysWords}/${sysLimit} words ✓</span>`
-                        : `<span style="color:#dc2626;font-weight:600">${sysWords}/${sysLimit} words ⚠ OVER LIMIT</span>`;
-                }
+                const sysStatus = validation.ok
+                    ? `<span style="color:#059669">${validation.status} ✓</span>`
+                    : `<span style="color:#dc2626;font-weight:600">${validation.status} ⚠</span>`;
                 document.getElementById('stats-system').innerHTML = sysStatus;
             } else {
                 document.getElementById('preview-system').textContent = 'Not found';
@@ -530,17 +593,22 @@
 ${extractedData.metadata}
 \`\`\`
 
-Look for fields like:
-- system_prompt_length (or similar names for system prompt word limit)
-- user_prompt_length (or similar names for user query word limit)
+Look for:
+- **System Prompt Length:** (could be "Above X words", "X - Y words", "Below X words", etc.)
+- **User Prompt Length:** (same formats)
 
-Return ONLY a JSON object with these two values:
+Return a JSON object with min/max values:
 \`\`\`json
 {
-  "system_prompt_length": <number or null if not found>,
-  "user_prompt_length": <number or null if not found>
+  "system_prompt": { "min": <number or null>, "max": <number or null> },
+  "user_prompt": { "min": <number or null>, "max": <number or null> }
 }
-\`\`\``;
+\`\`\`
+
+Examples:
+- "Above 1000 words" → { "min": 1000, "max": null }
+- "50 - 100 words" → { "min": 50, "max": 100 }
+- "Below 500 words" → { "min": null, "max": 500 }`;
 
             try {
                 const result = await callAPI(provider, apiKey, prompt);
@@ -550,20 +618,26 @@ Return ONLY a JSON object with these two values:
                 if (jsonMatch) {
                     try {
                         const limits = JSON.parse(jsonMatch[0]);
-                        if (limits.system_prompt_length) {
-                            extractedData.limits.systemPromptLength = limits.system_prompt_length;
+
+                        if (limits.system_prompt) {
+                            extractedData.limits.systemPrompt.min = limits.system_prompt.min;
+                            extractedData.limits.systemPrompt.max = limits.system_prompt.max;
                         }
-                        if (limits.user_prompt_length) {
-                            extractedData.limits.userPromptLength = limits.user_prompt_length;
+                        if (limits.user_prompt) {
+                            extractedData.limits.userPrompt.min = limits.user_prompt.min;
+                            extractedData.limits.userPrompt.max = limits.user_prompt.max;
                         }
 
                         // Refresh the previews with new limits
                         showPreviews();
 
+                        const sysLim = extractedData.limits.systemPrompt;
+                        const usrLim = extractedData.limits.userPrompt;
+
                         document.getElementById('results-content').textContent =
                             `✅ Limits extracted successfully!\n\n` +
-                            `System Prompt Limit: ${extractedData.limits.systemPromptLength || 'Not found'} words\n` +
-                            `User Query Limit: ${extractedData.limits.userPromptLength || 'Not found'} words\n\n` +
+                            `System Prompt: ${sysLim.min ? '≥' + sysLim.min : ''}${sysLim.min && sysLim.max ? ' and ' : ''}${sysLim.max ? '≤' + sysLim.max : ''} words\n` +
+                            `User Query: ${usrLim.min ? '≥' + usrLim.min : ''}${usrLim.min && usrLim.max ? ' and ' : ''}${usrLim.max ? '≤' + usrLim.max : ''} words\n\n` +
                             `Raw AI response:\n${result}`;
                     } catch (e) {
                         document.getElementById('results-content').textContent =
