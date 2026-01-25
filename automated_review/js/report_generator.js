@@ -122,33 +122,73 @@ class ReportGenerator {
         }
 
         // Check 2.3 - Value Consistency (Constraint Verification Table)
-        if (check.id === '2.3' && check.details?.verificationResults?.length > 0) {
-            html += `<div class="verification-table-container">
-                <h5>Constraint Verification:</h5>
-                <table class="verification-table">
-                    <thead>
-                        <tr>
-                            <th>Instruction ID</th>
-                            <th>Status</th>
-                            <th>Evidence</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${check.details.verificationResults.map(r => `
-                            <tr class="${r.found === true ? 'row-pass' : r.found === false ? 'row-fail' : 'row-skip'}">
-                                <td class="inst-id">${this.escapeHTML(r.instruction_id)}</td>
-                                <td class="inst-status">${r.found === true ? '✓ FOUND' : r.found === false ? '✗ MISSING' : '— N/A'}</td>
-                                <td class="inst-evidence">${this.escapeHTML(r.evidence || r.details?.note || '-')}</td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-                <div class="verification-summary">
-                    <span class="summary-item pass">✓ Verified: ${check.details.verified || 0}</span>
-                    <span class="summary-item fail">✗ Missing: ${check.details.missing || 0}</span>
-                    <span class="summary-item warn">⚠ LLM Eval Implicit: ${check.details.llmEvalMissing || 0}</span>
+        if (check.id === '2.3') {
+            // Show final user query info for debugging
+            html += `<div class="check-details-box" style="margin-bottom: 12px;">
+                <h5>Final User Query (analyzed)</h5>
+                <div class="detail-row"><strong>Length:</strong> ${check.details?.finalUserQueryLength || 0} chars</div>
+                <div class="detail-row"><strong>Preview:</strong> <span style="color: var(--text-muted); font-size: 0.75rem;">${this.escapeHTML(check.details?.finalUserQueryPreview || 'N/A')}</span></div>
+                <div class="detail-row" style="margin-top: 8px;">
+                    <strong>Instructions breakdown:</strong>
+                    <span style="color: var(--accent);">${check.details?.userSourceCount || 0} source:user</span> |
+                    <span style="color: var(--text-muted);">${check.details?.systemSourceCount || 0} source:system</span>
                 </div>
             </div>`;
+
+            if (check.details?.verificationResults?.length > 0) {
+                html += `<div class="verification-table-container">
+                    <h5>Constraints with source: "user" (must be in user query)</h5>
+                    <table class="verification-table">
+                        <thead>
+                            <tr>
+                                <th>Constraint</th>
+                                <th>Exact Quote from User Query</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${check.details.verificationResults.map(r => {
+                                const statusClass = r.found === true ? 'row-pass' : r.found === false ? 'row-fail' : 'row-skip';
+                                const statusText = r.found === true ? 'PASS' : r.found === false ? 'MISSING' : 'N/A';
+                                const statusIcon = r.found === true ? '✓' : r.found === false ? '✗' : '—';
+                                const quote = r.exact_quote || r.evidence || 'Not found in query';
+
+                                return `
+                                <tr class="${statusClass}">
+                                    <td>
+                                        <strong>${this.escapeHTML(r.constraint_description || r.instruction_id)}</strong>
+                                        <div style="font-size: 0.65rem; color: var(--text-muted);">${this.escapeHTML(r.instruction_id)}</div>
+                                    </td>
+                                    <td class="inst-evidence" style="max-width: 400px; font-style: italic;">
+                                        ${this.escapeHTML(quote)}
+                                    </td>
+                                    <td class="${r.found === true ? 'cell-pass' : r.found === false ? 'cell-fail' : ''}" style="text-align: center; font-weight: 600;">
+                                        ${statusIcon} ${statusText}
+                                    </td>
+                                </tr>`;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                    <div class="verification-summary">
+                        <span class="summary-item pass">✓ PASS: ${check.details.verified || 0}</span>
+                        <span class="summary-item fail">✗ MISSING: ${check.details.potentiallyMissing || 0}</span>
+                        <span class="summary-item" style="background: var(--bg-tertiary); color: var(--text-muted);">LLM Eval: ${check.details.llmEvalToVerify || 0}</span>
+                    </div>
+                    <p style="font-size: 0.7rem; color: var(--text-muted); margin-top: 8px;">
+                        Note: Basic check uses regex. Numbers written in words need AI Analysis.
+                    </p>
+                </div>`;
+            }
+
+            // Show system source constraints (for info only)
+            if (check.details?.systemInstructions?.length > 0) {
+                html += `<div class="check-details-box" style="margin-top: 12px; opacity: 0.7;">
+                    <h5>Constraints with source: "system" (should be in system prompt, not user query)</h5>
+                    <ul style="margin: 0; padding-left: 16px; font-size: 0.75rem;">
+                        ${check.details.systemInstructions.map(s => `<li>${this.escapeHTML(s.id)}</li>`).join('')}
+                    </ul>
+                </div>`;
+            }
         }
 
         // Check 2.4 - Prompt Length Validation

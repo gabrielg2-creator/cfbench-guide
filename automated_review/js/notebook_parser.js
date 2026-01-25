@@ -125,6 +125,10 @@ class NotebookParser {
 
     /**
      * Extract all components from the notebook
+     * SIMPLIFIED LOGIC:
+     * 1. Find turn_metadata cell first
+     * 2. The [user] immediately BEFORE turn_metadata is the FINAL user query
+     * 3. All other [user] cells are intermediate turns
      * @returns {Object} Structured components
      */
     extractComponents() {
@@ -149,19 +153,53 @@ class NotebookParser {
             rawCells: this.notebook.cells
         };
 
-        let currentTurn = null;
-        let inFinalTurn = false;
-
+        // STEP 1: Find all cells and their types
+        const cellsWithTypes = [];
         for (let i = 0; i < this.notebook.cells.length; i++) {
             const cell = this.notebook.cells[i];
             const source = this.getCellSource(cell);
             const cellType = this.identifyCellType(source);
-
+            cellsWithTypes.push({
+                index: i,
+                source: source,
+                cellType: cellType
+            });
             components.cellOrder.push({
                 index: i,
                 type: cellType,
                 preview: source.substring(0, 100)
             });
+        }
+
+        // STEP 2: Find turn_metadata index
+        const turnMetadataIndex = cellsWithTypes.findIndex(c => c.cellType.type === 'turn_metadata');
+
+        // STEP 3: Find ALL user cells
+        const userCells = cellsWithTypes.filter(c => c.cellType.type === 'user' && !c.cellType.isModelPass);
+
+        // STEP 4: The LAST user cell (or the one before turn_metadata) is the final user query
+        let finalUserIndex = -1;
+        if (turnMetadataIndex !== -1) {
+            // Find the user cell closest to (but before) turn_metadata
+            for (let i = turnMetadataIndex - 1; i >= 0; i--) {
+                if (cellsWithTypes[i].cellType.type === 'user' && !cellsWithTypes[i].cellType.isModelPass) {
+                    finalUserIndex = i;
+                    break;
+                }
+            }
+        }
+        // Fallback: if no turn_metadata or no user before it, use the last user cell
+        if (finalUserIndex === -1 && userCells.length > 0) {
+            finalUserIndex = userCells[userCells.length - 1].index;
+        }
+
+        // STEP 5: Process all cells with correct final turn detection
+        let currentTurn = null;
+        let afterFinalUser = false;
+
+        for (const cellData of cellsWithTypes) {
+            const { index, source, cellType } = cellData;
+            const isFinalUserCell = (index === finalUserIndex);
 
             switch (cellType.type) {
                 case 'metadata':
@@ -174,13 +212,16 @@ class NotebookParser {
 
                 case 'user':
                     if (cellType.isModelPass) {
-                        // This shouldn't happen - model passes don't have user cells
-                    } else if (this.isNextCellTurnMetadata(i)) {
-                        // This is the final turn user
-                        inFinalTurn = true;
+                        // Model passes don't have user cells
+                    } else if (isFinalUserCell) {
+                        // This is THE final turn user (the challenging query)
+                        afterFinalUser = true;
                         components.finalTurn.user = this.parseUserCell(source);
                     } else {
-                        // Intermediate turn
+                        // Intermediate turn - save previous turn if exists
+                        if (currentTurn && currentTurn.assistant) {
+                            components.turns.push(currentTurn);
+                        }
                         currentTurn = {
                             user: this.parseUserCell(source),
                             thinking: null,
@@ -204,7 +245,7 @@ class NotebookParser {
                                 validatorHuman: null
                             });
                         }
-                    } else if (inFinalTurn) {
+                    } else if (afterFinalUser) {
                         components.finalTurn.thinking = this.parseThinkingCell(source);
                     } else if (currentTurn) {
                         currentTurn.thinking = this.parseThinkingCell(source);
@@ -216,18 +257,32 @@ class NotebookParser {
                         const passIndex = this.getModelPassIndex(components.modelPasses, cellType.model, cellType.passNumber);
                         if (passIndex !== -1) {
                             components.modelPasses[passIndex].assistant = this.parseAssistantCell(source);
+                        } else {
+                            // Create new model pass if not exists
+                            components.modelPasses.push({
+                                model: cellType.model,
+                                passNumber: cellType.passNumber,
+                                thinking: null,
+                                assistant: this.parseAssistantCell(source),
+                                validatorAssistant: null,
+                                validatorHuman: null
+                            });
                         }
-                    } else if (inFinalTurn) {
+                    } else if (afterFinalUser) {
                         components.finalTurn.assistant = this.parseAssistantCell(source);
                     } else if (currentTurn) {
                         currentTurn.assistant = this.parseAssistantCell(source);
-                        components.turns.push(currentTurn);
-                        currentTurn = null;
+                        // Don't push yet - wait for next user or final
                     }
                     break;
 
                 case 'turn_metadata':
                     components.finalTurn.turnMetadata = this.parseTurnMetadataCell(source);
+                    // Push any remaining intermediate turn
+                    if (currentTurn && currentTurn.assistant) {
+                        components.turns.push(currentTurn);
+                        currentTurn = null;
+                    }
                     break;
 
                 case 'validator_assistant':
@@ -252,6 +307,11 @@ class NotebookParser {
                     }
                     break;
             }
+        }
+
+        // Final cleanup: push last intermediate turn if not pushed
+        if (currentTurn && currentTurn.assistant && !afterFinalUser) {
+            components.turns.push(currentTurn);
         }
 
         return components;

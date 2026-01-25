@@ -506,39 +506,104 @@ class Validators {
                 id: '2.3',
                 name: 'Value Consistency',
                 status: 'failed',
-                issues: issues
+                issues: issues,
+                details: {
+                    hasFinalUser: !!p.finalTurn.user,
+                    hasTurnMetadata: !!p.finalTurn.turnMetadata,
+                    finalUserLength: p.finalTurn.user?.content?.length || 0
+                }
             });
             return;
         }
 
         const query = p.finalTurn.user.content;
         const queryLower = query.toLowerCase();
-        const instructions = p.finalTurn.turnMetadata.instructions || [];
+        const allInstructions = p.finalTurn.turnMetadata.instructions || [];
+
+        // IMPORTANT: Only check constraints with source: "user"
+        // Constraints with source: "system" should be in system prompt, not user query
+        const instructions = allInstructions.filter(inst => inst.source === 'user');
+        const systemInstructions = allInstructions.filter(inst => inst.source === 'system' || inst.source === 'system_prompt');
+
         const verificationResults = [];
 
+        // Log for debugging
+        console.log('Check 2.3 - Final User Query Length:', query.length);
+        console.log('Check 2.3 - Total Instructions:', allInstructions.length);
+        console.log('Check 2.3 - User Source Instructions:', instructions.length);
+        console.log('Check 2.3 - System Source Instructions:', systemInstructions.length);
+
         // Helper: find evidence in query for a value/concept
+        // Returns the EXACT quote from the user query where the constraint appears
         const findEvidence = (patterns, value = null) => {
             for (const pattern of patterns) {
                 const regex = new RegExp(pattern, 'gi');
                 const match = query.match(regex);
                 if (match) {
-                    // Find surrounding context (up to 50 chars before/after)
-                    const idx = query.toLowerCase().indexOf(match[0].toLowerCase());
-                    const start = Math.max(0, idx - 30);
-                    const end = Math.min(query.length, idx + match[0].length + 30);
-                    const context = (start > 0 ? '...' : '') + query.substring(start, end) + (end < query.length ? '...' : '');
-                    return { found: true, evidence: context, match: match[0] };
+                    // Find surrounding context (up to 60 chars before/after for better quote)
+                    const idx = query.indexOf(match[0]) !== -1 ? query.indexOf(match[0]) : query.toLowerCase().indexOf(match[0].toLowerCase());
+                    const start = Math.max(0, idx - 60);
+                    const end = Math.min(query.length, idx + match[0].length + 60);
+
+                    // Find sentence boundaries for cleaner quote
+                    let quoteStart = start;
+                    let quoteEnd = end;
+
+                    // Try to start at beginning of sentence
+                    const beforeText = query.substring(Math.max(0, idx - 150), idx);
+                    const sentenceStart = Math.max(beforeText.lastIndexOf('. '), beforeText.lastIndexOf('! '), beforeText.lastIndexOf('? '));
+                    if (sentenceStart !== -1) {
+                        quoteStart = idx - (beforeText.length - sentenceStart - 2);
+                    }
+
+                    // Try to end at end of sentence
+                    const afterText = query.substring(idx + match[0].length, Math.min(query.length, idx + match[0].length + 150));
+                    const sentenceEnd = Math.min(
+                        afterText.indexOf('. ') !== -1 ? afterText.indexOf('. ') : 999,
+                        afterText.indexOf('! ') !== -1 ? afterText.indexOf('! ') : 999,
+                        afterText.indexOf('? ') !== -1 ? afterText.indexOf('? ') : 999
+                    );
+                    if (sentenceEnd !== 999) {
+                        quoteEnd = idx + match[0].length + sentenceEnd + 1;
+                    }
+
+                    const exactQuote = query.substring(quoteStart, quoteEnd).trim();
+                    const shortContext = (start > 0 ? '...' : '') + query.substring(start, end) + (end < query.length ? '...' : '');
+
+                    return {
+                        found: true,
+                        evidence: shortContext,
+                        exact_quote: `"${exactQuote}"`,
+                        match: match[0]
+                    };
                 }
             }
-            return { found: false, evidence: null, match: null };
+            return { found: false, evidence: 'Not found in user query', exact_quote: null, match: null };
         };
 
         instructions.forEach(inst => {
             const id = inst.instruction_id || '';
+
+            // Build human-readable constraint description
+            let constraintDesc = id;
+            if (inst.num_words) constraintDesc = `Word Count (${inst.relation || '='} ${inst.num_words})`;
+            else if (inst.num_unique) constraintDesc = `Unique Words (${inst.relation || '='} ${inst.num_unique})`;
+            else if (inst.num_chars) constraintDesc = `Character Count (${inst.relation || '='} ${inst.num_chars})`;
+            else if (inst.num_sentences) constraintDesc = `Sentence Count (${inst.relation || 'at least'} ${inst.num_sentences})`;
+            else if (inst.num_paragraphs) constraintDesc = `Paragraph Count (${inst.relation || '='} ${inst.num_paragraphs})`;
+            else if (inst.keyword && inst.frequency) constraintDesc = `Keyword Frequency ("${inst.keyword}" x${inst.frequency})`;
+            else if (inst.keywords) constraintDesc = `Keywords Existence (${inst.keywords.join(', ')})`;
+            else if (inst.first_word) constraintDesc = `First Word ("${inst.first_word}")`;
+            else if (inst.last_word) constraintDesc = `Last Word ("${inst.last_word}")`;
+            else if (inst.mood_type) constraintDesc = `Grammatical Mood (${inst.mood_type})`;
+            else if (inst.tone_level) constraintDesc = `Tone/Formality (${inst.tone_level})`;
+
             const result = {
                 instruction_id: id,
+                constraint_description: constraintDesc,
                 found: false,
                 evidence: null,
+                exact_quote: null,
                 details: {}
             };
 
@@ -553,6 +618,7 @@ class Validators {
                 const check = findEvidence(patterns);
                 result.found = check.found;
                 result.evidence = check.evidence;
+                result.exact_quote = check.exact_quote;
                 result.details = { expected: inst.num_words, type: 'word_count' };
 
                 if (!check.found) {
@@ -561,9 +627,25 @@ class Validators {
                     if (numCheck.found) {
                         result.found = true;
                         result.evidence = numCheck.evidence;
+                        result.exact_quote = numCheck.exact_quote;
                         result.details.note = 'Number found, word association implicit';
                     }
                 }
+            }
+
+            // Check unique_words
+            else if (id.includes('unique_words') && inst.num_unique) {
+                const patterns = [
+                    `\\b${inst.num_unique}\\b.*\\b(parole uniche|unique words|palavras únicas)`,
+                    `\\b(parole uniche|unique words).*\\b${inst.num_unique}\\b`,
+                    `\\b(inferiore a|less than|menor que|unter)\\s*${inst.num_unique + 10}\\b.*\\b(parole|words)`,
+                    `\\b${inst.num_unique}\\b`
+                ];
+                const check = findEvidence(patterns);
+                result.found = check.found;
+                result.evidence = check.evidence;
+                result.exact_quote = check.exact_quote;
+                result.details = { expected: inst.num_unique, type: 'unique_words' };
             }
 
             // Check num_chars - multilingual patterns
@@ -576,6 +658,7 @@ class Validators {
                 const check = findEvidence(patterns);
                 result.found = check.found;
                 result.evidence = check.evidence;
+                result.exact_quote = check.exact_quote;
                 result.details = { expected: inst.num_chars, type: 'char_count' };
 
                 if (!check.found) {
@@ -583,6 +666,7 @@ class Validators {
                     if (numCheck.found) {
                         result.found = true;
                         result.evidence = numCheck.evidence;
+                        result.exact_quote = numCheck.exact_quote;
                         result.details.note = 'Number found, char association may be implicit';
                     }
                 }
@@ -592,50 +676,89 @@ class Validators {
             else if (id.includes('sentence_count') && inst.num_sentences) {
                 const patterns = [
                     `\\b${inst.num_sentences}\\s*(frasi|sentences|oraciones|sätze)\\b`,
-                    `\\b(frasi|sentences)\\s*[:=]?\\s*${inst.num_sentences}\\b`
+                    `\\b(frasi|sentences)\\s*[:=]?\\s*${inst.num_sentences}\\b`,
+                    `\\b(almeno|at least|minimo)\\s*${inst.num_sentences}\\s*(frasi|sentences)`
                 ];
                 const check = findEvidence(patterns);
                 result.found = check.found;
                 result.evidence = check.evidence;
+                result.exact_quote = check.exact_quote;
                 result.details = { expected: inst.num_sentences, type: 'sentence_count' };
             }
 
             // Check paragraph_count
             else if (id.includes('paragraph') && inst.num_paragraphs) {
                 const patterns = [
-                    `\\b${inst.num_paragraphs}\\s*(paragrafi|paragraphs|párrafos|absätze)\\b`,
-                    `\\b(paragrafi|paragraphs)\\s*[:=]?\\s*${inst.num_paragraphs}\\b`
+                    `\\b${inst.num_paragraphs}\\s*(paragrafi|paragraphs|párrafos|absätze|sezioni)\\b`,
+                    `\\b(paragrafi|paragraphs|sezioni)\\s*[:=]?\\s*${inst.num_paragraphs}\\b`,
+                    `\\btre\\s*(sezioni|paragrafi)\\b`,
+                    `\\b(three|drei)\\s*(sections|paragraphs)\\b`
                 ];
                 const check = findEvidence(patterns);
                 result.found = check.found;
                 result.evidence = check.evidence;
+                result.exact_quote = check.exact_quote;
                 result.details = { expected: inst.num_paragraphs, type: 'paragraph_count' };
             }
 
             // Check keyword_frequency
             else if (id.includes('frequency') && inst.keyword) {
-                const keywordLower = inst.keyword.toLowerCase();
-                const patterns = [
-                    `\\b${this.escapeRegex(inst.keyword)}\\b`,
-                    `"${this.escapeRegex(inst.keyword)}"`,
-                    `'${this.escapeRegex(inst.keyword)}'`
+                // First check if keyword appears in the query
+                const keywordPatterns = [
+                    `\\b${this.escapeRegex(inst.keyword.trim())}\\b`,
+                    `"${this.escapeRegex(inst.keyword.trim())}"`,
+                    `'${this.escapeRegex(inst.keyword.trim())}'`
                 ];
-                const check = findEvidence(patterns);
-                result.found = check.found;
-                result.evidence = check.evidence;
-                result.details = { keyword: inst.keyword, frequency: inst.frequency, type: 'keyword_frequency' };
+                const keywordCheck = findEvidence(keywordPatterns);
 
-                // Also check if frequency is mentioned
-                if (check.found && inst.frequency) {
-                    const freqPatterns = [
-                        `\\b${inst.frequency}\\s*(volte|times|veces|mal)\\b`,
-                        `\\b(ripetere|repeat|usa).*${inst.frequency}\\b`
-                    ];
-                    const freqCheck = findEvidence(freqPatterns);
-                    if (freqCheck.found) {
-                        result.details.frequencyEvidence = freqCheck.evidence;
+                // Then check if frequency is mentioned
+                const freqPatterns = [
+                    `\\b${inst.frequency}\\s*(volte|times|veces|mal)\\b`,
+                    `\\b(ripetere|repeat|usa|utilizza).*${inst.frequency}`,
+                    `\\b${inst.frequency}\\b.*\\b(volte|times)`
+                ];
+                const freqCheck = findEvidence(freqPatterns);
+
+                result.found = keywordCheck.found && freqCheck.found;
+                result.exact_quote = keywordCheck.exact_quote || freqCheck.exact_quote;
+                result.evidence = keywordCheck.found ? keywordCheck.evidence : 'Keyword not found in query';
+                result.details = {
+                    keyword: inst.keyword,
+                    frequency: inst.frequency,
+                    type: 'keyword_frequency',
+                    keywordFound: keywordCheck.found,
+                    frequencyFound: freqCheck.found,
+                    frequencyEvidence: freqCheck.exact_quote
+                };
+
+                if (!result.found) {
+                    result.evidence = `Keyword "${inst.keyword}" ${keywordCheck.found ? 'found' : 'NOT found'}, frequency ${inst.frequency}x ${freqCheck.found ? 'found' : 'NOT found'}`;
+                }
+            }
+
+            // Check keywords:existence
+            else if (id.includes('existence') && inst.keywords) {
+                const foundKeywords = [];
+                const missingKeywords = [];
+
+                for (const kw of inst.keywords) {
+                    const kwCheck = findEvidence([`\\b${this.escapeRegex(kw)}\\b`]);
+                    if (kwCheck.found) {
+                        foundKeywords.push(kw);
+                    } else {
+                        missingKeywords.push(kw);
                     }
                 }
+
+                result.found = missingKeywords.length === 0;
+                result.exact_quote = `Found: ${foundKeywords.join(', ')}${missingKeywords.length > 0 ? ` | Missing: ${missingKeywords.join(', ')}` : ''}`;
+                result.evidence = result.exact_quote;
+                result.details = {
+                    keywords: inst.keywords,
+                    found: foundKeywords,
+                    missing: missingKeywords,
+                    type: 'keywords_existence'
+                };
             }
 
             // Check word_length constraints
@@ -659,10 +782,12 @@ class Validators {
                     const check = findEvidence(patterns);
                     result.found = check.found;
                     result.evidence = check.evidence;
+                    result.exact_quote = check.exact_quote;
                     result.details = { min: inst.min_length, max: inst.max_length, type: 'word_length' };
                 } else {
-                    result.found = true; // No specific values to check
-                    result.details.note = 'No specific length values in instruction';
+                    result.found = true;
+                    result.exact_quote = 'No specific length values to check';
+                    result.details = { type: 'word_length', note: 'No specific length values in instruction' };
                 }
             }
 
@@ -671,11 +796,13 @@ class Validators {
                 const patterns = [
                     `\\b(inizia|start|begin|comincia).*\\b${this.escapeRegex(inst.first_word)}\\b`,
                     `\\b(prima parola|first word).*${this.escapeRegex(inst.first_word)}\\b`,
-                    `"${this.escapeRegex(inst.first_word)}".*\\b(prima|first|iniziale)`
+                    `"${this.escapeRegex(inst.first_word)}".*\\b(prima|first|iniziale)`,
+                    `\\b${this.escapeRegex(inst.first_word)}\\b`
                 ];
                 const check = findEvidence(patterns);
                 result.found = check.found;
                 result.evidence = check.evidence;
+                result.exact_quote = check.exact_quote;
                 result.details = { first_word: inst.first_word, type: 'first_word' };
             }
 
@@ -683,40 +810,75 @@ class Validators {
                 const patterns = [
                     `\\b(finisci|end|termina|concludi).*\\b${this.escapeRegex(inst.last_word)}\\b`,
                     `\\b(ultima parola|last word).*${this.escapeRegex(inst.last_word)}\\b`,
-                    `"${this.escapeRegex(inst.last_word)}".*\\b(ultima|last|finale)`
+                    `"${this.escapeRegex(inst.last_word)}".*\\b(ultima|last|finale)`,
+                    `\\b${this.escapeRegex(inst.last_word)}\\b`
                 ];
                 const check = findEvidence(patterns);
                 result.found = check.found;
                 result.evidence = check.evidence;
+                result.exact_quote = check.exact_quote;
                 result.details = { last_word: inst.last_word, type: 'last_word' };
+            }
+
+            // Check grammatical_mood
+            else if (id.includes('grammatical_mood') && inst.mood_type) {
+                const moodPatterns = {
+                    'indicative': ['indicativo', 'indicative', 'dichiarativo', 'declarative'],
+                    'imperative': ['imperativo', 'imperative'],
+                    'subjunctive': ['congiuntivo', 'subjunctive'],
+                    'conditional': ['condizionale', 'conditional']
+                };
+                const moodTerms = moodPatterns[inst.mood_type.toLowerCase()] || [inst.mood_type];
+                const patterns = moodTerms.flatMap(term => [
+                    `\\b${term}\\b`,
+                    `\\b(modo|tono).*${term}\\b`,
+                    `\\b(utilizza|usa|use).*${term}\\b`
+                ]);
+                const check = findEvidence(patterns);
+                result.found = check.found;
+                result.evidence = check.evidence;
+                result.exact_quote = check.exact_quote;
+                result.details = { mood_type: inst.mood_type, type: 'grammatical_mood' };
+                result.isLLMEval = true;
             }
 
             // Check stylistic/linguistic/situation (LLM Eval) - these need semantic check
             else if (id.startsWith('stylistic:') || id.startsWith('linguistic:') || id.startsWith('situation:')) {
-                // Extract the value after the colon (e.g., stylistic:tone_formality -> formal)
                 const parts = id.split(':');
                 const category = parts[0];
                 const subtype = parts[1];
 
                 // Look for mentions of the style/tone
-                let valueToFind = inst.value || inst.tone || inst.style || '';
+                let valueToFind = inst.value || inst.tone || inst.tone_level || inst.style || '';
+                const patterns = [];
+
                 if (valueToFind) {
-                    const patterns = [
+                    patterns.push(
                         `\\b${this.escapeRegex(valueToFind)}\\b`,
                         `\\b(tono|tone|stile|style).*${this.escapeRegex(valueToFind)}\\b`
-                    ];
-                    const check = findEvidence(patterns);
-                    result.found = check.found;
-                    result.evidence = check.evidence;
+                    );
                 }
+
+                // Also check for common tone/formality terms
+                if (subtype === 'tone_formality' || subtype === 'tone') {
+                    patterns.push(
+                        '\\b(neutro|neutral|formale|formal|informale|informal)\\b',
+                        '\\b(professionale|professional|tecnico|technical)\\b'
+                    );
+                }
+
+                const check = patterns.length > 0 ? findEvidence(patterns) : { found: false, evidence: 'No pattern to check', exact_quote: null };
+                result.found = check.found;
+                result.evidence = check.evidence;
+                result.exact_quote = check.exact_quote;
                 result.details = { category, subtype, value: valueToFind, type: 'llm_eval' };
-                // LLM Eval are often implicit - mark as warning not error
                 result.isLLMEval = true;
             }
 
             // Default: mark as not checked
             else {
                 result.found = null; // null = not applicable / not checked
+                result.exact_quote = 'Constraint type not handled by basic check';
                 result.details = { type: 'unchecked', raw: inst };
             }
 
@@ -769,13 +931,22 @@ class Validators {
             issues: [], // No failures - AI does the real check
             warnings: warnings,
             details: {
-                totalInstructions: instructions.length,
+                totalInstructions: allInstructions.length,
+                userSourceCount: instructions.length,
+                systemSourceCount: systemInstructions.length,
                 verified: verified.length,
                 potentiallyMissing: missing.length,
                 llmEvalToVerify: llmEvalMissing.length,
                 unchecked: unchecked.length,
                 verificationResults: verificationResults,
-                note: 'This is a basic regex check. Numbers written in words (e.g., "trecentottantacinque" = 385) are NOT detected. Use "Full AI Analysis" for accurate validation.'
+                systemInstructions: systemInstructions.map(i => ({
+                    id: i.instruction_id,
+                    source: i.source,
+                    note: 'Should be in system prompt, not user query'
+                })),
+                finalUserQueryLength: query.length,
+                finalUserQueryPreview: query.substring(0, 200) + (query.length > 200 ? '...' : ''),
+                note: 'Only constraints with source: "user" are checked against user query. Use "Full AI Analysis" for comprehensive validation.'
             }
         });
     }
