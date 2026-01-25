@@ -419,6 +419,152 @@
         }
 
         .copy-all-btn:hover { background: var(--border); }
+
+        /* Extracted Content Section */
+        .extracted-section {
+            margin-bottom: 24px;
+            display: none;
+        }
+
+        .extracted-section.show { display: block; }
+
+        .section-title {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-title::before {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+        }
+
+        .section-title::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+        }
+
+        .content-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            margin-bottom: 8px;
+            overflow: hidden;
+        }
+
+        .content-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .content-header:hover { background: var(--bg-tertiary); }
+
+        .content-header .left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .content-icon {
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85rem;
+        }
+
+        .content-icon.system { background: var(--purple-bg); color: var(--purple); }
+        .content-icon.user { background: rgba(59, 130, 246, 0.15); color: var(--accent); }
+        .content-icon.golden { background: var(--success-bg); color: var(--success); }
+        .content-icon.meta { background: var(--warning-bg); color: var(--warning); }
+        .content-icon.model { background: var(--danger-bg); color: var(--danger); }
+
+        .content-title {
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+
+        .content-meta {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .content-toggle {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            transition: transform 0.2s;
+        }
+
+        .content-card.expanded .content-toggle { transform: rotate(180deg); }
+
+        .content-body {
+            display: none;
+            padding: 0 16px 16px;
+            border-top: 1px solid var(--border);
+        }
+
+        .content-card.expanded .content-body { display: block; }
+
+        .content-text {
+            background: var(--bg-primary);
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 12px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.8rem;
+            line-height: 1.6;
+            color: var(--text-secondary);
+            white-space: pre-wrap;
+            word-break: break-word;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .content-text.json {
+            color: var(--accent);
+        }
+
+        .constraint-list {
+            margin-top: 12px;
+        }
+
+        .constraint-item {
+            background: var(--bg-primary);
+            border-radius: 6px;
+            padding: 10px 12px;
+            margin-bottom: 6px;
+            font-size: 0.8rem;
+        }
+
+        .constraint-item .type-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            margin-right: 8px;
+        }
+
+        .constraint-item .type-badge.instruction { background: var(--purple-bg); color: var(--purple); }
+        .constraint-item .type-badge.llm-judge { background: var(--warning-bg); color: var(--warning); }
+
+        .constraint-item .id { color: var(--text); font-weight: 500; }
+        .constraint-item .detail { color: var(--text-muted); margin-top: 4px; }
     </style>
 </head>
 <body>
@@ -463,6 +609,12 @@
                 <div class="label">Model Passes</div>
                 <div class="value" id="stat-models">-</div>
             </div>
+        </div>
+
+        <!-- Extracted Content Preview -->
+        <div class="extracted-section" id="extracted-section">
+            <div class="section-title">Extracted Content (click to expand)</div>
+            <div id="extracted-cards"></div>
         </div>
 
         <!-- Run Button -->
@@ -691,6 +843,178 @@
             const judgeCount = extractedData.turnMetadata?.llm_judge?.length || 0;
             document.getElementById('stat-constraints').textContent = `${instrCount + judgeCount} total`;
             document.getElementById('stat-models').textContent = `${extractedData.modelResponses.length} found`;
+
+            // Build extracted content cards
+            buildExtractedCards();
+        }
+
+        function buildExtractedCards() {
+            const container = document.getElementById('extracted-cards');
+            let html = '';
+
+            // System Prompt
+            if (extractedData.systemPrompt) {
+                const sysWords = countItalianWords(extractedData.systemPrompt);
+                html += buildContentCard('system', 'System Prompt', `${sysWords} words`, extractedData.systemPrompt);
+            }
+
+            // User Query
+            if (extractedData.userQuery) {
+                const userWords = countItalianWords(extractedData.userQuery);
+                html += buildContentCard('user', 'User Query (Last)', `${userWords} words`, extractedData.userQuery);
+            }
+
+            // Turn Metadata (constraints)
+            if (extractedData.turnMetadata) {
+                const instrCount = extractedData.turnMetadata.instructions?.length || 0;
+                const judgeCount = extractedData.turnMetadata.llm_judge?.length || 0;
+                html += buildConstraintsCard(extractedData.turnMetadata, instrCount, judgeCount);
+            }
+
+            // Golden Response
+            if (extractedData.goldenResponse) {
+                const goldenWords = countItalianWords(extractedData.goldenResponse);
+                html += buildContentCard('golden', 'Golden Response', `${goldenWords} words`, extractedData.goldenResponse);
+            }
+
+            // Model Responses
+            if (extractedData.modelResponses.length > 0) {
+                html += buildModelResponsesCard(extractedData.modelResponses);
+            }
+
+            container.innerHTML = html;
+            document.getElementById('extracted-section').classList.add('show');
+        }
+
+        function buildContentCard(type, title, meta, content) {
+            const id = `content-${type}-${Date.now()}`;
+            const truncated = content.length > 5000 ? content.substring(0, 5000) + '\n\n... [truncated]' : content;
+            return `
+                <div class="content-card" id="${id}">
+                    <div class="content-header" onclick="toggleContent('${id}')">
+                        <div class="left">
+                            <div class="content-icon ${type}">${getIcon(type)}</div>
+                            <div>
+                                <div class="content-title">${title}</div>
+                                <div class="content-meta">${meta}</div>
+                            </div>
+                        </div>
+                        <span class="content-toggle">▼</span>
+                    </div>
+                    <div class="content-body">
+                        <div class="content-text">${escapeHtml(truncated)}</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function buildConstraintsCard(turnMetadata, instrCount, judgeCount) {
+            const id = `content-constraints-${Date.now()}`;
+            let constraintsHtml = '<div class="constraint-list">';
+
+            // Instructions
+            if (turnMetadata.instructions) {
+                for (const inst of turnMetadata.instructions) {
+                    const source = inst.source || 'user';
+                    let detail = '';
+                    if (inst.keyword) detail = `keyword: "${inst.keyword}" x${inst.frequency || 1}`;
+                    else if (inst.num_words) detail = `words: ${inst.relation || '='} ${inst.num_words}`;
+                    else if (inst.num_paragraphs) detail = `paragraphs: ${inst.relation || '='} ${inst.num_paragraphs}`;
+                    else if (inst.forbidden_words) detail = `forbidden: ${inst.forbidden_words.join(', ')}`;
+                    else if (inst.first_word) detail = `first word: "${inst.first_word}"`;
+                    else if (inst.last_word) detail = `last word: "${inst.last_word}"`;
+                    else detail = JSON.stringify(inst).substring(0, 100);
+
+                    constraintsHtml += `
+                        <div class="constraint-item">
+                            <span class="type-badge instruction">INSTR [${source}]</span>
+                            <span class="id">${inst.instruction_id || '-'}</span>
+                            <div class="detail">${escapeHtml(detail)}</div>
+                        </div>
+                    `;
+                }
+            }
+
+            // LLM Judge
+            if (turnMetadata.llm_judge) {
+                for (const judge of turnMetadata.llm_judge) {
+                    const contentPreview = (judge.content || '').substring(0, 150);
+                    constraintsHtml += `
+                        <div class="constraint-item">
+                            <span class="type-badge llm-judge">LLM JUDGE</span>
+                            <span class="id">${judge.uid || '-'}</span>
+                            <div class="detail">${escapeHtml(contentPreview)}${judge.content?.length > 150 ? '...' : ''}</div>
+                        </div>
+                    `;
+                }
+            }
+
+            constraintsHtml += '</div>';
+
+            return `
+                <div class="content-card" id="${id}">
+                    <div class="content-header" onclick="toggleContent('${id}')">
+                        <div class="left">
+                            <div class="content-icon meta">C</div>
+                            <div>
+                                <div class="content-title">Constraints (turn_metadata)</div>
+                                <div class="content-meta">${instrCount} instructions + ${judgeCount} llm_judge</div>
+                            </div>
+                        </div>
+                        <span class="content-toggle">▼</span>
+                    </div>
+                    <div class="content-body">
+                        ${constraintsHtml}
+                        <details style="margin-top:12px">
+                            <summary style="cursor:pointer;color:var(--text-muted);font-size:0.8rem">View raw JSON</summary>
+                            <div class="content-text json">${escapeHtml(JSON.stringify(turnMetadata, null, 2))}</div>
+                        </details>
+                    </div>
+                </div>
+            `;
+        }
+
+        function buildModelResponsesCard(models) {
+            const id = `content-models-${Date.now()}`;
+            let modelsHtml = '';
+
+            for (const model of models) {
+                const words = countItalianWords(model.content);
+                const preview = model.content.substring(0, 300);
+                modelsHtml += `
+                    <details class="constraint-item" style="cursor:pointer">
+                        <summary><strong>${model.name}</strong> <span style="color:var(--text-muted)">(${words} words)</span></summary>
+                        <div class="content-text" style="margin-top:8px;max-height:200px">${escapeHtml(preview)}${model.content.length > 300 ? '...' : ''}</div>
+                    </details>
+                `;
+            }
+
+            return `
+                <div class="content-card" id="${id}">
+                    <div class="content-header" onclick="toggleContent('${id}')">
+                        <div class="left">
+                            <div class="content-icon model">M</div>
+                            <div>
+                                <div class="content-title">Model Responses</div>
+                                <div class="content-meta">${models.length} model passes</div>
+                            </div>
+                        </div>
+                        <span class="content-toggle">▼</span>
+                    </div>
+                    <div class="content-body">
+                        ${modelsHtml}
+                    </div>
+                </div>
+            `;
+        }
+
+        function toggleContent(id) {
+            document.getElementById(id).classList.toggle('expanded');
+        }
+
+        function getIcon(type) {
+            const icons = { system: 'S', user: 'U', golden: 'G', meta: 'C', model: 'M' };
+            return icons[type] || '?';
         }
 
         // Run All Checks
@@ -824,16 +1148,29 @@ Examples: "Above 1000" → min:1000,max:null | "50-100" → min:50,max:100`;
         async function runCheck1(apiKey, provider) {
             setCheckStatus(1, 'running');
 
-            const prompt = `Check if each constraint with "source":"user" in turn_metadata appears NATURALLY in the user query.
+            // Separate instructions and llm_judge
+            const instructions = extractedData.turnMetadata?.instructions || [];
+            const llmJudge = extractedData.turnMetadata?.llm_judge || [];
 
-**TURN_METADATA:**
-${JSON.stringify(extractedData.turnMetadata, null, 2)}
+            const prompt = `Check if EACH constraint appears NATURALLY in the user query.
+
+You must check TWO types of constraints:
+
+**1. INSTRUCTIONS (source:"user" only):**
+${JSON.stringify(instructions.filter(i => i.source === 'user'), null, 2)}
+
+**2. LLM_JUDGE (all of them - these define what the response should achieve):**
+${JSON.stringify(llmJudge, null, 2)}
 
 **USER QUERY:**
 ${extractedData.userQuery}
 
-For each constraint, respond with this EXACT JSON format:
-{"constraints":[{"id":"constraint_id","status":"PASS|FAIL","quote":"exact quote from query or 'NOT FOUND'"}],"issues":["issue1","issue2"]}`;
+RULES:
+- For instructions: the requirement must appear naturally in the query text
+- For llm_judge: the TOPIC/REQUEST described must be naturally requested by the user
+
+Respond with JSON:
+{"constraints":[{"id":"instruction_id or llm_judge_uid","type":"instruction|llm_judge","status":"PASS|FAIL","quote":"exact quote from query"}],"issues":[]}`;
 
             try {
                 const result = await callAPI(provider, apiKey, prompt);
@@ -885,18 +1222,33 @@ Respond with JSON: {"checks":[{"name":"check name","status":"PASS|FAIL","note":"
         async function runCheck3(apiKey, provider) {
             setCheckStatus(3, 'running');
 
-            const prompt = `Verify the golden response passes ALL constraints:
+            const instructions = extractedData.turnMetadata?.instructions || [];
+            const llmJudge = extractedData.turnMetadata?.llm_judge || [];
 
-1. Check each constraint in turn_metadata
-2. Check: No emojis, no em-dash, no $€ symbols, no LaTeX, no preambles
+            const prompt = `Verify the golden response passes ALL constraints.
 
-**TURN_METADATA:**
-${JSON.stringify(extractedData.turnMetadata, null, 2)}
+**INSTRUCTIONS TO CHECK (verify each one is satisfied):**
+${JSON.stringify(instructions, null, 2)}
+
+**LLM_JUDGE TO CHECK (verify the response meets these criteria):**
+${JSON.stringify(llmJudge, null, 2)}
 
 **GOLDEN RESPONSE:**
 ${extractedData.goldenResponse}
 
-Respond with JSON: {"constraints":[{"id":"name","status":"PASS|FAIL","note":"reason"}],"formatting":{"emojis":"PASS|FAIL","em_dash":"PASS|FAIL","currency":"PASS|FAIL","latex":"PASS|FAIL","preamble":"PASS|FAIL"},"issues":[]}`;
+CHECK EACH CONSTRAINT:
+- For instructions: count words/paragraphs, check keywords, verify format requirements
+- For llm_judge: verify the response achieves what is described (factual accuracy, logical flow, etc.)
+
+ALSO CHECK FORMATTING:
+- No emojis anywhere
+- No em-dash (—), only hyphens (-)
+- No currency symbols ($, €), should use ISO codes
+- No LaTeX
+- No preambles ("Sure!", "Of course!", "Certainly!")
+
+Respond with JSON:
+{"instructions":[{"id":"instruction_id","status":"PASS|FAIL","note":"why"}],"llm_judge":[{"uid":"uid","status":"PASS|FAIL","note":"why"}],"formatting":{"emojis":"PASS|FAIL","em_dash":"PASS|FAIL","currency":"PASS|FAIL","latex":"PASS|FAIL","preamble":"PASS|FAIL"},"issues":[]}`;
 
             try {
                 const result = await callAPI(provider, apiKey, prompt);
@@ -924,15 +1276,26 @@ Respond with JSON: {"constraints":[{"id":"name","status":"PASS|FAIL","note":"rea
             for (let i = 0; i < extractedData.modelResponses.length; i++) {
                 const model = extractedData.modelResponses[i];
 
-                const prompt = `Check if this model response fails constraints (we WANT failures):
+                const instructions = extractedData.turnMetadata?.instructions || [];
+                const llmJudge = extractedData.turnMetadata?.llm_judge || [];
 
-**TURN_METADATA:**
-${JSON.stringify(extractedData.turnMetadata, null, 2)}
+                const prompt = `Check if this model response fails constraints (we WANT failures for a good test).
+
+You must check TWO types of constraints:
+
+**INSTRUCTIONS (${instructions.length} total):**
+${JSON.stringify(instructions, null, 2)}
+
+**LLM_JUDGE (${llmJudge.length} total):**
+${JSON.stringify(llmJudge, null, 2)}
 
 **MODEL RESPONSE (${model.name}):**
 ${model.content}
 
-Respond: {"total":N,"passed":N,"failed":N,"failure_rate":"X%","meets_50_percent":true|false}`;
+Count how many constraints (from BOTH instructions AND llm_judge) the response FAILS.
+Total constraints = ${instructions.length + llmJudge.length}
+
+Respond with JSON: {"total":${instructions.length + llmJudge.length},"passed":N,"failed":N,"failure_rate":"X%","meets_50_percent":true|false,"details":[{"id":"constraint_id","status":"PASS|FAIL"}]}`;
 
                 try {
                     const result = await callAPI(provider, apiKey, prompt);
@@ -954,14 +1317,20 @@ Respond: {"total":N,"passed":N,"failed":N,"failure_rate":"X%","meets_50_percent"
         function formatConstraintResults(result, source) {
             // Try to parse JSON, fallback to raw display
             try {
-                const jsonMatch = result.match(/\{[\s\S]*"constraints"[\s\S]*\}/);
+                const jsonMatch = result.match(/\{[\s\S]*\}/);
                 if (jsonMatch) {
                     const data = JSON.parse(jsonMatch[0]);
-                    let html = '<table class="result-table"><thead><tr><th>Constraint</th><th>Quote</th><th>Status</th></tr></thead><tbody>';
-                    for (const c of data.constraints || []) {
+                    let html = '<table class="result-table"><thead><tr><th>Type</th><th>Constraint</th><th>Quote</th><th>Status</th></tr></thead><tbody>';
+
+                    // Handle both old format (constraints array) and new format (separate arrays)
+                    const constraints = data.constraints || [];
+
+                    for (const c of constraints) {
                         const statusClass = c.status === 'PASS' ? 'pass' : 'fail';
+                        const typeLabel = c.type === 'llm_judge' ? 'LLM Judge' : 'Instruction';
                         html += `<tr>
-                            <td><span class="constraint-name">${c.id}</span></td>
+                            <td><span class="constraint-id">${typeLabel}</span></td>
+                            <td><span class="constraint-name">${escapeHtml(c.id)}</span></td>
                             <td><span class="quote">${escapeHtml(c.quote || '-')}</span></td>
                             <td><span class="status-pill ${statusClass}">${c.status}</span></td>
                         </tr>`;
@@ -970,7 +1339,7 @@ Respond: {"total":N,"passed":N,"failed":N,"failure_rate":"X%","meets_50_percent"
                     if (data.issues?.length > 0) {
                         html += '<div class="issues-box"><h4>Issues Found</h4><ul>';
                         for (const issue of data.issues) {
-                            html += `<li class="issue-fail">• ${escapeHtml(issue)}</li>`;
+                            html += `<li class="issue-fail">${escapeHtml(issue)}</li>`;
                         }
                         html += '</ul></div>';
                     }
@@ -1003,23 +1372,68 @@ Respond: {"total":N,"passed":N,"failed":N,"failure_rate":"X%","meets_50_percent"
 
         function formatGoldenResults(result) {
             try {
-                const jsonMatch = result.match(/\{[\s\S]*"constraints"[\s\S]*\}/);
+                const jsonMatch = result.match(/\{[\s\S]*\}/);
                 if (jsonMatch) {
                     const data = JSON.parse(jsonMatch[0]);
-                    let html = '<table class="result-table"><thead><tr><th>Check</th><th>Note</th><th>Status</th></tr></thead><tbody>';
+                    let html = '<table class="result-table"><thead><tr><th>Type</th><th>Check</th><th>Note</th><th>Status</th></tr></thead><tbody>';
 
-                    for (const c of data.constraints || []) {
+                    // Handle instructions array
+                    for (const c of data.instructions || []) {
                         const statusClass = c.status === 'PASS' ? 'pass' : 'fail';
-                        html += `<tr><td>${c.id}</td><td class="quote">${c.note || '-'}</td><td><span class="status-pill ${statusClass}">${c.status}</span></td></tr>`;
+                        html += `<tr>
+                            <td><span class="constraint-id">Instruction</span></td>
+                            <td><span class="constraint-name">${escapeHtml(c.id)}</span></td>
+                            <td class="quote">${escapeHtml(c.note || '-')}</td>
+                            <td><span class="status-pill ${statusClass}">${c.status}</span></td>
+                        </tr>`;
                     }
 
+                    // Handle llm_judge array
+                    for (const c of data.llm_judge || []) {
+                        const statusClass = c.status === 'PASS' ? 'pass' : 'fail';
+                        html += `<tr>
+                            <td><span class="constraint-id">LLM Judge</span></td>
+                            <td><span class="constraint-name">${escapeHtml(c.uid || c.id || '-')}</span></td>
+                            <td class="quote">${escapeHtml(c.note || '-')}</td>
+                            <td><span class="status-pill ${statusClass}">${c.status}</span></td>
+                        </tr>`;
+                    }
+
+                    // Fallback for old format with constraints array
+                    if (!data.instructions && !data.llm_judge && data.constraints) {
+                        for (const c of data.constraints) {
+                            const statusClass = c.status === 'PASS' ? 'pass' : 'fail';
+                            html += `<tr>
+                                <td><span class="constraint-id">-</span></td>
+                                <td><span class="constraint-name">${escapeHtml(c.id)}</span></td>
+                                <td class="quote">${escapeHtml(c.note || '-')}</td>
+                                <td><span class="status-pill ${statusClass}">${c.status}</span></td>
+                            </tr>`;
+                        }
+                    }
+
+                    // Formatting checks
                     if (data.formatting) {
                         for (const [key, val] of Object.entries(data.formatting)) {
                             const statusClass = val === 'PASS' ? 'pass' : 'fail';
-                            html += `<tr><td>Format: ${key}</td><td>-</td><td><span class="status-pill ${statusClass}">${val}</span></td></tr>`;
+                            html += `<tr>
+                                <td><span class="constraint-id">Format</span></td>
+                                <td><span class="constraint-name">${key.replace(/_/g, ' ')}</span></td>
+                                <td>-</td>
+                                <td><span class="status-pill ${statusClass}">${val}</span></td>
+                            </tr>`;
                         }
                     }
                     html += '</tbody></table>';
+
+                    // Issues
+                    if (data.issues?.length > 0) {
+                        html += '<div class="issues-box"><h4>Issues Found</h4><ul>';
+                        for (const issue of data.issues) {
+                            html += `<li class="issue-fail">${escapeHtml(issue)}</li>`;
+                        }
+                        html += '</ul></div>';
+                    }
                     return html;
                 }
             } catch (e) {}
