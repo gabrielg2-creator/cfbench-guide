@@ -6,7 +6,7 @@
 
 const CONFIG = {
     // Gemini API Configuration (Free Tier - 1500 calls/day)
-    GEMINI_API_KEY: "AIzaSyDIIrPxRlVrfq9NTrJe1baDBLTcqD33x8Q",
+    GEMINI_API_KEY: "",
     GEMINI_MODEL: "gemini-2.5-flash-lite",
     GEMINI_BASE_URL: "https://generativelanguage.googleapis.com/v1beta/openai",
 
