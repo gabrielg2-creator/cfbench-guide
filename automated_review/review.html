@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CFBench Review</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #fafafa;
+            color: #1a1a1a;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 30px 20px;
+        }
+        h1 {
+            font-size: 1.4rem;
+            font-weight: 600;
+            margin-bottom: 24px;
+        }
+
+        /* API Config */
+        .api-config {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+        .api-config select, .api-config input {
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+        .api-config input { flex: 1; }
+        .api-config button {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        .api-config button:hover { background: #1d4ed8; }
+        .api-status {
+            font-size: 0.8rem;
+            padding: 4px 10px;
+            border-radius: 12px;
+        }
+        .api-status.ok { background: #d1fae5; color: #059669; }
+        .api-status.no { background: #fee2e2; color: #dc2626; }
+
+        /* Upload */
+        .upload-area {
+            background: white;
+            border: 2px dashed #d1d5db;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            margin-bottom: 20px;
+            transition: all 0.2s;
+        }
+        .upload-area:hover { border-color: #2563eb; background: #f8fafc; }
+        .upload-area.dragover { border-color: #2563eb; background: #eff6ff; }
+        .upload-area.loaded { border-style: solid; border-color: #10b981; background: #ecfdf5; }
+
+        /* Extracted Data */
+        .extracted {
+            display: none;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .extracted.show { display: grid; grid-template-columns: repeat(3, 1fr); }
+        @media (max-width: 800px) { .extracted.show { grid-template-columns: 1fr 1fr; } }
+        .extract-box {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 12px;
+        }
+        .extract-box h3 {
+            font-size: 0.8rem;
+            color: #6b7280;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .extract-box pre {
+            font-size: 0.75rem;
+            background: #f9fafb;
+            padding: 10px;
+            border-radius: 4px;
+            max-height: 150px;
+            overflow: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .extract-box .stats {
+            font-size: 0.75rem;
+            color: #9ca3af;
+            margin-top: 6px;
+        }
+        .extract-box .stats .over { color: #dc2626; font-weight: 600; }
+
+        /* Run Buttons */
+        .run-buttons {
+            display: none;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .run-buttons.show { display: flex; flex-wrap: wrap; }
+        .run-btn {
+            flex: 1;
+            min-width: 180px;
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .run-btn:hover { background: #1d4ed8; }
+        .run-btn:disabled { background: #9ca3af; cursor: not-allowed; }
+        .run-btn.secondary { background: #6366f1; }
+        .run-btn.secondary:hover { background: #4f46e5; }
+        .run-btn.tertiary { background: #059669; }
+        .run-btn.tertiary:hover { background: #047857; }
+        .run-btn.quaternary { background: #dc2626; }
+        .run-btn.quaternary:hover { background: #b91c1c; }
+        .run-btn.zero { background: #f59e0b; }
+        .run-btn.zero:hover { background: #d97706; }
+        .extract-box.golden { border-color: #fbbf24; background: #fffbeb; }
+        .extract-box.golden h3 { color: #b45309; }
+        .extract-box.models { border-color: #f87171; background: #fef2f2; }
+        .extract-box.models h3 { color: #dc2626; }
+
+        /* Results */
+        .results {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 20px;
+            display: none;
+        }
+        .results.show { display: block; }
+        .results h2 {
+            font-size: 1rem;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .results pre {
+            font-family: inherit;
+            white-space: pre-wrap;
+            word-break: break-word;
+            font-size: 0.9rem;
+            line-height: 1.8;
+        }
+
+        /* Loading */
+        .loading {
+            text-align: center;
+            padding: 30px;
+            color: #6b7280;
+        }
+        .spinner {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            border: 3px solid #e5e7eb;
+            border-top-color: #2563eb;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Copy button */
+        .copy-btn {
+            float: right;
+            background: #f3f4f6;
+            border: 1px solid #d1d5db;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+        .copy-btn:hover { background: #e5e7eb; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>CFBench Review</h1>
+
+        <!-- API Config -->
+        <div class="api-config">
+            <select id="api-provider">
+                <option value="gemini">Gemini</option>
+                <option value="openai">OpenAI</option>
+            </select>
+            <input type="password" id="api-key" placeholder="Paste API key...">
+            <button onclick="saveKey()">Save</button>
+            <span class="api-status no" id="api-status">No key</span>
+        </div>
+
+        <!-- Upload -->
+        <div class="upload-area" id="upload-area">
+            <div style="font-size: 1.5rem; margin-bottom: 8px;">📄</div>
+            <div>Drop .py file here or click to select</div>
+            <input type="file" id="file-input" accept=".py,.ipynb" style="display:none">
+        </div>
+
+        <!-- Extracted Data -->
+        <div class="extracted" id="extracted">
+            <div class="extract-box">
+                <h3>Turn Metadata</h3>
+                <pre id="preview-turnmeta">-</pre>
+                <div class="stats" id="stats-turnmeta"></div>
+            </div>
+            <div class="extract-box">
+                <h3>Last User Query</h3>
+                <pre id="preview-query">-</pre>
+                <div class="stats" id="stats-query"></div>
+            </div>
+            <div class="extract-box">
+                <h3>System Prompt</h3>
+                <pre id="preview-system">-</pre>
+                <div class="stats" id="stats-system"></div>
+            </div>
+            <div class="extract-box">
+                <h3>Task Metadata</h3>
+                <pre id="preview-metadata">-</pre>
+                <div class="stats" id="stats-metadata"></div>
+            </div>
+            <div class="extract-box golden">
+                <h3>Golden Response</h3>
+                <pre id="preview-golden">-</pre>
+                <div class="stats" id="stats-golden"></div>
+            </div>
+            <div class="extract-box models">
+                <h3>Model Responses</h3>
+                <pre id="preview-models">-</pre>
+                <div class="stats" id="stats-models"></div>
+            </div>
+        </div>
+
+        <!-- Run Buttons -->
+        <div class="run-buttons" id="run-buttons">
+            <button class="run-btn zero" onclick="runCheck0()">0. Extract Limits</button>
+            <button class="run-btn" onclick="runCheck1()">1. User Constraints</button>
+            <button class="run-btn secondary" onclick="runCheck2()">2. System Prompt</button>
+            <button class="run-btn tertiary" onclick="runCheck3()">3. Golden Response</button>
+            <button class="run-btn quaternary" onclick="runCheck4()">4. Model Tests</button>
+        </div>
+
+        <!-- Results -->
+        <div class="results" id="results">
+            <h2>
+                Review Results
+                <button class="copy-btn" onclick="copyResults()">Copy</button>
+            </h2>
+            <pre id="results-content"></pre>
+        </div>
+    </div>
+
+    <script>
+        let extractedData = {
+            turnMetadata: null,
+            userQuery: null,
+            systemPrompt: null,
+            metadata: null,
+            goldenResponse: null,
+            modelResponses: [],
+            limits: { systemPromptLength: null, userPromptLength: null }
+        };
+
+        // Italian Word Counter (handles elisions like l'amico = 2 words)
+        const ITALIAN_CHARS = "a-zA-ZàèéìòùÀÈÉÌÒÙ";
+        function countItalianWords(text) {
+            if (!text || !text.trim()) return 0;
+            const tokens = [];
+            const regex = new RegExp(`([${ITALIAN_CHARS}]+')([${ITALIAN_CHARS}]+)|([${ITALIAN_CHARS}]+)`, 'gi');
+            let match;
+            while ((match = regex.exec(text)) !== null) {
+                if (match[1] && match[2]) {
+                    tokens.push(match[1], match[2]); // elision = 2 words
+                } else if (match[3]) {
+                    tokens.push(match[3]);
+                }
+            }
+            return tokens.length;
+        }
+
+        // Load saved API key
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedKey = localStorage.getItem('review_api_key');
+            const savedProvider = localStorage.getItem('review_api_provider') || 'gemini';
+
+            document.getElementById('api-provider').value = savedProvider;
+            if (savedKey) {
+                document.getElementById('api-key').value = '••••••••••••';
+                updateStatus(true);
+            }
+        });
+
+        function saveKey() {
+            const key = document.getElementById('api-key').value.trim();
+            const provider = document.getElementById('api-provider').value;
+
+            if (key && !key.startsWith('••')) {
+                localStorage.setItem('review_api_key', key);
+                localStorage.setItem('review_api_provider', provider);
+                document.getElementById('api-key').value = '••••••••••••';
+                updateStatus(true);
+            }
+        }
+
+        function updateStatus(ok) {
+            const el = document.getElementById('api-status');
+            el.className = 'api-status ' + (ok ? 'ok' : 'no');
+            el.textContent = ok ? 'Ready' : 'No key';
+        }
+
+        // File handling
+        const uploadArea = document.getElementById('upload-area');
+        const fileInput = document.getElementById('file-input');
+
+        uploadArea.onclick = () => fileInput.click();
+        fileInput.onchange = (e) => loadFile(e.target.files[0]);
+
+        uploadArea.ondragover = (e) => { e.preventDefault(); uploadArea.classList.add('dragover'); };
+        uploadArea.ondragleave = () => uploadArea.classList.remove('dragover');
+        uploadArea.ondrop = (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            loadFile(e.dataTransfer.files[0]);
+        };
+
+        function loadFile(file) {
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const content = e.target.result;
+                parseContent(content);
+
+                uploadArea.classList.add('loaded');
+                uploadArea.innerHTML = `<div style="color: #059669;">✓ ${file.name} loaded</div>`;
+            };
+            reader.readAsText(file);
+        }
+
+        function parseContent(content) {
+            // Extract turn_metadata
+            const turnMetaMatch = content.match(/\*\*\[turn_metadata\]\*\*\s*([\s\S]*?)(?=\*\*\[|$)/i);
+            if (turnMetaMatch) {
+                const jsonMatch = turnMetaMatch[1].match(/\{[\s\S]*\}/);
+                if (jsonMatch) {
+                    try {
+                        extractedData.turnMetadata = JSON.parse(jsonMatch[0]);
+                    } catch (e) {
+                        let fixed = jsonMatch[0].replace(/,\s*}/g, '}').replace(/,\s*]/g, ']');
+                        try { extractedData.turnMetadata = JSON.parse(fixed); } catch (e2) {}
+                    }
+                }
+            }
+
+            // Extract system prompt
+            const systemMatch = content.match(/\*\*\[system\]\*\*\s*([\s\S]*?)(?=\*\*\[|$)/i);
+            if (systemMatch) {
+                extractedData.systemPrompt = systemMatch[1].trim();
+            }
+
+            // Extract task metadata (# Metadata section)
+            const metaMatch = content.match(/# Metadata\s*([\s\S]*?)(?=\*\*\[|$)/i);
+            if (metaMatch) {
+                extractedData.metadata = metaMatch[1].trim();
+
+                // Extract word limits from metadata
+                const sysLimitMatch = extractedData.metadata.match(/system_prompt_length[:\s]+(\d+)/i);
+                const userLimitMatch = extractedData.metadata.match(/user_prompt_length[:\s]+(\d+)/i);
+                if (sysLimitMatch) extractedData.limits.systemPromptLength = parseInt(sysLimitMatch[1]);
+                if (userLimitMatch) extractedData.limits.userPromptLength = parseInt(userLimitMatch[1]);
+            }
+
+            // Extract ALL user queries, take the LAST one
+            const userPattern = /\*\*\[user\]\*\*\s*([\s\S]*?)(?=\*\*\[|$)/gi;
+            let match;
+            let lastUserQuery = null;
+            while ((match = userPattern.exec(content)) !== null) {
+                lastUserQuery = match[1].trim();
+            }
+            extractedData.userQuery = lastUserQuery;
+
+            // Extract golden response (assistant AFTER turn_metadata)
+            const turnMetaIndex = content.search(/\*\*\[turn_metadata\]\*\*/i);
+            if (turnMetaIndex !== -1) {
+                const afterTurnMeta = content.substring(turnMetaIndex);
+                const assistantMatch = afterTurnMeta.match(/\*\*\[assistant\]\*\*\s*([\s\S]*?)(?=\*\*\[|$)/i);
+                if (assistantMatch) {
+                    extractedData.goldenResponse = assistantMatch[1].trim();
+                }
+            }
+
+            // Extract model responses (assistant_{model}_N format)
+            extractedData.modelResponses = [];
+            const modelPattern = /\*\*\[assistant_([^\]]+)\]\*\*\s*([\s\S]*?)(?=\*\*\[|$)/gi;
+            let modelMatch;
+            while ((modelMatch = modelPattern.exec(content)) !== null) {
+                extractedData.modelResponses.push({
+                    name: `assistant_${modelMatch[1]}`,
+                    content: modelMatch[2].trim()
+                });
+            }
+
+            // Show previews
+            showPreviews();
+        }
+
+        function showPreviews() {
+            document.getElementById('extracted').classList.add('show');
+            document.getElementById('run-buttons').classList.add('show');
+
+            // Turn Metadata preview
+            if (extractedData.turnMetadata) {
+                const instrCount = extractedData.turnMetadata.instructions?.length || 0;
+                const judgeCount = extractedData.turnMetadata.llm_judge?.length || 0;
+                document.getElementById('preview-turnmeta').textContent = JSON.stringify(extractedData.turnMetadata, null, 2).substring(0, 400) + '...';
+                document.getElementById('stats-turnmeta').textContent = `${instrCount} instructions, ${judgeCount} llm_judge`;
+            } else {
+                document.getElementById('preview-turnmeta').textContent = 'Not found';
+            }
+
+            // User Query preview with word count
+            if (extractedData.userQuery) {
+                const userWords = countItalianWords(extractedData.userQuery);
+                const userLimit = extractedData.limits.userPromptLength;
+                document.getElementById('preview-query').textContent = extractedData.userQuery.substring(0, 400) + (extractedData.userQuery.length > 400 ? '...' : '');
+
+                let userStatus = `${userWords} words`;
+                if (userLimit) {
+                    const ok = userWords <= userLimit;
+                    userStatus = ok
+                        ? `<span style="color:#059669">${userWords}/${userLimit} words ✓</span>`
+                        : `<span style="color:#dc2626;font-weight:600">${userWords}/${userLimit} words ⚠ OVER LIMIT</span>`;
+                }
+                document.getElementById('stats-query').innerHTML = userStatus;
+            } else {
+                document.getElementById('preview-query').textContent = 'Not found';
+            }
+
+            // System Prompt preview with word count
+            if (extractedData.systemPrompt) {
+                const sysWords = countItalianWords(extractedData.systemPrompt);
+                const sysLimit = extractedData.limits.systemPromptLength;
+                document.getElementById('preview-system').textContent = extractedData.systemPrompt.substring(0, 400) + (extractedData.systemPrompt.length > 400 ? '...' : '');
+
+                let sysStatus = `${sysWords} words`;
+                if (sysLimit) {
+                    const ok = sysWords <= sysLimit;
+                    sysStatus = ok
+                        ? `<span style="color:#059669">${sysWords}/${sysLimit} words ✓</span>`
+                        : `<span style="color:#dc2626;font-weight:600">${sysWords}/${sysLimit} words ⚠ OVER LIMIT</span>`;
+                }
+                document.getElementById('stats-system').innerHTML = sysStatus;
+            } else {
+                document.getElementById('preview-system').textContent = 'Not found';
+            }
+
+            // Task Metadata preview
+            if (extractedData.metadata) {
+                document.getElementById('preview-metadata').textContent = extractedData.metadata.substring(0, 400) + (extractedData.metadata.length > 400 ? '...' : '');
+                document.getElementById('stats-metadata').textContent = `${extractedData.metadata.length} chars`;
+            } else {
+                document.getElementById('preview-metadata').textContent = 'Not found';
+            }
+
+            // Golden Response preview
+            if (extractedData.goldenResponse) {
+                document.getElementById('preview-golden').textContent = extractedData.goldenResponse.substring(0, 400) + (extractedData.goldenResponse.length > 400 ? '...' : '');
+                document.getElementById('stats-golden').textContent = `${extractedData.goldenResponse.length} chars`;
+            } else {
+                document.getElementById('preview-golden').textContent = 'Not found';
+            }
+
+            // Model Responses preview
+            if (extractedData.modelResponses.length > 0) {
+                const names = extractedData.modelResponses.map(m => m.name).join('\n');
+                document.getElementById('preview-models').textContent = names;
+                document.getElementById('stats-models').textContent = `${extractedData.modelResponses.length} model responses found`;
+            } else {
+                document.getElementById('preview-models').textContent = 'Not found';
+            }
+        }
+
+        // CHECK 0: Extract Limits with AI
+        async function runCheck0() {
+            const apiKey = localStorage.getItem('review_api_key');
+            const provider = localStorage.getItem('review_api_provider') || 'gemini';
+
+            if (!apiKey) {
+                alert('Please enter your API key first');
+                return;
+            }
+
+            if (!extractedData.metadata) {
+                alert('Could not find # Metadata section in file');
+                return;
+            }
+
+            showLoading('Extracting limits from Metadata...');
+
+            const prompt = `Extract the word limits from this metadata section.
+
+**METADATA:**
+\`\`\`
+${extractedData.metadata}
+\`\`\`
+
+Look for fields like:
+- system_prompt_length (or similar names for system prompt word limit)
+- user_prompt_length (or similar names for user query word limit)
+
+Return ONLY a JSON object with these two values:
+\`\`\`json
+{
+  "system_prompt_length": <number or null if not found>,
+  "user_prompt_length": <number or null if not found>
+}
+\`\`\``;
+
+            try {
+                const result = await callAPI(provider, apiKey, prompt);
+
+                // Try to parse the JSON from the response
+                const jsonMatch = result.match(/\{[\s\S]*?\}/);
+                if (jsonMatch) {
+                    try {
+                        const limits = JSON.parse(jsonMatch[0]);
+                        if (limits.system_prompt_length) {
+                            extractedData.limits.systemPromptLength = limits.system_prompt_length;
+                        }
+                        if (limits.user_prompt_length) {
+                            extractedData.limits.userPromptLength = limits.user_prompt_length;
+                        }
+
+                        // Refresh the previews with new limits
+                        showPreviews();
+
+                        document.getElementById('results-content').textContent =
+                            `✅ Limits extracted successfully!\n\n` +
+                            `System Prompt Limit: ${extractedData.limits.systemPromptLength || 'Not found'} words\n` +
+                            `User Query Limit: ${extractedData.limits.userPromptLength || 'Not found'} words\n\n` +
+                            `Raw AI response:\n${result}`;
+                    } catch (e) {
+                        document.getElementById('results-content').textContent =
+                            `⚠️ Could not parse limits. Raw response:\n\n${result}`;
+                    }
+                } else {
+                    document.getElementById('results-content').textContent =
+                        `⚠️ No JSON found in response:\n\n${result}`;
+                }
+            } catch (error) {
+                document.getElementById('results-content').textContent = 'Error: ' + error.message;
+            }
+        }
+
+        // CHECK 1: User Constraints
+        async function runCheck1() {
+            const apiKey = localStorage.getItem('review_api_key');
+            const provider = localStorage.getItem('review_api_provider') || 'gemini';
+
+            if (!apiKey) {
+                alert('Please enter your API key first');
+                return;
+            }
+
+            if (!extractedData.turnMetadata || !extractedData.userQuery) {
+                alert('Could not extract turn_metadata or user query from file');
+                return;
+            }
+
+            showLoading('Checking User Constraints...');
+
+            const prompt = buildPrompt1(extractedData.turnMetadata, extractedData.userQuery);
+
+            try {
+                const result = await callAPI(provider, apiKey, prompt);
+                document.getElementById('results-content').textContent = result;
+            } catch (error) {
+                document.getElementById('results-content').textContent = 'Error: ' + error.message;
+            }
+        }
+
+        // CHECK 2: System Prompt
+        async function runCheck2() {
+            const apiKey = localStorage.getItem('review_api_key');
+            const provider = localStorage.getItem('review_api_provider') || 'gemini';
+
+            if (!apiKey) {
+                alert('Please enter your API key first');
+                return;
+            }
+
+            if (!extractedData.systemPrompt) {
+                alert('Could not extract system prompt from file');
+                return;
+            }
+
+            showLoading('Checking System Prompt...');
+
+            const prompt = buildPrompt2(extractedData.turnMetadata, extractedData.systemPrompt, extractedData.metadata);
+
+            try {
+                const result = await callAPI(provider, apiKey, prompt);
+                document.getElementById('results-content').textContent = result;
+            } catch (error) {
+                document.getElementById('results-content').textContent = 'Error: ' + error.message;
+            }
+        }
+
+        function showLoading(message) {
+            document.getElementById('results').classList.add('show');
+            document.getElementById('results-content').innerHTML = `<div class="loading"><span class="spinner"></span>${message}</div>`;
+        }
+
+        function buildPrompt1(turnMetadata, userQuery) {
+            return `For each constraint in turn_metadata with "source": "user", verify it appears NATURALLY in the user query.
+
+Instructions:
+1. List each constraint with source: "user"
+2. For EACH one, quote the exact text in user query where it appears
+3. Flag any MISSING or UNNATURAL constraints
+4. Check if numeric values match EXACTLY (paragraphs, words, characters)
+
+**TURN_METADATA:**
+\`\`\`
+${JSON.stringify(turnMetadata, null, 2)}
+\`\`\`
+
+**USER QUERY:**
+\`\`\`
+${userQuery}
+\`\`\`
+
+Output format - for each constraint:
+| Constraint | Quote from User Query | Status |
+|------------|----------------------|--------|
+
+Then list any issues found.`;
+        }
+
+        // CHECK 3: Golden Response
+        async function runCheck3() {
+            const apiKey = localStorage.getItem('review_api_key');
+            const provider = localStorage.getItem('review_api_provider') || 'gemini';
+
+            if (!apiKey) {
+                alert('Please enter your API key first');
+                return;
+            }
+
+            if (!extractedData.goldenResponse) {
+                alert('Could not extract golden response from file');
+                return;
+            }
+
+            showLoading('Checking Golden Response...');
+
+            const prompt = buildPrompt3(extractedData.turnMetadata, extractedData.goldenResponse);
+
+            try {
+                const result = await callAPI(provider, apiKey, prompt);
+                document.getElementById('results-content').textContent = result;
+            } catch (error) {
+                document.getElementById('results-content').textContent = 'Error: ' + error.message;
+            }
+        }
+
+        function buildPrompt2(turnMetadata, systemPrompt, metadata) {
+            // Get system-source constraints
+            let systemConstraints = '';
+            if (turnMetadata && turnMetadata.instructions) {
+                const sysInstr = turnMetadata.instructions.filter(i => i.source === 'system');
+                if (sysInstr.length > 0) {
+                    systemConstraints = `\n\n**SYSTEM-SOURCE CONSTRAINTS TO VERIFY:**
+\`\`\`
+${JSON.stringify(sysInstr, null, 2)}
+\`\`\``;
+                }
+            }
+
+            return `Analyze the system prompt for these issues:
+
+1. Does it define a clear ROLE matching the metadata domain?
+2. Does it contain at least 1 LLM Eval constraint (tone, style, behavior)?
+3. Are there any FORBIDDEN terms visible? (L1, L2, taxonomy, use case, CFBench)
+4. Is it consistent with the conversation topic?
+5. Any contradictory or impossible-to-follow rules?
+${systemConstraints ? '\n6. For each constraint with source: "system" in turn_metadata, verify it appears in the system prompt.' : ''}
+
+**TASK METADATA:**
+\`\`\`
+${metadata || 'Not found'}
+\`\`\`
+
+**SYSTEM PROMPT:**
+\`\`\`
+${systemPrompt}
+\`\`\`
+${systemConstraints}
+
+Output format:
+| Check | Result | Notes |
+|-------|--------|-------|
+
+Then list any issues found.`;
+        }
+
+        // CHECK 4: Model Tests (all 4)
+        async function runCheck4() {
+            const apiKey = localStorage.getItem('review_api_key');
+            const provider = localStorage.getItem('review_api_provider') || 'gemini';
+
+            if (!apiKey) {
+                alert('Please enter your API key first');
+                return;
+            }
+
+            if (extractedData.modelResponses.length === 0) {
+                alert('No model responses found in file');
+                return;
+            }
+
+            showLoading(`Checking ${extractedData.modelResponses.length} Model Responses...`);
+
+            let allResults = [];
+            let passCount = 0;
+
+            for (let i = 0; i < extractedData.modelResponses.length; i++) {
+                const model = extractedData.modelResponses[i];
+                document.getElementById('results-content').innerHTML =
+                    `<div class="loading"><span class="spinner"></span>Checking ${model.name} (${i+1}/${extractedData.modelResponses.length})...</div>`;
+
+                const prompt = buildPrompt4(extractedData.turnMetadata, model.name, model.content);
+
+                try {
+                    const result = await callAPI(provider, apiKey, prompt);
+                    allResults.push(`\n${'='.repeat(60)}\n📋 ${model.name}\n${'='.repeat(60)}\n${result}`);
+
+                    // Check if this model meets 50% failure (simple heuristic)
+                    if (result.toLowerCase().includes('yes') && result.toLowerCase().includes('50%')) {
+                        passCount++;
+                    }
+                } catch (error) {
+                    allResults.push(`\n${'='.repeat(60)}\n📋 ${model.name}\n${'='.repeat(60)}\nError: ${error.message}`);
+                }
+            }
+
+            // Final summary
+            const summary = `
+${'='.repeat(60)}
+📊 FINAL SUMMARY
+${'='.repeat(60)}
+Models analyzed: ${extractedData.modelResponses.length}
+Models meeting ≥50% failure: ${passCount}
+Rule: At least 3 of 4 must fail ≥50% of constraints
+
+OVERALL VERDICT: ${passCount >= 3 ? '✅ PASS - Sufficient model failures' : '❌ FAIL - Not enough model failures'}
+`;
+
+            document.getElementById('results-content').textContent = summary + allResults.join('\n');
+        }
+
+        function buildPrompt3(turnMetadata, goldenResponse) {
+            return `Verify the golden response passes ALL constraints:
+
+For each constraint in turn_metadata:
+1. IF constraints: Does it satisfy the exact requirement? (count words, check forbidden terms, verify format)
+2. LLM Eval: Does tone/style match the requirement?
+3. LLM Judge: Is it factually accurate? Logically connected?
+
+Also check:
+- No emojis anywhere
+- No em-dash (use hyphens only)
+- No currency symbols ($, €) - should use ISO codes (USD, EUR)
+- No LaTeX
+- No preambles ("Sure!", "Of course!", "Certainly!")
+
+**TURN_METADATA:**
+\`\`\`
+${JSON.stringify(turnMetadata, null, 2)}
+\`\`\`
+
+**GOLDEN RESPONSE:**
+\`\`\`
+${goldenResponse}
+\`\`\`
+
+Output format - for each constraint:
+| Constraint | PASS/FAIL | Evidence |
+|------------|-----------|----------|
+
+Then list ALL violations found (including formatting issues like emojis, em-dashes, etc).`;
+        }
+
+        function buildPrompt4(turnMetadata, modelName, modelContent) {
+            return `Analyze if this model response fails enough constraints:
+
+Rule: At least 3 of 4 model responses must have FAIL >= 50%
+
+For this response, check each constraint in turn_metadata:
+1. Count total constraints (instructions + llm_judge)
+2. For each constraint, determine PASS or FAIL
+3. Calculate failure percentage
+4. Identify constraints that would FLIP compared to a perfect golden response
+
+**TURN_METADATA:**
+\`\`\`
+${JSON.stringify(turnMetadata, null, 2)}
+\`\`\`
+
+**MODEL RESPONSE (${modelName}):**
+\`\`\`
+${modelContent}
+\`\`\`
+
+Output format:
+- Total constraints: X
+- Passed: Y
+- Failed: Z
+- Failure rate: Z/X = ??%
+- Key failures: [list main constraint failures]
+- Verdict: Meets 50% failure requirement? YES/NO`;
+        }
+
+        async function callAPI(provider, apiKey, prompt) {
+            let url, body, headers;
+
+            if (provider === 'gemini') {
+                url = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
+                body = {
+                    model: 'gemini-2.5-flash-lite',
+                    messages: [{ role: 'user', content: prompt }],
+                    temperature: 0.3,
+                    max_tokens: 4096
+                };
+            } else {
+                url = 'https://api.openai.com/v1/chat/completions';
+                body = {
+                    model: 'gpt-4o-mini',
+                    messages: [{ role: 'user', content: prompt }],
+                    temperature: 0.3,
+                    max_tokens: 4096
+                };
+            }
+
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                },
+                body: JSON.stringify(body)
+            });
+
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({}));
+                throw new Error(err.error?.message || `API error ${response.status}`);
+            }
+
+            const data = await response.json();
+            return data.choices?.[0]?.message?.content || 'No response';
+        }
+
+        function copyResults() {
+            const text = document.getElementById('results-content').textContent;
+            navigator.clipboard.writeText(text);
+            alert('Copied!');
+        }
+    </script>
+</body>
+</html>
