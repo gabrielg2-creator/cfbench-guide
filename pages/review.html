@@ -1810,7 +1810,6 @@ Thinking Process1: [paste]</div>
             <div class="panel-tabs">
                 <button class="panel-tab active" onclick="switchPanelTab('review')">Review Summary</button>
                 <button class="panel-tab" onclick="switchPanelTab('validator')">AI Validator</button>
-                <button class="panel-tab" onclick="switchPanelTab('autoReview')">Auto Review</button>
             </div>
 
             <!-- Tab 1: Review Summary -->
@@ -2094,83 +2093,10 @@ Thinking Process1: [paste]</div>
                 </div>
             </div>
 
-            <!-- Tab 3: Auto Review -->
-            <div class="panel-tab-content" id="tab-autoReview">
-                <div class="decision-panel-header">
-                    <div class="decision-panel-title">Auto Review</div>
-                    <div class="decision-panel-subtitle">Upload notebook for automated validation</div>
-                </div>
-                <div class="validator-panel-body">
-                    <!-- API Key Section -->
-                    <div class="validator-section">
-                        <label class="validator-label">Gemini API Key</label>
-                        <div style="display: flex; gap: 8px;">
-                            <input type="password" id="auto-api-key" class="validator-input small" placeholder="Enter API key..." style="flex: 1;">
-                            <button class="validator-btn secondary" onclick="saveAutoApiKey()" style="white-space: nowrap;">Save</button>
-                        </div>
-                        <div id="auto-api-status" style="font-size: 0.8rem; margin-top: 5px; color: var(--error-color);">Not configured</div>
-                    </div>
-
-                    <!-- File Upload -->
-                    <div class="validator-section">
-                        <label class="validator-label">Upload Notebook (.ipynb)</label>
-                        <div class="auto-upload-area" id="auto-upload-area" onclick="document.getElementById('auto-file-input').click()">
-                            <div style="font-size: 2rem; margin-bottom: 10px;">📁</div>
-                            <div>Click or drag notebook file here</div>
-                            <input type="file" id="auto-file-input" accept=".ipynb" style="display: none;" onchange="handleAutoFileSelect(event)">
-                        </div>
-                        <div id="auto-file-info" style="display: none; margin-top: 10px; padding: 10px; background: var(--bg-card); border-radius: 6px;">
-                            <span id="auto-file-name" style="color: var(--primary-color);"></span>
-                        </div>
-                    </div>
-
-                    <!-- Action Buttons -->
-                    <div class="validator-actions">
-                        <button class="validator-btn primary" id="auto-run-basic" onclick="runAutoBasicValidation()" disabled>
-                            Run Basic Validation
-                        </button>
-                        <button class="validator-btn secondary" id="auto-run-full" onclick="runAutoFullValidation()" disabled>
-                            Run Full AI Analysis
-                        </button>
-                    </div>
-
-                    <!-- Progress -->
-                    <div id="auto-progress" style="display: none; margin-top: 15px;">
-                        <div style="height: 6px; background: var(--bg-card); border-radius: 3px; overflow: hidden;">
-                            <div id="auto-progress-bar" style="height: 100%; background: var(--primary-color); width: 0%; transition: width 0.3s;"></div>
-                        </div>
-                        <div id="auto-progress-text" style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 5px;">Initializing...</div>
-                    </div>
-
-                    <!-- Results -->
-                    <div id="auto-results" style="display: none; margin-top: 15px;">
-                        <div id="auto-results-content"></div>
-                        <button class="validator-btn secondary" onclick="copyAutoResults()" style="margin-top: 10px; width: 100%;">
-                            Copy Results
-                        </button>
-                    </div>
-
-                    <div class="validator-tip" style="margin-top: 15px;">
-                        <strong>Tip:</strong> Basic validation runs deterministic checks (no API needed). Full AI analysis uses Gemini API for comprehensive review including 70/30 structure, evasion detection, and llm_judge integration checks.
-                    </div>
-
-                    <div style="margin-top: 10px; text-align: center;">
-                        <a href="../automated_review/index.html" target="_blank" style="color: var(--primary-color); font-size: 0.85rem;">
-                            Open Full Validator Interface →
-                        </a>
-                    </div>
-                </div>
-            </div>
         </aside>
     </div>
 
     <script src="../js/main.js"></script>
-    <!-- Auto Review Scripts -->
-    <script src="../automated_review/config.js"></script>
-    <script src="../automated_review/js/notebook_parser.js"></script>
-    <script src="../automated_review/js/validators.js"></script>
-    <script src="../automated_review/js/api_handler.js"></script>
-    <script src="../automated_review/js/report_generator.js"></script>
     <script>
         // Panel Tab Switching
         function switchPanelTab(tabName) {
