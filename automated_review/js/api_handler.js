@@ -19,7 +19,7 @@ class APIHandler {
             },
             openai: {
                 name: 'OpenAI/GPT',
-                model: 'gpt-4o-mini',
+                model: 'gpt-5-mini',
                 baseUrl: 'https://api.openai.com/v1',
                 rateLimit: 1000
             }
