@@ -655,6 +655,72 @@
 
         let checkResults = [];
 
+        // Robust JSON parser that handles common issues
+        function parseJsonRobust(str) {
+            if (!str) return null;
+
+            // Try direct parse first
+            try {
+                return JSON.parse(str);
+            } catch (e) {
+                // Continue with fixes
+            }
+
+            // Clean the string
+            let cleaned = str
+                .replace(/[\x00-\x1F\x7F]/g, ' ')  // Remove control characters
+                .replace(/,\s*}/g, '}')             // Remove trailing commas before }
+                .replace(/,\s*]/g, ']')             // Remove trailing commas before ]
+                .trim();
+
+            // Try to find the JSON object/array boundaries
+            let firstBrace = cleaned.indexOf('{');
+            let firstBracket = cleaned.indexOf('[');
+            let lastBrace = cleaned.lastIndexOf('}');
+            let lastBracket = cleaned.lastIndexOf(']');
+
+            // Determine if it's an object or array
+            let start, end;
+            if (firstBrace !== -1 && (firstBracket === -1 || firstBrace < firstBracket)) {
+                start = firstBrace;
+                end = lastBrace;
+            } else if (firstBracket !== -1) {
+                start = firstBracket;
+                end = lastBracket;
+            }
+
+            if (start !== undefined && end !== undefined && end > start) {
+                cleaned = cleaned.substring(start, end + 1);
+            }
+
+            // Try parse cleaned version
+            try {
+                return JSON.parse(cleaned);
+            } catch (e2) {
+                // Try even more aggressive cleaning - handle Python-style output
+                try {
+                    // Replace Python True/False/None with JSON equivalents
+                    let pythonFixed = cleaned
+                        .replace(/\bTrue\b/g, 'true')
+                        .replace(/\bFalse\b/g, 'false')
+                        .replace(/\bNone\b/g, 'null')
+                        .replace(/'/g, '"');  // Single to double quotes
+                    return JSON.parse(pythonFixed);
+                } catch (e3) {
+                    // Last resort: try to extract the "checks" array specifically
+                    try {
+                        const checksMatch = str.match(/"checks"\s*:\s*\[([\s\S]*?)\](?=\s*[,}]|$)/);
+                        if (checksMatch) {
+                            const checksStr = '[' + checksMatch[1] + ']';
+                            const checks = JSON.parse(checksStr.replace(/'/g, '"').replace(/\bTrue\b/g, 'true').replace(/\bFalse\b/g, 'false'));
+                            return { checks };
+                        }
+                    } catch (e4) {}
+                    throw new Error(e2.message.substring(0, 50));
+                }
+            }
+        }
+
         // Italian Word Counter
         const ITALIAN_CHARS = "a-zA-ZàèéìòùÀÈÉÌÒÙ";
         function countItalianWords(text) {
@@ -933,7 +999,7 @@
                 try {
                     const jsonMatch = goldenVAMatch[1].match(/\{[\s\S]*\}/);
                     if (jsonMatch) {
-                        extractedData.validatorAssistant.golden = JSON.parse(jsonMatch[0]);
+                        extractedData.validatorAssistant.golden = parseJsonRobust(jsonMatch[0]);
                         extractedData.jsonStatus.push({ cell: 'validator_assistant', valid: true, status: 'OK' });
                     }
                 } catch (e) {
@@ -947,7 +1013,7 @@
                 try {
                     const jsonMatch = goldenVHMatch[1].match(/\{[\s\S]*\}/);
                     if (jsonMatch) {
-                        extractedData.validatorHuman.golden = JSON.parse(jsonMatch[0]);
+                        extractedData.validatorHuman.golden = parseJsonRobust(jsonMatch[0]);
                         extractedData.jsonStatus.push({ cell: 'validator_human', valid: true, status: 'OK' });
                     }
                 } catch (e) {
@@ -963,7 +1029,7 @@
                     const jsonMatch = modelVAMatch[2].match(/\{[\s\S]*\}/);
                     if (jsonMatch) {
                         const key = `assistant_${modelVAMatch[1]}`;
-                        extractedData.validatorAssistant[key] = JSON.parse(jsonMatch[0]);
+                        extractedData.validatorAssistant[key] = parseJsonRobust(jsonMatch[0]);
                         extractedData.jsonStatus.push({ cell: `validator_assistant_${modelVAMatch[1]}`, valid: true, status: 'OK' });
                     }
                 } catch (e) {
@@ -979,7 +1045,7 @@
                     const jsonMatch = modelVHMatch[2].match(/\{[\s\S]*\}/);
                     if (jsonMatch) {
                         const key = `assistant_${modelVHMatch[1]}`;
-                        extractedData.validatorHuman[key] = JSON.parse(jsonMatch[0]);
+                        extractedData.validatorHuman[key] = parseJsonRobust(jsonMatch[0]);
                         extractedData.jsonStatus.push({ cell: `validator_human_${modelVHMatch[1]}`, valid: true, status: 'OK' });
                     }
                 } catch (e) {
@@ -1432,7 +1498,13 @@ Examples: "Above 1000" → min:1000,max:null | "50-100" → min:50,max:100`;
 ## CRITICAL RULES:
 1. For constraints with SPECIFIC VALUES (numbers, keywords, ratios), the EXACT values must appear in the query
 2. A vague/generic statement is NOT the same as the specific constraint
-3. Numbers can be written in words (e.g., "venticinque" = 25 in Italian)
+3. **IMPORTANT - ITALIAN NUMBER WORDS COUNT AS VALID:**
+   - uno=1, due=2, tre=3, quattro=4, cinque=5, sei=6, sette=7, otto=8, nove=9, dieci=10
+   - undici=11, dodici=12, tredici=13, quattordici=14, quindici=15, sedici=16
+   - diciassette=17, diciotto=18, diciannove=19, venti=20, trenta=30, quaranta=40, cinquanta=50
+   - cento=100, mille=1000
+   - Example: "sei paragrafi" = "6 paragraphs" = PASS
+   - Example: "meno di venti frasi" = "less than 20 sentences" = PASS for num_sentences < 20
 4. If the constraint has min_fraction/max_fraction for case_ratio, the query MUST mention something about uppercase/lowercase ratio - NOT just "consistent spelling"
 
 ## CONSTRAINTS TO CHECK (source:"user" only):
@@ -1453,8 +1525,14 @@ For EACH constraint:
 - "mantieni un'ortografia coerente" is NOT the same as "case_ratio min 1/4 max 1920/72"
 - Generic statements should be marked as FAIL for specific constraints
 
-Respond with JSON:
-{"constraints":[{"id":"instruction_id or llm_judge_uid","type":"instruction|llm_judge","status":"PASS|FAIL","quote":"exact quote from query that proves it, or 'NOT FOUND'","reason":"why pass or fail"}],"issues":["list of constraints that are HIDDEN (not explicit in query)"]}`;
+## IMPORTANT - You MUST evaluate BOTH:
+1. ALL instructions from the INSTRUCTIONS list above
+2. ALL items from the LLM_JUDGE list above
+
+For LLM_JUDGE items, check if the USER QUERY naturally requests what the llm_judge evaluates (the topic/task described in the "content" field).
+
+Respond with JSON containing ALL constraints (both instructions AND llm_judge):
+{"constraints":[{"id":"instruction_id or llm_judge uid","type":"instruction|llm_judge","status":"PASS|FAIL","quote":"exact quote from query that proves it, or 'NOT FOUND'","reason":"why pass or fail"}],"issues":["list of constraints that are HIDDEN (not explicit in query)"]}`;
 
             try {
                 const result = await callAPI(provider, apiKey, prompt);
