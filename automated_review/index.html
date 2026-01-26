@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CFBench Review Tool</title>
+    <link rel="stylesheet" href="css/validator.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="validator-container">
+        <!-- Header -->
+        <header class="validator-header">
+            <h1>CFBench Review Tool</h1>
+            <p>Upload a notebook (.ipynb or .py) to validate against CFBench guidelines</p>
+        </header>
+
+        <!-- API Key Section -->
+        <section class="api-key-section">
+            <h3><i class="fas fa-key"></i> API Configuration</h3>
+            <div style="margin-bottom: 12px;">
+                <label style="font-size: 0.8rem; color: var(--text-secondary); display: block; margin-bottom: 6px;">Provider</label>
+                <select id="api-provider" onchange="changeProvider()" style="width: 100%; padding: 10px 14px; border: 1px solid var(--border-color); border-radius: var(--radius); background: var(--bg-primary); color: var(--text-primary); font-size: 0.875rem;">
+                    <option value="gemini">Gemini (gemini-2.5-flash-lite)</option>
+                    <option value="openai">OpenAI (gpt-4o-mini)</option>
+                </select>
+            </div>
+            <div class="api-key-input-group">
+                <input type="password" id="api-key-input" placeholder="Paste your API key here...">
+                <button onclick="saveApiKey()">Save</button>
+            </div>
+            <div id="api-status" class="api-status disconnected">
+                <i class="fas fa-circle"></i> Not configured
+            </div>
+            <p style="color: var(--text-muted); font-size: 0.75rem; margin-top: 8px;">
+                API key is saved locally in your browser (localStorage). Not uploaded anywhere.
+            </p>
+        </section>
+
+        <!-- Upload Section -->
+        <section class="upload-section" id="upload-section">
+            <div class="upload-icon">
+                <i class="fas fa-cloud-upload-alt"></i>
+            </div>
+            <h3>Drop your file here</h3>
+            <p>or click to select (.ipynb or .py)</p>
+            <button class="upload-btn" onclick="document.getElementById('file-input').click()">
+                <i class="fas fa-folder-open"></i> Select File
+            </button>
+            <input type="file" id="file-input" accept=".ipynb,.py" onchange="handleFileSelect(event)">
+        </section>
+
+        <!-- File Info -->
+        <section class="file-info" id="file-info" style="display: none;">
+            <div>
+                <i class="fas fa-file-code" style="color: var(--accent); margin-right: 10px;"></i>
+                <span class="file-name" id="file-name">filename.ipynb</span>
+            </div>
+            <span class="file-size" id="file-size">0 KB</span>
+        </section>
+
+        <!-- Action Buttons -->
+        <section class="action-buttons" id="action-buttons" style="display: none;">
+            <button class="action-btn primary" id="run-basic-btn" onclick="runBasicValidation()">
+                <i class="fas fa-check-circle"></i> Basic Validation
+            </button>
+            <button class="action-btn secondary" id="run-full-btn" onclick="runFullValidation()">
+                <i class="fas fa-brain"></i> Full AI Analysis
+            </button>
+        </section>
+
+        <!-- Progress Section -->
+        <section class="progress-section" id="progress-section">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress-fill"></div>
+            </div>
+            <div class="progress-text" id="progress-text">Initializing...</div>
+        </section>
+
+        <!-- Report Section -->
+        <section class="report-section" id="report-section">
+            <div id="report-container"></div>
+
+            <!-- Export Buttons -->
+            <div class="action-buttons" style="margin-top: 20px;">
+                <button class="action-btn secondary" onclick="exportReport('text')">
+                    <i class="fas fa-file-alt"></i> Export Report
+                </button>
+                <button class="action-btn secondary" onclick="resetValidator()">
+                    <i class="fas fa-redo"></i> New Analysis
+                </button>
+            </div>
+        </section>
+    </div>
+
+    <!-- Scripts -->
+    <!-- env.js is optional - users can paste API key directly -->
+    <script src="env.js" onerror="console.log('env.js not found - enter API key manually')"></script>
+    <script src="config.js"></script>
+    <script src="js/nvidia_validator.js"></script>
+    <script src="js/notebook_parser.js"></script>
+    <script src="js/validators.js"></script>
+    <script src="js/api_handler.js"></script>
+    <script src="js/report_generator.js"></script>
+
+    <script>
+        // Global instances
+        let parser = new NotebookParser();
+        let validators = null;
+        let apiHandler = new APIHandler();
+        let reportGenerator = new ReportGenerator();
+        let currentFile = null;
+        let parsedNotebook = null;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            // Load saved provider
+            const savedProvider = localStorage.getItem('api_provider') || 'gemini';
+            document.getElementById('api-provider').value = savedProvider;
+            apiHandler.setProvider(savedProvider);
+
+            // Check for API key - priority: env.js > localStorage
+            const envKey = typeof ENV !== 'undefined' ? ENV.GEMINI_API_KEY : null;
+            const savedKey = localStorage.getItem('api_key');
+
+            if (envKey || savedKey) {
+                if (envKey) {
+                    apiHandler.setApiKey(envKey);
+                    document.getElementById('api-key-input').placeholder = 'Loaded from env.js';
+                } else if (savedKey) {
+                    apiHandler.setApiKey(savedKey);
+                }
+                document.getElementById('api-key-input').value = '••••••••••••••••';
+                updateApiStatus(true);
+            }
+
+            // Setup drag and drop
+            setupDragDrop();
+        });
+
+        // Change API provider
+        function changeProvider() {
+            const provider = document.getElementById('api-provider').value;
+            apiHandler.setProvider(provider);
+
+            // Clear saved key when changing provider (different key needed)
+            const currentKey = localStorage.getItem('api_key');
+            if (currentKey) {
+                // Keep the key but update status
+                updateApiStatus(true);
+            }
+
+            showToast(`Switched to ${apiHandler.getProviderName()}`, 'success');
+        }
+
+        // Setup drag and drop
+        function setupDragDrop() {
+            const uploadSection = document.getElementById('upload-section');
+
+            uploadSection.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadSection.classList.add('dragover');
+            });
+
+            uploadSection.addEventListener('dragleave', () => {
+                uploadSection.classList.remove('dragover');
+            });
+
+            uploadSection.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadSection.classList.remove('dragover');
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    handleFile(files[0]);
+                }
+            });
+        }
+
+        // Save API key
+        function saveApiKey() {
+            const keyInput = document.getElementById('api-key-input');
+            const key = keyInput.value.trim();
+
+            if (key && !key.startsWith('••')) {
+                apiHandler.setApiKey(key); // This also saves to localStorage
+                keyInput.value = '••••••••••••••••';
+                updateApiStatus(true);
+                showToast(`${apiHandler.getProviderName()} API key saved!`, 'success');
+            }
+        }
+
+        // Update API status
+        function updateApiStatus(connected) {
+            const status = document.getElementById('api-status');
+            const providerName = apiHandler.getProviderName();
+            const model = apiHandler.getModel();
+
+            if (connected) {
+                status.className = 'api-status connected';
+                status.innerHTML = `<i class="fas fa-check-circle"></i> ${providerName} connected (${model})`;
+            } else {
+                status.className = 'api-status disconnected';
+                status.innerHTML = '<i class="fas fa-circle"></i> Not configured';
+            }
+        }
+
+        // Handle file selection
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (file) {
+                handleFile(file);
+            }
+        }
+
+        // Handle file
+        async function handleFile(file) {
+            if (!file.name.endsWith('.ipynb') && !file.name.endsWith('.py')) {
+                showToast('Please select a .ipynb or .py file', 'error');
+                return;
+            }
+
+            currentFile = file;
+
+            // Show file info
+            document.getElementById('file-info').style.display = 'flex';
+            document.getElementById('file-name').textContent = file.name;
+            document.getElementById('file-size').textContent = formatFileSize(file.size);
+
+            // Show action buttons
+            document.getElementById('action-buttons').style.display = 'flex';
+
+            // Parse the file
+            try {
+                parsedNotebook = await parser.parseFile(file);
+                const fileType = file.name.endsWith('.py') ? 'Python file' : 'Notebook';
+                showToast(`${fileType} parsed successfully!`, 'success');
+            } catch (error) {
+                showToast('Failed to parse file: ' + error.message, 'error');
+            }
+        }
+
+        // Format file size
+        function formatFileSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        }
+
+        // Run basic validation (deterministic only)
+        async function runBasicValidation() {
+            if (!parsedNotebook) {
+                showToast('Please upload a notebook first', 'error');
+                return;
+            }
+
+            showProgress();
+            updateProgress(10, 'Running structure checks...');
+
+            try {
+                validators = new Validators(parsedNotebook);
+
+                await sleep(300);
+                updateProgress(30, 'Checking content...');
+
+                await sleep(300);
+                updateProgress(50, 'Validating metadata...');
+
+                await sleep(300);
+                updateProgress(70, 'Analyzing model passes...');
+
+                const results = validators.runAll();
+
+                await sleep(300);
+                updateProgress(90, 'Generating report...');
+
+                reportGenerator.setData(parsedNotebook, results, null);
+                const reportHTML = reportGenerator.generateHTMLReport();
+
+                await sleep(200);
+                updateProgress(100, 'Complete!');
+
+                await sleep(500);
+                showReport(reportHTML);
+
+            } catch (error) {
+                hideProgress();
+                showToast('Validation failed: ' + error.message, 'error');
+            }
+        }
+
+        // Run full validation with AI
+        async function runFullValidation() {
+            if (!parsedNotebook) {
+                showToast('Please upload a notebook first', 'error');
+                return;
+            }
+
+            if (!apiHandler.hasApiKey()) {
+                showToast('Please configure your Gemini API key first', 'warning');
+                return;
+            }
+
+            showProgress();
+            updateProgress(5, 'Running deterministic checks...');
+
+            try {
+                // Run deterministic validation first
+                validators = new Validators(parsedNotebook);
+                const deterministicResults = validators.runAll();
+
+                updateProgress(20, 'Analyzing query structure with AI...');
+                await sleep(500);
+
+                // AI validation - query structure (now with instructions for detailed check)
+                let queryResult = null;
+                try {
+                    queryResult = await apiHandler.validateQueryStructure(
+                        parsedNotebook.finalTurn?.user?.content || '',
+                        parsedNotebook.metadata?.scenario || '',
+                        parsedNotebook.finalTurn?.turnMetadata?.instructions || []
+                    );
+                } catch (e) {
+                    console.warn('Query structure check failed:', e);
+                }
+
+                updateProgress(35, 'Validating constraints in query (CRITICAL)...');
+                await sleep(500);
+
+                // AI validation - constraints in query (CRITICAL CHECK)
+                let constraintsResult = null;
+                try {
+                    constraintsResult = await apiHandler.validateConstraintsInQuery(
+                        parsedNotebook.finalTurn?.turnMetadata || {},
+                        parsedNotebook.finalTurn?.user?.content || ''
+                    );
+                } catch (e) {
+                    console.warn('Constraints validation failed:', e);
+                }
+
+                updateProgress(50, 'Checking llm_judge integration...');
+                await sleep(500);
+
+                // AI validation - llm_judge integration
+                let llmJudgeResult = null;
+                try {
+                    llmJudgeResult = await apiHandler.validateLLMJudgeIntegration(
+                        parsedNotebook.finalTurn?.user?.content || '',
+                        parsedNotebook.finalTurn?.turnMetadata?.llmJudge || []
+                    );
+                } catch (e) {
+                    console.warn('LLM Judge check failed:', e);
+                }
+
+                updateProgress(65, 'Detecting model evasions...');
+                await sleep(500);
+
+                // Check for evasions in model passes
+                const evasions = [];
+                for (let i = 0; i < Math.min(parsedNotebook.modelPasses.length, 2); i++) {
+                    const pass = parsedNotebook.modelPasses[i];
+                    try {
+                        const evasionResult = await apiHandler.detectModelEvasion(
+                            pass.assistant?.content || '',
+                            parsedNotebook.finalTurn?.user?.content || ''
+                        );
+                        if (evasionResult.is_evasion) {
+                            evasions.push({
+                                pass: `${pass.model}_${pass.passNumber}`,
+                                type: evasionResult.evasion_type,
+                                evidence: evasionResult.evidence
+                            });
+                        }
+                    } catch (e) {
+                        console.warn('Evasion check failed for pass', i, e);
+                    }
+                }
+
+                updateProgress(75, 'Running AI verification on constraints...');
+                await sleep(500);
+
+                // Enhance check 2.3 with AI verification
+                try {
+                    await validators.enhanceCheck2_3WithAI(apiHandler);
+                    console.log('Check 2.3 enhanced with AI verification');
+                } catch (e) {
+                    console.warn('AI enhancement for check 2.3 failed:', e);
+                }
+
+                updateProgress(85, 'Running comprehensive analysis...');
+                await sleep(500);
+
+                // Comprehensive review
+                let comprehensiveResult = null;
+                try {
+                    comprehensiveResult = await apiHandler.comprehensiveReview(parsedNotebook, validators);
+                } catch (e) {
+                    console.warn('Comprehensive review failed:', e);
+                }
+
+                updateProgress(95, 'Generating report...');
+                await sleep(300);
+
+                // Combine results
+                const hasHiddenConstraints = constraintsResult?.critical_issues?.length > 0 ||
+                                             constraintsResult?.overall_valid === false;
+
+                // Determine overall status considering NEEDS_REVIEW
+                let overallStatus;
+                if (hasHiddenConstraints) {
+                    overallStatus = 'MAJOR_REVISION';
+                } else if (comprehensiveResult?.overall_status) {
+                    overallStatus = comprehensiveResult.overall_status;
+                } else if (deterministicResults.summary.failed > 2) {
+                    overallStatus = 'MAJOR_REVISION';
+                } else if (deterministicResults.summary.failed > 0) {
+                    overallStatus = 'MINOR_REVISION';
+                } else if (deterministicResults.summary.needsReview > 0) {
+                    overallStatus = 'NEEDS_REVIEW';
+                } else {
+                    overallStatus = 'PASS';
+                }
+
+                const apiResults = {
+                    query_analysis: queryResult || {},
+                    constraints_validation: constraintsResult || {},
+                    llm_judge_integration: llmJudgeResult || {},
+                    model_passes_analysis: {
+                        evasions_detected: evasions,
+                        difficulty_appropriate: evasions.length < 2
+                    },
+                    ...(comprehensiveResult || {}),
+                    overall_status: overallStatus
+                };
+
+                reportGenerator.setData(parsedNotebook, deterministicResults, apiResults);
+                const reportHTML = reportGenerator.generateHTMLReport();
+
+                updateProgress(100, 'Complete!');
+                await sleep(500);
+                showReport(reportHTML);
+
+            } catch (error) {
+                hideProgress();
+                showToast('Validation failed: ' + error.message, 'error');
+                console.error(error);
+            }
+        }
+
+        // Progress functions
+        function showProgress() {
+            document.getElementById('progress-section').classList.add('active');
+            document.getElementById('report-section').classList.remove('active');
+        }
+
+        function hideProgress() {
+            document.getElementById('progress-section').classList.remove('active');
+        }
+
+        function updateProgress(percent, text) {
+            document.getElementById('progress-fill').style.width = percent + '%';
+            document.getElementById('progress-text').textContent = text;
+        }
+
+        // Show report
+        function showReport(html) {
+            hideProgress();
+            document.getElementById('report-container').innerHTML = html;
+            document.getElementById('report-section').classList.add('active');
+        }
+
+        // Export report
+        function exportReport(format) {
+            if (format === 'text') {
+                const text = reportGenerator.generateTextReport();
+                downloadFile(text, 'cfbench-review-report.txt', 'text/plain');
+            }
+        }
+
+        // Download file
+        function downloadFile(content, filename, type) {
+            const blob = new Blob([content], { type: type });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // Reset validator
+        function resetValidator() {
+            currentFile = null;
+            parsedNotebook = null;
+            validators = null;
+
+            document.getElementById('file-info').style.display = 'none';
+            document.getElementById('action-buttons').style.display = 'none';
+            document.getElementById('progress-section').classList.remove('active');
+            document.getElementById('report-section').classList.remove('active');
+            document.getElementById('file-input').value = '';
+        }
+
+        // Copy feedback to clipboard
+        function copyFeedback() {
+            const feedbackText = document.getElementById('feedback-text');
+            if (feedbackText) {
+                navigator.clipboard.writeText(feedbackText.textContent).then(() => {
+                    showToast('Report copied to clipboard!', 'success');
+                }).catch(err => {
+                    // Fallback for older browsers
+                    const range = document.createRange();
+                    range.selectNode(feedbackText);
+                    window.getSelection().removeAllRanges();
+                    window.getSelection().addRange(range);
+                    document.execCommand('copy');
+                    window.getSelection().removeAllRanges();
+                    showToast('Report copied!', 'success');
+                });
+            }
+        }
+
+        // Toast notification
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        }
+
+        // Sleep utility
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+    </script>
+</body>
+</html>

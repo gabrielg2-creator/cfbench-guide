@@ -567,6 +567,7 @@
         .constraint-item .detail { color: var(--text-muted); margin-top: 4px; }
     </style>
     <script src="js/nvidia_validator.js"></script>
+    <script src="js/notebook_parser.js"></script>
 </head>
 <body>
     <div class="container">
@@ -773,9 +774,99 @@
             extractedData = {
                 turnMetadata: null, userQuery: null, systemPrompt: null, metadata: null,
                 goldenResponse: null, modelResponses: [],
-                limits: { systemPrompt: { min: null, max: null }, userPrompt: { min: null, max: null } }
+                limits: { systemPrompt: { min: null, max: null }, userPrompt: { min: null, max: null } },
+                validatorAssistant: {},
+                validatorHuman: {},
+                jsonStatus: [],
+                parsed: null, // Store full parsed data from NotebookParser
+                // Turn counting
+                turnCount: {
+                    expected: null,
+                    user: 0,
+                    thinking: 0,
+                    assistant: 0
+                }
             };
 
+            // Use NotebookParser if available (for .ipynb files)
+            if (typeof NotebookParser !== 'undefined' && content.includes('"cells"')) {
+                try {
+                    const parser = new NotebookParser(JSON.parse(content));
+                    extractedData.parsed = parser.parse();
+                    console.log('Parsed with NotebookParser:', extractedData.parsed);
+
+                    // Extract data from parsed
+                    const p = extractedData.parsed;
+                    extractedData.metadata = p.metadata?.raw || '';
+                    extractedData.systemPrompt = p.system?.content || '';
+                    extractedData.userQuery = p.finalTurn?.user?.content || '';
+                    extractedData.goldenResponse = p.finalTurn?.assistant?.content || '';
+                    extractedData.turnMetadata = p.finalTurn?.turnMetadata?.json || null;
+
+                    // Golden validator_assistant
+                    if (p.finalTurn?.validatorAssistant) {
+                        extractedData.validatorAssistant.golden = p.finalTurn.validatorAssistant;
+                        extractedData.jsonStatus.push({ cell: 'validator_assistant', valid: true, status: 'OK' });
+                    }
+
+                    // Golden validator_human
+                    if (p.finalTurn?.validatorHuman) {
+                        extractedData.validatorHuman.golden = p.finalTurn.validatorHuman;
+                        extractedData.jsonStatus.push({ cell: 'validator_human', valid: true, status: 'OK' });
+                    }
+
+                    // Model passes with their validators
+                    extractedData.modelResponses = [];
+                    for (const pass of p.modelPasses || []) {
+                        const name = `${pass.model}_${pass.passNumber}`;
+                        extractedData.modelResponses.push({
+                            name: `assistant_${name}`,
+                            content: pass.assistant?.content || ''
+                        });
+
+                        // validator_assistant for this model pass
+                        if (pass.validatorAssistant) {
+                            extractedData.validatorAssistant[`assistant_${name}`] = pass.validatorAssistant;
+                            extractedData.jsonStatus.push({ cell: `validator_assistant_${name}`, valid: true, status: 'OK' });
+                        }
+
+                        // validator_human for this model pass
+                        if (pass.validatorHuman) {
+                            extractedData.validatorHuman[`assistant_${name}`] = pass.validatorHuman;
+                            extractedData.jsonStatus.push({ cell: `validator_human_${name}`, valid: true, status: 'OK' });
+                        }
+                    }
+
+                    // Parse limits from metadata
+                    if (extractedData.metadata) {
+                        const sysMatch = extractedData.metadata.match(/\*\*System Prompt Length:\*\*\s*-?\s*(.+)/i);
+                        const userMatch = extractedData.metadata.match(/\*\*User Prompt Length:\*\*\s*-?\s*(.+)/i);
+                        if (sysMatch) parseLimitString(sysMatch[1], extractedData.limits.systemPrompt);
+                        if (userMatch) parseLimitString(userMatch[1], extractedData.limits.userPrompt);
+
+                        // Extract expected turn count from metadata
+                        const turnMatch = extractedData.metadata.match(/\*\*(?:Number of Turns|Turn Count|Turns):\*\*\s*(\d+)/i);
+                        if (turnMatch) {
+                            extractedData.turnCount.expected = parseInt(turnMatch[1]);
+                        }
+                    }
+
+                    // Count turns from parsed data
+                    extractedData.turnCount.user = (p.turns?.length || 0) + (p.finalTurn?.user ? 1 : 0);
+                    extractedData.turnCount.thinking = (p.turns?.filter(t => t.thinking)?.length || 0) + (p.finalTurn?.thinking ? 1 : 0);
+                    extractedData.turnCount.assistant = (p.turns?.filter(t => t.assistant)?.length || 0) + (p.finalTurn?.assistant ? 1 : 0);
+
+                    console.log('Turn count:', extractedData.turnCount);
+                    console.log('validator_assistant found:', Object.keys(extractedData.validatorAssistant));
+                    console.log('validator_human found:', Object.keys(extractedData.validatorHuman));
+                    console.log('JSON Status:', extractedData.jsonStatus);
+                    return;
+                } catch (e) {
+                    console.log('NotebookParser failed, falling back to regex parsing:', e);
+                }
+            }
+
+            // Fallback: Regex parsing for .py files or if NotebookParser fails
             // turn_metadata
             const turnMetaMatch = content.match(/\*\*\[turn_metadata\]\*\*\s*([\s\S]*?)(?=\*\*\[|$)/i);
             if (turnMetaMatch) {
@@ -783,9 +874,15 @@
                 if (jsonMatch) {
                     try {
                         extractedData.turnMetadata = JSON.parse(jsonMatch[0]);
+                        extractedData.jsonStatus.push({ cell: 'turn_metadata', valid: true, status: 'OK' });
                     } catch (e) {
                         let fixed = jsonMatch[0].replace(/,\s*}/g, '}').replace(/,\s*]/g, ']');
-                        try { extractedData.turnMetadata = JSON.parse(fixed); } catch (e2) {}
+                        try {
+                            extractedData.turnMetadata = JSON.parse(fixed);
+                            extractedData.jsonStatus.push({ cell: 'turn_metadata', valid: true, status: 'FIXED' });
+                        } catch (e2) {
+                            extractedData.jsonStatus.push({ cell: 'turn_metadata', valid: false, status: 'INVALID', error: e2.message });
+                        }
                     }
                 }
             }
@@ -821,7 +918,7 @@
 
             // model responses
             extractedData.modelResponses = [];
-            const modelPattern = /\*\*\[assistant_([^\]]+)\]\*\*\s*([\s\S]*?)(?=\*\*\[|$)/gi;
+            const modelPattern = /\*\*\[assistant_((?:qwen3|nemotron)_\d+)\]\*\*\s*([\s\S]*?)(?=\*\*\[|$)/gi;
             let modelMatch;
             while ((modelMatch = modelPattern.exec(content)) !== null) {
                 extractedData.modelResponses.push({
@@ -829,6 +926,88 @@
                     content: modelMatch[2].trim()
                 });
             }
+
+            // Golden validator_assistant
+            const goldenVAMatch = content.match(/\*\*\[validator_assistant\]\*\*\s*([\s\S]*?)(?=\*\*\[|$)/i);
+            if (goldenVAMatch) {
+                try {
+                    const jsonMatch = goldenVAMatch[1].match(/\{[\s\S]*\}/);
+                    if (jsonMatch) {
+                        extractedData.validatorAssistant.golden = JSON.parse(jsonMatch[0]);
+                        extractedData.jsonStatus.push({ cell: 'validator_assistant', valid: true, status: 'OK' });
+                    }
+                } catch (e) {
+                    extractedData.jsonStatus.push({ cell: 'validator_assistant', valid: false, status: 'INVALID', error: e.message });
+                }
+            }
+
+            // Golden validator_human
+            const goldenVHMatch = content.match(/\*\*\[validator_human\]\*\*\s*([\s\S]*?)(?=\*\*\[|$)/i);
+            if (goldenVHMatch) {
+                try {
+                    const jsonMatch = goldenVHMatch[1].match(/\{[\s\S]*\}/);
+                    if (jsonMatch) {
+                        extractedData.validatorHuman.golden = JSON.parse(jsonMatch[0]);
+                        extractedData.jsonStatus.push({ cell: 'validator_human', valid: true, status: 'OK' });
+                    }
+                } catch (e) {
+                    extractedData.jsonStatus.push({ cell: 'validator_human', valid: false, status: 'INVALID', error: e.message });
+                }
+            }
+
+            // Model pass validator_assistant (qwen3 and nemotron)
+            const modelVAPattern = /\*\*\[validator_assistant_((?:qwen3|nemotron)_\d+)\]\*\*\s*([\s\S]*?)(?=\*\*\[|$)/gi;
+            let modelVAMatch;
+            while ((modelVAMatch = modelVAPattern.exec(content)) !== null) {
+                try {
+                    const jsonMatch = modelVAMatch[2].match(/\{[\s\S]*\}/);
+                    if (jsonMatch) {
+                        const key = `assistant_${modelVAMatch[1]}`;
+                        extractedData.validatorAssistant[key] = JSON.parse(jsonMatch[0]);
+                        extractedData.jsonStatus.push({ cell: `validator_assistant_${modelVAMatch[1]}`, valid: true, status: 'OK' });
+                    }
+                } catch (e) {
+                    extractedData.jsonStatus.push({ cell: `validator_assistant_${modelVAMatch[1]}`, valid: false, status: 'INVALID', error: e.message });
+                }
+            }
+
+            // Model pass validator_human (qwen3 and nemotron)
+            const modelVHPattern = /\*\*\[validator_human_((?:qwen3|nemotron)_\d+)\]\*\*\s*([\s\S]*?)(?=\*\*\[|$)/gi;
+            let modelVHMatch;
+            while ((modelVHMatch = modelVHPattern.exec(content)) !== null) {
+                try {
+                    const jsonMatch = modelVHMatch[2].match(/\{[\s\S]*\}/);
+                    if (jsonMatch) {
+                        const key = `assistant_${modelVHMatch[1]}`;
+                        extractedData.validatorHuman[key] = JSON.parse(jsonMatch[0]);
+                        extractedData.jsonStatus.push({ cell: `validator_human_${modelVHMatch[1]}`, valid: true, status: 'OK' });
+                    }
+                } catch (e) {
+                    extractedData.jsonStatus.push({ cell: `validator_human_${modelVHMatch[1]}`, valid: false, status: 'INVALID', error: e.message });
+                }
+            }
+
+            // Extract expected turn count from metadata (regex fallback)
+            if (extractedData.metadata) {
+                const turnMatch = extractedData.metadata.match(/\*\*(?:Number of Turns|Turn Count|Turns):\*\*\s*(\d+)/i);
+                if (turnMatch) {
+                    extractedData.turnCount.expected = parseInt(turnMatch[1]);
+                }
+            }
+
+            // Count turns from content (regex fallback)
+            const userMatches = content.match(/\*\*\[user\]\*\*/gi) || [];
+            const thinkingMatches = content.match(/\*\*\[thinking\]\*\*/gi) || [];
+            const assistantMatches = content.match(/\*\*\[assistant\]\*\*/gi) || [];
+
+            extractedData.turnCount.user = userMatches.length;
+            extractedData.turnCount.thinking = thinkingMatches.length;
+            extractedData.turnCount.assistant = assistantMatches.length;
+
+            console.log('Turn count:', extractedData.turnCount);
+            console.log('validator_assistant found:', Object.keys(extractedData.validatorAssistant));
+            console.log('validator_human found:', Object.keys(extractedData.validatorHuman));
+            console.log('JSON Status:', extractedData.jsonStatus);
         }
 
         function updateStats() {
@@ -1089,10 +1268,84 @@
             }
         }
 
-        // CHECK 0: Extract Limits
+        // CHECK 0: Extract Limits + JSON Validation
         async function runCheck0(apiKey, provider) {
             setCheckStatus(0, 'running');
 
+            // First, show JSON status for all validator cells
+            let jsonStatusHtml = '<div class="issues-box" style="margin-bottom:16px;"><h4>📋 JSON Parsing Status</h4>';
+
+            if (extractedData.jsonStatus && extractedData.jsonStatus.length > 0) {
+                const validCount = extractedData.jsonStatus.filter(j => j.valid).length;
+                const invalidCount = extractedData.jsonStatus.filter(j => !j.valid).length;
+
+                jsonStatusHtml += `<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(250px, 1fr)); gap:8px; margin-top:8px;">`;
+                for (const js of extractedData.jsonStatus) {
+                    const color = js.valid ? '#4ade80' : '#f87171';
+                    const icon = js.valid ? '✓' : '✗';
+                    jsonStatusHtml += `<div style="display:flex; align-items:center; gap:8px; padding:6px 10px; background:var(--bg-tertiary); border-radius:6px;">
+                        <span style="color:${color}; font-weight:bold;">${icon}</span>
+                        <span style="flex:1;">${escapeHtml(js.cell)}</span>
+                        ${js.error ? `<span style="color:#f87171; font-size:0.75rem;">${escapeHtml(js.error.substring(0, 30))}</span>` : ''}
+                    </div>`;
+                }
+                jsonStatusHtml += `</div>`;
+                jsonStatusHtml += `<div style="margin-top:8px; font-size:0.85rem;">
+                    <span style="color:#4ade80;">✓ ${validCount} válidos</span>
+                    ${invalidCount > 0 ? `<span style="color:#f87171; margin-left:12px;">✗ ${invalidCount} inválidos</span>` : ''}
+                </div>`;
+            } else {
+                jsonStatusHtml += `<p style="color:var(--text-muted);">Nenhum JSON de validação encontrado. Verifique se o arquivo tem as células validator_assistant e validator_human.</p>`;
+            }
+            jsonStatusHtml += '</div>';
+
+            // Show validator_assistant data found
+            const vaKeys = Object.keys(extractedData.validatorAssistant);
+            const vhKeys = Object.keys(extractedData.validatorHuman);
+            jsonStatusHtml += `<div class="issues-box" style="margin-bottom:16px;">
+                <h4>🔍 Dados Extraídos</h4>
+                <p><strong>validator_assistant:</strong> ${vaKeys.length > 0 ? vaKeys.join(', ') : '<span style="color:#fbbf24;">Nenhum encontrado</span>'}</p>
+                <p><strong>validator_human:</strong> ${vhKeys.length > 0 ? vhKeys.join(', ') : '<span style="color:#fbbf24;">Nenhum encontrado</span>'}</p>
+            </div>`;
+
+            // Turn Count Validation
+            const tc = extractedData.turnCount;
+            const expectedTurns = tc.expected;
+            const userTurns = tc.user;
+            const thinkingTurns = tc.thinking;
+            const assistantTurns = tc.assistant;
+
+            const turnCountOk = expectedTurns === null ||
+                (userTurns === expectedTurns && thinkingTurns === expectedTurns && assistantTurns === expectedTurns);
+
+            const turnStatusColor = turnCountOk ? '#4ade80' : '#f87171';
+            const turnStatusIcon = turnCountOk ? '✓' : '✗';
+
+            jsonStatusHtml += `<div class="issues-box" style="margin-bottom:16px; background:${turnCountOk ? 'linear-gradient(135deg, #1a2f1a 0%, #0d1a0d 100%)' : 'linear-gradient(135deg, #2f1a1a 0%, #1a0d0d 100%)'}; border:1px solid ${turnCountOk ? '#2d5a2d' : '#5a2d2d'};">
+                <h4 style="color:${turnStatusColor};">${turnStatusIcon} Turn Count Validation</h4>
+                <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:12px; margin-top:12px;">
+                    <div style="text-align:center; padding:10px; background:var(--bg-primary); border-radius:6px;">
+                        <div style="font-size:1.5rem; font-weight:bold; color:#60a5fa;">${expectedTurns !== null ? expectedTurns : '?'}</div>
+                        <div style="font-size:0.75rem; color:var(--text-muted);">Expected</div>
+                    </div>
+                    <div style="text-align:center; padding:10px; background:var(--bg-primary); border-radius:6px;">
+                        <div style="font-size:1.5rem; font-weight:bold; color:${expectedTurns === null || userTurns === expectedTurns ? '#4ade80' : '#f87171'};">${userTurns}</div>
+                        <div style="font-size:0.75rem; color:var(--text-muted);">User</div>
+                    </div>
+                    <div style="text-align:center; padding:10px; background:var(--bg-primary); border-radius:6px;">
+                        <div style="font-size:1.5rem; font-weight:bold; color:${expectedTurns === null || thinkingTurns === expectedTurns ? '#4ade80' : '#f87171'};">${thinkingTurns}</div>
+                        <div style="font-size:0.75rem; color:var(--text-muted);">Thinking</div>
+                    </div>
+                    <div style="text-align:center; padding:10px; background:var(--bg-primary); border-radius:6px;">
+                        <div style="font-size:1.5rem; font-weight:bold; color:${expectedTurns === null || assistantTurns === expectedTurns ? '#4ade80' : '#f87171'};">${assistantTurns}</div>
+                        <div style="font-size:0.75rem; color:var(--text-muted);">Assistant</div>
+                    </div>
+                </div>
+                ${!turnCountOk ? `<p style="color:#fca5a5; margin-top:12px; font-size:0.85rem;">⚠ Turn count mismatch! Expected ${expectedTurns} turns but found different counts.</p>` : ''}
+                ${expectedTurns === null ? `<p style="color:#fbbf24; margin-top:8px; font-size:0.8rem;">⚠ Expected turn count not found in metadata (look for "**Number of Turns:**")</p>` : ''}
+            </div>`;
+
+            // Now extract limits
             const prompt = `Extract word limits from this metadata. Return ONLY valid JSON.
 
 **METADATA:**
@@ -1118,21 +1371,25 @@ Examples: "Above 1000" → min:1000,max:null | "50-100" → min:50,max:100`;
                     }
                     updateStats();
 
-                    const content = `
+                    const limitsHtml = `
                         <div class="issues-box">
-                            <h4>Extracted Limits</h4>
+                            <h4>📏 Extracted Limits</h4>
                             <ul>
                                 <li><strong>System Prompt:</strong> ${formatLimit(extractedData.limits.systemPrompt)}</li>
                                 <li><strong>User Query:</strong> ${formatLimit(extractedData.limits.userPrompt)}</li>
                             </ul>
                         </div>`;
-                    setCheckStatus(0, 'pass', content);
-                    checkResults.push({ check: 0, status: 'pass', data: extractedData.limits });
+
+                    const hasJsonIssues = extractedData.jsonStatus?.some(j => !j.valid) || vaKeys.length === 0;
+                    const hasTurnIssues = !turnCountOk;
+                    const hasIssues = hasJsonIssues || hasTurnIssues;
+                    setCheckStatus(0, hasIssues ? 'warn' : 'pass', jsonStatusHtml + limitsHtml);
+                    checkResults.push({ check: 0, status: hasIssues ? 'warn' : 'pass', data: extractedData.limits });
                 } else {
                     throw new Error('No JSON found');
                 }
             } catch (e) {
-                setCheckStatus(0, 'warn', `<div class="issues-box"><p>Could not parse: ${e.message}</p></div>`);
+                setCheckStatus(0, 'warn', jsonStatusHtml + `<div class="issues-box"><p>Could not parse limits: ${e.message}</p></div>`);
                 checkResults.push({ check: 0, status: 'warn', error: e.message });
             }
         }
@@ -1152,25 +1409,52 @@ Examples: "Above 1000" → min:1000,max:null | "50-100" → min:50,max:100`;
             const instructions = extractedData.turnMetadata?.instructions || [];
             const llmJudge = extractedData.turnMetadata?.llm_judge || [];
 
-            const prompt = `Check if EACH constraint appears NATURALLY in the user query.
+            // Build detailed constraint descriptions for AI to check
+            const userInstructions = instructions.filter(i => i.source === 'user');
+            const constraintDescriptions = userInstructions.map(inst => {
+                let desc = `- ${inst.instruction_id}: `;
+                if (inst.num_words) desc += `MUST mention "${inst.num_words}" words (number or written out)`;
+                else if (inst.num_chars) desc += `MUST mention "${inst.num_chars}" characters`;
+                else if (inst.num_paragraphs) desc += `MUST mention "${inst.num_paragraphs}" paragraphs`;
+                else if (inst.num_sentences) desc += `MUST mention "${inst.num_sentences}" sentences`;
+                else if (inst.keyword && inst.frequency) desc += `MUST mention keyword "${inst.keyword}" AND frequency "${inst.frequency}" times`;
+                else if (inst.first_word) desc += `MUST mention starting with "${inst.first_word}"`;
+                else if (inst.last_word) desc += `MUST mention ending with "${inst.last_word}"`;
+                else if (inst.min_fraction || inst.max_fraction) desc += `MUST mention case ratio between ${inst.min_fraction || '0'} and ${inst.max_fraction || 'inf'} (lowercase/uppercase ratio)`;
+                else if (inst.forbidden_words) desc += `MUST mention forbidden words: ${inst.forbidden_words.join(', ')}`;
+                else if (inst.keywords) desc += `MUST explicitly request using these keywords: ${inst.keywords.join(', ')}`;
+                else desc += `Check if explicitly requested in query`;
+                return desc;
+            }).join('\n');
 
-You must check TWO types of constraints:
+            const prompt = `You are a STRICT validator. Check if EACH constraint with specific values appears EXPLICITLY in the user query.
 
-**1. INSTRUCTIONS (source:"user" only):**
-${JSON.stringify(instructions.filter(i => i.source === 'user'), null, 2)}
+## CRITICAL RULES:
+1. For constraints with SPECIFIC VALUES (numbers, keywords, ratios), the EXACT values must appear in the query
+2. A vague/generic statement is NOT the same as the specific constraint
+3. Numbers can be written in words (e.g., "venticinque" = 25 in Italian)
+4. If the constraint has min_fraction/max_fraction for case_ratio, the query MUST mention something about uppercase/lowercase ratio - NOT just "consistent spelling"
 
-**2. LLM_JUDGE (all of them - these define what the response should achieve):**
+## CONSTRAINTS TO CHECK (source:"user" only):
+${constraintDescriptions}
+
+## RAW INSTRUCTION DATA:
+${JSON.stringify(userInstructions, null, 2)}
+
+## LLM_JUDGE TO CHECK:
 ${JSON.stringify(llmJudge, null, 2)}
 
-**USER QUERY:**
+## USER QUERY:
 ${extractedData.userQuery}
 
-RULES:
-- For instructions: the requirement must appear naturally in the query text
-- For llm_judge: the TOPIC/REQUEST described must be naturally requested by the user
+## STRICT VALIDATION:
+For EACH constraint:
+- If it has specific values (numbers, keywords, ratios) → those values MUST appear explicitly
+- "mantieni un'ortografia coerente" is NOT the same as "case_ratio min 1/4 max 1920/72"
+- Generic statements should be marked as FAIL for specific constraints
 
 Respond with JSON:
-{"constraints":[{"id":"instruction_id or llm_judge_uid","type":"instruction|llm_judge","status":"PASS|FAIL","quote":"exact quote from query"}],"issues":[]}`;
+{"constraints":[{"id":"instruction_id or llm_judge_uid","type":"instruction|llm_judge","status":"PASS|FAIL","quote":"exact quote from query that proves it, or 'NOT FOUND'","reason":"why pass or fail"}],"issues":["list of constraints that are HIDDEN (not explicit in query)"]}`;
 
             try {
                 const result = await callAPI(provider, apiKey, prompt);
@@ -1471,7 +1755,7 @@ Respond with JSON: {"semantic_failed":N,"llm_judge_failed":N,"details":[{"id":"i
                 const jsonMatch = result.match(/\{[\s\S]*\}/);
                 if (jsonMatch) {
                     const data = JSON.parse(jsonMatch[0]);
-                    let html = '<table class="result-table"><thead><tr><th>Type</th><th>Constraint</th><th>Quote</th><th>Status</th></tr></thead><tbody>';
+                    let html = '<table class="result-table"><thead><tr><th>Type</th><th>Constraint</th><th>Evidence</th><th>Reason</th><th>Status</th></tr></thead><tbody>';
 
                     // Handle both old format (constraints array) and new format (separate arrays)
                     const constraints = data.constraints || [];
@@ -1479,18 +1763,19 @@ Respond with JSON: {"semantic_failed":N,"llm_judge_failed":N,"details":[{"id":"i
                     for (const c of constraints) {
                         const statusClass = c.status === 'PASS' ? 'pass' : 'fail';
                         const typeLabel = c.type === 'llm_judge' ? 'LLM Judge' : 'Instruction';
-                        html += `<tr>
+                        html += `<tr class="${statusClass === 'fail' ? 'row-fail' : ''}">
                             <td><span class="constraint-id">${typeLabel}</span></td>
                             <td><span class="constraint-name">${escapeHtml(c.id)}</span></td>
-                            <td><span class="quote">${escapeHtml(c.quote || '-')}</span></td>
+                            <td><span class="quote" style="max-width:200px;display:block;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(c.quote || '-')}</span></td>
+                            <td style="font-size:0.8rem;color:var(--text-muted)">${escapeHtml(c.reason || '-')}</td>
                             <td><span class="status-pill ${statusClass}">${c.status}</span></td>
                         </tr>`;
                     }
                     html += '</tbody></table>';
                     if (data.issues?.length > 0) {
-                        html += '<div class="issues-box"><h4>Issues Found</h4><ul>';
+                        html += '<div class="issues-box" style="background:linear-gradient(135deg, #2f1a1a 0%, #1a0d0d 100%); border:1px solid #5a2d2d;"><h4 style="color:#f87171;">🚨 Hidden Constraints (NOT in user query)</h4><ul>';
                         for (const issue of data.issues) {
-                            html += `<li class="issue-fail">${escapeHtml(issue)}</li>`;
+                            html += `<li class="issue-fail" style="color:#fca5a5;">${escapeHtml(issue)}</li>`;
                         }
                         html += '</ul></div>';
                     }
@@ -1592,23 +1877,149 @@ Respond with JSON: {"semantic_failed":N,"llm_judge_failed":N,"details":[{"id":"i
         }
 
         function formatModelResults(allResults, failureCount) {
+            // Count notebook results from validator_assistant data
+            let notebookFailCount = 0;
+            const notebookResults = [];
+
+            console.log('formatModelResults - extractedData.validatorAssistant:', extractedData.validatorAssistant);
+            console.log('formatModelResults - extractedData.modelResponses:', extractedData.modelResponses);
+
+            for (const model of extractedData.modelResponses) {
+                // Try to find validator_assistant data for this model
+                const va = extractedData.validatorAssistant[model.name];
+                console.log(`Looking for ${model.name}:`, va);
+
+                if (va && va.checks) {
+                    const total = va.checks.length;
+                    const failed = va.checks.filter(c => c.status === 'Failed' || c.status === 'FAIL').length;
+                    const passed = va.checks.filter(c => c.status === 'Passed' || c.status === 'PASS').length;
+                    const failRate = total > 0 ? (failed / total * 100).toFixed(1) : 0;
+                    const meets50 = parseFloat(failRate) >= 50;
+                    if (meets50) notebookFailCount++;
+
+                    notebookResults.push({
+                        name: model.name,
+                        total,
+                        passed,
+                        failed,
+                        failRate,
+                        meets50,
+                        checks: va.checks
+                    });
+                } else {
+                    // No validator_assistant data found for this model
+                    notebookResults.push({
+                        name: model.name,
+                        total: 0,
+                        passed: 0,
+                        failed: 0,
+                        failRate: '?',
+                        meets50: null,
+                        checks: [],
+                        noData: true
+                    });
+                }
+            }
+
+            // Summary - both sources
             let html = `<div class="summary-card" style="margin-top:16px">
+                <div class="summary-title" style="margin-bottom:12px">Model Breaking Rule: ≥3 of 4 must fail ≥50%</div>
                 <div class="summary-grid">
-                    <div class="summary-item ${failureCount >= 3 ? 'pass' : 'fail'}">
-                        <div class="num">${failureCount}/${allResults.length}</div>
-                        <div class="label">Meet ≥50% Failure</div>
+                    <div class="summary-item" style="background:linear-gradient(135deg, #1a2f1a 0%, #0d1a0d 100%); border: 1px solid #2d5a2d;">
+                        <div class="num" style="color:#4ade80">${notebookFailCount}/${notebookResults.length}</div>
+                        <div class="label" style="color:#a3e635">NOTEBOOK (validator_assistant)</div>
                     </div>
+                    <div class="summary-item" style="background:linear-gradient(135deg, #2f2f1a 0%, #1a1a0d 100%); border: 1px solid #5a5a2d;">
+                        <div class="num" style="color:#fde047">${failureCount}/${allResults.length}</div>
+                        <div class="label" style="color:#fef08a">SCRIPT (nossa validação)</div>
+                    </div>
+                </div>
+                <div style="text-align:center; margin-top:12px; padding:8px; background:${(notebookFailCount >= 3 && failureCount >= 3) ? 'linear-gradient(135deg, #1a2f1a 0%, #0d1a0d 100%)' : (notebookFailCount >= 3 !== failureCount >= 3) ? 'linear-gradient(135deg, #2f2f1a 0%, #1a1a0d 100%)' : 'linear-gradient(135deg, #2f1a1a 0%, #1a0d0d 100%)'}; border-radius:8px; border:1px solid ${(notebookFailCount >= 3 && failureCount >= 3) ? '#2d5a2d' : (notebookFailCount >= 3 !== failureCount >= 3) ? '#5a5a2d' : '#5a2d2d'};">
+                    <strong style="color:${(notebookFailCount >= 3 && failureCount >= 3) ? '#4ade80' : (notebookFailCount >= 3 !== failureCount >= 3) ? '#fde047' : '#f87171'};">
+                        ${(notebookFailCount >= 3 && failureCount >= 3) ? '✓ PASS (ambos concordam)' : (notebookFailCount >= 3 !== failureCount >= 3) ? '⚠ NEEDS REVIEW (divergência)' : '✗ FAIL (ambos concordam)'}
+                    </strong>
                 </div>
             </div>`;
 
-            html += '<table class="result-table"><thead><tr><th>Model</th><th>Result</th></tr></thead><tbody>';
-            for (const r of allResults) {
-                html += `<tr>
-                    <td><span class="constraint-name">${r.name}</span></td>
-                    <td><pre style="margin:0;font-size:0.8rem;white-space:pre-wrap">${escapeHtml(r.error || r.result)}</pre></td>
-                </tr>`;
+            // Two parallel tables
+            html += `<div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:16px;">`;
+
+            // NOTEBOOK table (left)
+            html += `<div style="background:linear-gradient(135deg, #1a2f1a 0%, #0d1a0d 100%); border:1px solid #2d5a2d; border-radius:8px; padding:12px;">
+                <h4 style="color:#4ade80; margin:0 0 12px 0; display:flex; align-items:center; gap:6px;">
+                    <span style="background:#4ade80; color:#0d1a0d; padding:2px 6px; border-radius:4px; font-size:0.7rem;">NOTEBOOK</span>
+                    validator_assistant (da tarefa)
+                </h4>
+                <table class="result-table" style="font-size:0.8rem;">
+                    <thead><tr style="background:#1a3d1a"><th>Model</th><th>Pass</th><th>Fail</th><th>Fail%</th><th>≥50%</th></tr></thead>
+                    <tbody>`;
+
+            for (const r of notebookResults) {
+                if (r.noData) {
+                    html += `<tr style="background:rgba(251,191,36,0.1)">
+                        <td><strong>${escapeHtml(r.name.replace('assistant_', ''))}</strong></td>
+                        <td colspan="3" style="color:#fbbf24; text-align:center">⚠ validator_assistant não encontrado</td>
+                        <td style="text-align:center; color:#fbbf24">?</td>
+                    </tr>`;
+                } else {
+                    html += `<tr class="${r.meets50 ? 'row-pass' : 'row-fail'}">
+                        <td><strong>${escapeHtml(r.name.replace('assistant_', ''))}</strong></td>
+                        <td style="color:#4ade80">${r.passed}</td>
+                        <td style="color:#f87171">${r.failed}</td>
+                        <td><strong>${r.failRate}%</strong></td>
+                        <td style="text-align:center; font-weight:bold; color:${r.meets50 ? '#4ade80' : '#f87171'}">${r.meets50 ? '✓' : '✗'}</td>
+                    </tr>`;
+                }
             }
-            html += '</tbody></table>';
+
+            html += `</tbody></table>
+                <div style="margin-top:8px; text-align:center; font-weight:bold; color:${notebookFailCount >= 3 ? '#4ade80' : '#f87171'};">
+                    Total: ${notebookFailCount}/${notebookResults.length} ≥50% ${notebookFailCount >= 3 ? '✓' : '✗'}
+                </div>
+            </div>`;
+
+            // SCRIPT table (right)
+            html += `<div style="background:linear-gradient(135deg, #2f2f1a 0%, #1a1a0d 100%); border:1px solid #5a5a2d; border-radius:8px; padding:12px;">
+                <h4 style="color:#fde047; margin:0 0 12px 0; display:flex; align-items:center; gap:6px;">
+                    <span style="background:#fde047; color:#1a1a0d; padding:2px 6px; border-radius:4px; font-size:0.7rem;">SCRIPT</span>
+                    Nossa validação (NvidiaValidator)
+                </h4>
+                <table class="result-table" style="font-size:0.8rem;">
+                    <thead><tr style="background:#3d3d1a"><th>Model</th><th>Mech</th><th>Sem</th><th>LLM</th><th>Fail%</th><th>≥50%</th></tr></thead>
+                    <tbody>`;
+
+            for (const r of allResults) {
+                try {
+                    const data = JSON.parse(r.result);
+                    const meets50 = data.meets_50_percent;
+                    html += `<tr class="${meets50 ? 'row-pass' : 'row-fail'}">
+                        <td><strong>${escapeHtml(r.name.replace('assistant_', ''))}</strong></td>
+                        <td style="color:#f87171">${data.mechanical_failed || 0}</td>
+                        <td style="color:#fb923c">${data.semantic_failed || 0}</td>
+                        <td style="color:#c084fc">${data.llm_judge_failed || 0}</td>
+                        <td><strong>${data.failure_rate}</strong></td>
+                        <td style="text-align:center; font-weight:bold; color:${meets50 ? '#4ade80' : '#f87171'}">${meets50 ? '✓' : '✗'}</td>
+                    </tr>`;
+                } catch (e) {
+                    html += `<tr><td colspan="6">${escapeHtml(r.name)}: Error</td></tr>`;
+                }
+            }
+
+            html += `</tbody></table>
+                <div style="margin-top:8px; text-align:center; font-weight:bold; color:${failureCount >= 3 ? '#4ade80' : '#f87171'};">
+                    Total: ${failureCount}/${allResults.length} ≥50% ${failureCount >= 3 ? '✓' : '✗'}
+                </div>
+            </div>`;
+
+            html += `</div>`; // end grid
+
+            // Explanation
+            html += `<div style="font-size:11px; color:var(--text-muted); margin-top:12px; padding:8px; background:var(--bg-tertiary); border-radius:4px;">
+                <strong>NOTEBOOK (Verde):</strong> Dados do validator_assistant que já existem na tarefa - validação real da NVIDIA<br>
+                <strong>SCRIPT (Amarelo):</strong> Nossa validação local usando NvidiaValidator - para conferência<br>
+                <strong>Decisão Final:</strong> Se ambos concordam → resultado confiável | Se divergem → revisar manualmente
+            </div>`;
+
             return html;
         }
 

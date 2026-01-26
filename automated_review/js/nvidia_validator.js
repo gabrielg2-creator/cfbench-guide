@@ -31,6 +31,7 @@ function countLowercaseWords(response) {
 /**
  * Count frequency of a keyword in response, ensuring it's a full word or phrase.
  * Ported from Python: keyword_frequency()
+ * Fixed: Now works with Unicode/accented characters (Italian, Portuguese, etc.)
  */
 function keywordFrequency(response, keyword) {
     if (!keyword || !response) return 0;
@@ -42,10 +43,37 @@ function keywordFrequency(response, keyword) {
     );
     const phrasePattern = escapedTokens.join('\\s+');
 
-    // Use word boundaries - lookbehind/lookahead for word chars, apostrophes, hyphens
-    // Note: JavaScript doesn't support lookbehind in all browsers, so we use \b
-    const pattern = new RegExp(`\\b${phrasePattern}\\b`, 'gi');
-    return (response.match(pattern) || []).length;
+    // Use Unicode-aware word boundaries
+    // \b doesn't work with accented characters like à, è, ì, ò, ù
+    // Instead, use lookbehind/lookahead for non-letter characters or start/end
+    // Pattern: (?<![a-zA-ZÀ-ÿ])keyword(?![a-zA-ZÀ-ÿ])
+    try {
+        // Modern browsers support lookbehind
+        const pattern = new RegExp(`(?<![a-zA-ZÀ-ÿ])${phrasePattern}(?![a-zA-ZÀ-ÿ])`, 'gi');
+        return (response.match(pattern) || []).length;
+    } catch (e) {
+        // Fallback for older browsers: use simpler approach
+        // Convert to lowercase and count occurrences with space/punctuation boundaries
+        const lowerResponse = response.toLowerCase();
+        const lowerKeyword = keyword.toLowerCase();
+        let count = 0;
+        let pos = 0;
+
+        while ((pos = lowerResponse.indexOf(lowerKeyword, pos)) !== -1) {
+            const before = pos === 0 ? ' ' : lowerResponse[pos - 1];
+            const after = pos + lowerKeyword.length >= lowerResponse.length ? ' ' : lowerResponse[pos + lowerKeyword.length];
+
+            // Check if it's a word boundary (not a letter before/after)
+            const isWordBoundaryBefore = !/[a-zA-ZÀ-ÿ]/.test(before);
+            const isWordBoundaryAfter = !/[a-zA-ZÀ-ÿ]/.test(after);
+
+            if (isWordBoundaryBefore && isWordBoundaryAfter) {
+                count++;
+            }
+            pos++;
+        }
+        return count;
+    }
 }
 
 /**
@@ -219,6 +247,42 @@ function validateInstruction(response, instType, kwargs) {
             const count = countLowercaseWords(response);
             const valid = checkRelation(count, kwargs.lowercase_relation, kwargs.lowercase_frequency);
             return { valid, note: `Found ${count} lowercase words (expected ${kwargs.lowercase_relation} ${kwargs.lowercase_frequency})` };
+        }
+
+        if (instType === 'change_case:case_ratio') {
+            // Count lowercase and uppercase letters
+            const lowercase = (response.match(/[a-zà-ÿ]/g) || []).length;
+            const uppercase = (response.match(/[A-ZÀ-ß]/g) || []).length;
+
+            if (uppercase === 0) {
+                // If no uppercase, ratio is infinite
+                const maxFrac = kwargs.max_fraction;
+                if (maxFrac === 'inf') {
+                    return { valid: true, note: `Ratio: ${lowercase}/0 (infinite), max allowed: inf` };
+                }
+                return { valid: false, note: `Ratio: ${lowercase}/0 (infinite), but max_fraction is ${maxFrac}` };
+            }
+
+            const ratio = lowercase / uppercase;
+
+            // Parse fractions
+            const parseFraction = (str) => {
+                if (str === 'inf') return Infinity;
+                if (str.includes('/')) {
+                    const [num, den] = str.split('/').map(Number);
+                    return num / den;
+                }
+                return parseFloat(str);
+            };
+
+            const minRatio = parseFraction(kwargs.min_fraction || '0');
+            const maxRatio = parseFraction(kwargs.max_fraction || 'inf');
+
+            const valid = ratio >= minRatio && ratio <= maxRatio;
+            return {
+                valid,
+                note: `Ratio: ${lowercase}/${uppercase} = ${ratio.toFixed(2)} (expected ${kwargs.min_fraction} to ${kwargs.max_fraction} = ${minRatio.toFixed(2)} to ${maxRatio === Infinity ? 'inf' : maxRatio.toFixed(2)})`
+            };
         }
 
         // === KEYWORDS ===
