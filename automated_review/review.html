@@ -350,6 +350,42 @@
         .issues-box .issue-pass { color: var(--success); }
         .issues-box .issue-fail { color: var(--danger); }
 
+        /* JSON Status Compact */
+        .json-status-compact {
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            padding: 10px 14px;
+            margin-bottom: 12px;
+        }
+        .json-status-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .json-status-title {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+        .json-status-summary { display: flex; gap: 8px; }
+        .pill-ok { color: #4ade80; font-size: 0.75rem; }
+        .pill-error { color: #f87171; font-size: 0.75rem; }
+        .json-status-pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .json-pill {
+            font-size: 0.7rem;
+            padding: 3px 8px;
+            border-radius: 4px;
+            background: var(--bg-secondary);
+            cursor: default;
+        }
+        .json-pill.valid { color: #4ade80; }
+        .json-pill.invalid { color: #f87171; border: 1px solid #f8717133; }
+
         /* Spinner */
         .spinner {
             display: inline-block;
@@ -922,7 +958,7 @@
                         if (userMatch) parseLimitString(userMatch[1], extractedData.limits.userPrompt);
 
                         // Extract expected turn count from metadata
-                        const turnMatch = extractedData.metadata.match(/\*\*(?:Number of Turns|Turn Count|Turns):\*\*\s*(\d+)/i);
+                        const turnMatch = extractedData.metadata.match(/\*\*(?:Number of Turns|Turn Count|Turns):\*\*\s*-?\s*(\d+)/i);
                         if (turnMatch) {
                             extractedData.turnCount.expected = parseInt(turnMatch[1]);
                         }
@@ -1133,7 +1169,7 @@
 
             // Extract expected turn count from metadata (regex fallback)
             if (extractedData.metadata) {
-                const turnMatch = extractedData.metadata.match(/\*\*(?:Number of Turns|Turn Count|Turns):\*\*\s*(\d+)/i);
+                const turnMatch = extractedData.metadata.match(/\*\*(?:Number of Turns|Turn Count|Turns):\*\*\s*-?\s*(\d+)/i);
                 if (turnMatch) {
                     extractedData.turnCount.expected = parseInt(turnMatch[1]);
                 }
@@ -1416,40 +1452,50 @@
         async function runCheck0(apiKey, provider) {
             setCheckStatus(0, 'running');
 
-            // First, show JSON status for all validator cells
-            let jsonStatusHtml = '<div class="issues-box" style="margin-bottom:16px;"><h4>📋 JSON Parsing Status</h4>';
+            // First, show JSON status for all validator cells - Compact Pills Design
+            let jsonStatusHtml = '';
 
             if (extractedData.jsonStatus && extractedData.jsonStatus.length > 0) {
                 const validCount = extractedData.jsonStatus.filter(j => j.valid).length;
                 const invalidCount = extractedData.jsonStatus.filter(j => !j.valid).length;
 
-                jsonStatusHtml += `<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(250px, 1fr)); gap:8px; margin-top:8px;">`;
-                for (const js of extractedData.jsonStatus) {
-                    const color = js.valid ? '#4ade80' : '#f87171';
-                    const icon = js.valid ? '✓' : '✗';
-                    jsonStatusHtml += `<div style="display:flex; align-items:center; gap:8px; padding:6px 10px; background:var(--bg-tertiary); border-radius:6px;">
-                        <span style="color:${color}; font-weight:bold;">${icon}</span>
-                        <span style="flex:1;">${escapeHtml(js.cell)}</span>
-                        ${js.error ? `<span style="color:#f87171; font-size:0.75rem;">${escapeHtml(js.error.substring(0, 30))}</span>` : ''}
-                    </div>`;
-                }
-                jsonStatusHtml += `</div>`;
-                jsonStatusHtml += `<div style="margin-top:8px; font-size:0.85rem;">
-                    <span style="color:#4ade80;">✓ ${validCount} válidos</span>
-                    ${invalidCount > 0 ? `<span style="color:#f87171; margin-left:12px;">✗ ${invalidCount} inválidos</span>` : ''}
+                jsonStatusHtml = `<div class="json-status-compact">
+                    <div class="json-status-header">
+                        <span class="json-status-title">📋 JSON Status</span>
+                        <span class="json-status-summary">
+                            ${validCount > 0 ? `<span class="pill-ok">✓ ${validCount} OK</span>` : ''}
+                            ${invalidCount > 0 ? `<span class="pill-error">✗ ${invalidCount} Error</span>` : ''}
+                        </span>
+                    </div>
+                    <div class="json-status-pills">
+                        ${extractedData.jsonStatus.map(js => `
+                            <span class="json-pill ${js.valid ? 'valid' : 'invalid'}"
+                                  ${js.error ? `title="${escapeHtml(js.error)}"` : ''}>
+                                ${js.valid ? '✓' : '✗'} ${escapeHtml(js.cell.replace('validator_', '').replace('assistant_', ''))}
+                            </span>
+                        `).join('')}
+                    </div>
                 </div>`;
             } else {
-                jsonStatusHtml += `<p style="color:var(--text-muted);">Nenhum JSON de validação encontrado. Verifique se o arquivo tem as células validator_assistant e validator_human.</p>`;
+                jsonStatusHtml = `<div class="json-status-compact">
+                    <div class="json-status-header">
+                        <span class="json-status-title">📋 JSON Status</span>
+                    </div>
+                    <p style="color:var(--text-muted); font-size:0.8rem; margin:0;">Nenhum JSON de validação encontrado.</p>
+                </div>`;
             }
-            jsonStatusHtml += '</div>';
 
-            // Show validator_assistant data found
+            // Show validator_assistant data found - Compact style
             const vaKeys = Object.keys(extractedData.validatorAssistant);
             const vhKeys = Object.keys(extractedData.validatorHuman);
-            jsonStatusHtml += `<div class="issues-box" style="margin-bottom:16px;">
-                <h4>🔍 Dados Extraídos</h4>
-                <p><strong>validator_assistant:</strong> ${vaKeys.length > 0 ? vaKeys.join(', ') : '<span style="color:#fbbf24;">Nenhum encontrado</span>'}</p>
-                <p><strong>validator_human:</strong> ${vhKeys.length > 0 ? vhKeys.join(', ') : '<span style="color:#fbbf24;">Nenhum encontrado</span>'}</p>
+            jsonStatusHtml += `<div class="json-status-compact">
+                <div class="json-status-header">
+                    <span class="json-status-title">🔍 Dados Extraídos</span>
+                </div>
+                <div style="font-size:0.75rem; color:var(--text-secondary);">
+                    <div style="margin-bottom:4px;"><strong>validator_assistant:</strong> ${vaKeys.length > 0 ? vaKeys.join(', ') : '<span style="color:#fbbf24;">Nenhum</span>'}</div>
+                    <div><strong>validator_human:</strong> ${vhKeys.length > 0 ? vhKeys.join(', ') : '<span style="color:#fbbf24;">Nenhum</span>'}</div>
+                </div>
             </div>`;
 
             // Turn Count Validation
@@ -1584,6 +1630,13 @@ Examples: "Above 1000" → min:1000,max:null | "50-100" → min:50,max:100`;
    - Example: "sei paragrafi" = "6 paragraphs" = PASS
    - Example: "meno di venti frasi" = "less than 20 sentences" = PASS for num_sentences < 20
 4. If the constraint has min_fraction/max_fraction for case_ratio, the query MUST mention something about uppercase/lowercase ratio - NOT just "consistent spelling"
+5. **CRITICAL - SEMANTIC MATCHING FOR LLM_JUDGE:**
+   - The llm_judge content is in ENGLISH but the user query may be in ANY language
+   - You MUST perform SEMANTIC matching, not textual matching
+   - If the query asks for the SAME THING in a different language, it's a PASS
+   - Example: llm_judge="professional quality" + query="qualità professionale" = PASS
+   - Example: llm_judge="business analysis" + query="analisi aziendale" = PASS
+   - Focus on the MEANING, not the exact words
 
 ## CONSTRAINTS TO CHECK (source:"user" only):
 ${constraintDescriptions}
@@ -1607,7 +1660,9 @@ For EACH constraint:
 1. ALL instructions from the INSTRUCTIONS list above
 2. ALL items from the LLM_JUDGE list above
 
-For LLM_JUDGE items, check if the USER QUERY naturally requests what the llm_judge evaluates (the topic/task described in the "content" field).
+For LLM_JUDGE items, check if the USER QUERY SEMANTICALLY requests what the llm_judge evaluates.
+IMPORTANT: The query may be in a DIFFERENT LANGUAGE than the llm_judge (which is in English).
+Accept TRANSLATIONS as valid - if the meaning is the same, it's a PASS even if the words are different.
 
 Respond with JSON containing ALL constraints (both instructions AND llm_judge):
 {"constraints":[{"id":"instruction_id or llm_judge uid","type":"instruction|llm_judge","status":"PASS|FAIL","quote":"exact quote from query that proves it, or 'NOT FOUND'","reason":"why pass or fail"}],"issues":["list of constraints that are HIDDEN (not explicit in query)"]}`;
@@ -2134,14 +2189,14 @@ Respond with JSON: {"semantic_failed":N,"llm_judge_failed":N,"details":[{"id":"i
                 </div>
             </div>`;
 
-            // SCRIPT table (right)
+            // SCRIPT table (right) - Simplified like NOTEBOOK
             html += `<div style="background:linear-gradient(135deg, #2f2f1a 0%, #1a1a0d 100%); border:1px solid #5a5a2d; border-radius:8px; padding:12px;">
                 <h4 style="color:#fde047; margin:0 0 12px 0; display:flex; align-items:center; gap:6px;">
                     <span style="background:#fde047; color:#1a1a0d; padding:2px 6px; border-radius:4px; font-size:0.7rem;">SCRIPT</span>
                     Nossa validação (NvidiaValidator)
                 </h4>
                 <table class="result-table" style="font-size:0.8rem;">
-                    <thead><tr style="background:#3d3d1a"><th>Model</th><th>Mech</th><th>Sem</th><th>LLM</th><th>Fail%</th><th>≥50%</th></tr></thead>
+                    <thead><tr style="background:#3d3d1a"><th>Model</th><th>Pass</th><th>Fail</th><th>Fail%</th><th>≥50%</th></tr></thead>
                     <tbody>`;
 
             for (const r of allResults) {
@@ -2150,14 +2205,13 @@ Respond with JSON: {"semantic_failed":N,"llm_judge_failed":N,"details":[{"id":"i
                     const meets50 = data.meets_50_percent;
                     html += `<tr class="${meets50 ? 'row-pass' : 'row-fail'}">
                         <td><strong>${escapeHtml(r.name.replace('assistant_', ''))}</strong></td>
-                        <td style="color:#f87171">${data.mechanical_failed || 0}</td>
-                        <td style="color:#fb923c">${data.semantic_failed || 0}</td>
-                        <td style="color:#c084fc">${data.llm_judge_failed || 0}</td>
+                        <td style="color:#4ade80">${data.passed || 0}</td>
+                        <td style="color:#f87171">${data.failed || 0}</td>
                         <td><strong>${data.failure_rate}</strong></td>
                         <td style="text-align:center; font-weight:bold; color:${meets50 ? '#4ade80' : '#f87171'}">${meets50 ? '✓' : '✗'}</td>
                     </tr>`;
                 } catch (e) {
-                    html += `<tr><td colspan="6">${escapeHtml(r.name)}: Error</td></tr>`;
+                    html += `<tr><td colspan="5">${escapeHtml(r.name)}: Error</td></tr>`;
                 }
             }
 
