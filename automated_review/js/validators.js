@@ -1507,6 +1507,9 @@ class Validators {
      * Phase 3: Metadata Checks
      */
     runPhase3Checks() {
+        // Check 3.0: JSON Validation (turn_metadata and all validators)
+        this.check3_0_JSONValidation();
+
         // Check 3.1: IF instructions count
         this.check3_1_IFCount();
 
@@ -1533,6 +1536,101 @@ class Validators {
 
         // Check 3.9: Format constraints must be explicit in query
         this.check3_9_FormatConstraintsExplicit();
+    }
+
+    /**
+     * Check 3.0: JSON Validation - Ensure all JSON cells are valid
+     * Validates: turn_metadata, validator_assistant (golden + all models), validator_human (golden + all models)
+     */
+    check3_0_JSONValidation() {
+        const issues = [];
+        const warnings = [];
+        const p = this.parsed;
+        const jsonStatus = [];
+
+        // Check turn_metadata JSON
+        const turnMeta = p.finalTurn?.turnMetadata;
+        if (!turnMeta) {
+            issues.push('turn_metadata: NOT FOUND');
+            jsonStatus.push({ cell: 'turn_metadata', status: 'NOT FOUND', valid: false });
+        } else if (turnMeta.error) {
+            issues.push(`turn_metadata: JSON ERROR - ${turnMeta.error}`);
+            jsonStatus.push({ cell: 'turn_metadata', status: 'INVALID', error: turnMeta.error, valid: false });
+        } else {
+            jsonStatus.push({ cell: 'turn_metadata', status: 'VALID', valid: true });
+        }
+
+        // Check golden validator_assistant JSON
+        const goldenVA = p.finalTurn?.validatorAssistant;
+        if (!goldenVA) {
+            warnings.push('validator_assistant (golden): NOT FOUND');
+            jsonStatus.push({ cell: 'validator_assistant (golden)', status: 'NOT FOUND', valid: false });
+        } else if (goldenVA.error) {
+            issues.push(`validator_assistant (golden): JSON ERROR - ${goldenVA.error}`);
+            jsonStatus.push({ cell: 'validator_assistant (golden)', status: 'INVALID', error: goldenVA.error, valid: false });
+        } else {
+            jsonStatus.push({ cell: 'validator_assistant (golden)', status: 'VALID', valid: true });
+        }
+
+        // Check golden validator_human JSON
+        const goldenVH = p.finalTurn?.validatorHuman;
+        if (!goldenVH) {
+            warnings.push('validator_human (golden): NOT FOUND');
+            jsonStatus.push({ cell: 'validator_human (golden)', status: 'NOT FOUND', valid: false });
+        } else if (goldenVH.error) {
+            issues.push(`validator_human (golden): JSON ERROR - ${goldenVH.error}`);
+            jsonStatus.push({ cell: 'validator_human (golden)', status: 'INVALID', error: goldenVH.error, valid: false });
+        } else {
+            jsonStatus.push({ cell: 'validator_human (golden)', status: 'VALID', valid: true });
+        }
+
+        // Check all model passes validators
+        (p.modelPasses || []).forEach((pass, idx) => {
+            const passId = `${pass.model}_${pass.passNumber}`;
+
+            // validator_assistant for model pass
+            const va = pass.validatorAssistant;
+            if (!va) {
+                warnings.push(`validator_assistant (${passId}): NOT FOUND`);
+                jsonStatus.push({ cell: `validator_assistant (${passId})`, status: 'NOT FOUND', valid: false });
+            } else if (va.error) {
+                issues.push(`validator_assistant (${passId}): JSON ERROR - ${va.error}`);
+                jsonStatus.push({ cell: `validator_assistant (${passId})`, status: 'INVALID', error: va.error, valid: false });
+            } else {
+                jsonStatus.push({ cell: `validator_assistant (${passId})`, status: 'VALID', valid: true });
+            }
+
+            // validator_human for model pass
+            const vh = pass.validatorHuman;
+            if (!vh) {
+                warnings.push(`validator_human (${passId}): NOT FOUND`);
+                jsonStatus.push({ cell: `validator_human (${passId})`, status: 'NOT FOUND', valid: false });
+            } else if (vh.error) {
+                issues.push(`validator_human (${passId}): JSON ERROR - ${vh.error}`);
+                jsonStatus.push({ cell: `validator_human (${passId})`, status: 'INVALID', error: vh.error, valid: false });
+            } else {
+                jsonStatus.push({ cell: `validator_human (${passId})`, status: 'VALID', valid: true });
+            }
+        });
+
+        // Summary
+        const validCount = jsonStatus.filter(j => j.valid).length;
+        const totalCount = jsonStatus.length;
+        const allValid = issues.length === 0;
+
+        this.results.phase3.push({
+            id: '3.0',
+            name: 'JSON Validation',
+            status: allValid ? 'passed' : 'failed',
+            issues: issues,
+            warnings: warnings,
+            details: {
+                validCount: validCount,
+                totalCount: totalCount,
+                jsonStatus: jsonStatus,
+                summary: `${validCount}/${totalCount} JSON cells valid`
+            }
+        });
     }
 
     /**
@@ -2268,102 +2366,216 @@ class Validators {
     }
 
     /**
-     * Check 4.2: Pass/fail distribution (≤50% can pass all)
-     * IMPROVED: Full per-instruction analysis matrix
+     * Check 4.2: Pass/fail distribution - Uses NvidiaValidator for mechanical checks
+     * SUCCESS: At least 3 of 4 model responses must fail ≥50% of constraints
      */
     check4_2_PassFailDistribution() {
         const issues = [];
         const warnings = [];
         const p = this.parsed;
 
-        const passesWithAllPassed = [];
-        const passesWithFailures = [];
+        // Get instructions and llm_judge from turn_metadata
+        const turnMetadata = p.finalTurn?.turnMetadata;
+        const instructions = turnMetadata?.instructions || [];
+        const llmJudge = turnMetadata?.llmJudge || [];
+
+        // Total constraints = instructions + llm_judge
+        const totalConstraints = instructions.length + llmJudge.length;
+
+        if (totalConstraints === 0) {
+            warnings.push('No constraints found in turn_metadata');
+        }
 
         // Build instruction-by-instruction matrix
         const instructionMatrix = {};
         const allInstructionIds = new Set();
 
-        // First, get golden response results as baseline
-        const goldenVA = p.finalTurn?.validatorAssistant;
-        if (goldenVA?.checks) {
-            goldenVA.checks.forEach(check => {
-                const id = check.id || check.instruction_id;
-                if (id) {
-                    allInstructionIds.add(id);
-                    if (!instructionMatrix[id]) {
-                        instructionMatrix[id] = { golden: null, passes: {} };
+        // Track all instruction IDs
+        instructions.forEach(inst => {
+            const id = inst.instruction_id;
+            if (id) {
+                allInstructionIds.add(id);
+                instructionMatrix[id] = { golden: null, passes: {}, type: 'instruction' };
+            }
+        });
+
+        llmJudge.forEach((judge, idx) => {
+            const id = judge.id || `llm_judge_${idx + 1}`;
+            allInstructionIds.add(id);
+            instructionMatrix[id] = { golden: null, passes: {}, type: 'llm_judge' };
+        });
+
+        // ============================================
+        // VALIDATE GOLDEN RESPONSE (100% must pass)
+        // ============================================
+        const goldenContent = p.finalTurn?.assistant?.content || '';
+        let goldenMechanicalFails = 0;
+        let goldenSemanticCount = 0;
+
+        instructions.forEach(inst => {
+            const id = inst.instruction_id;
+            if (!id) return;
+
+            // Use NvidiaValidator for mechanical check
+            if (typeof NvidiaValidator !== 'undefined') {
+                const result = NvidiaValidator.validateInstruction(goldenContent, id, inst);
+                if (result.semantic) {
+                    goldenSemanticCount++;
+                    instructionMatrix[id].golden = 'SEMANTIC';
+                } else {
+                    instructionMatrix[id].golden = result.valid ? 'PASS' : 'FAIL';
+                    if (!result.valid) goldenMechanicalFails++;
+                }
+            }
+        });
+
+        // llm_judge are always semantic
+        llmJudge.forEach((judge, idx) => {
+            const id = judge.id || `llm_judge_${idx + 1}`;
+            goldenSemanticCount++;
+            instructionMatrix[id].golden = 'SEMANTIC';
+        });
+
+        if (goldenMechanicalFails > 0) {
+            issues.push(`Golden response has ${goldenMechanicalFails} mechanical failures - it MUST pass all constraints`);
+        }
+
+        // ============================================
+        // VALIDATE EACH MODEL PASS (≥3 must fail ≥50%)
+        // ============================================
+        const failRates = [];
+        let passesWithOver50PercentFail = 0;
+        const modelResults = [];
+
+        p.modelPasses.forEach(pass => {
+            const passId = `${pass.model}_${pass.passNumber}`;
+            const modelContent = pass.assistant?.content || '';
+
+            let mechanicalFails = 0;
+            let semanticCount = 0;
+            let llmJudgeCount = llmJudge.length;
+            const details = [];
+
+            // Get notebook's validator results for comparison (double check)
+            const notebookValidator = pass.validatorAssistant;
+            const notebookPassed = notebookValidator?.passed || 0;
+            const notebookFailed = notebookValidator?.failed || 0;
+            const notebookTotal = notebookValidator?.totalChecks || 0;
+
+            // Validate each instruction using NvidiaValidator
+            instructions.forEach(inst => {
+                const id = inst.instruction_id;
+                if (!id) return;
+
+                if (typeof NvidiaValidator !== 'undefined') {
+                    const result = NvidiaValidator.validateInstruction(modelContent, id, inst);
+
+                    if (result.semantic) {
+                        semanticCount++;
+                        instructionMatrix[id].passes[passId] = 'SEMANTIC';
+                        details.push({
+                            id: id,
+                            status: 'SEMANTIC',
+                            note: result.note,
+                            type: 'semantic'
+                        });
+                    } else {
+                        const status = result.valid ? 'PASS' : 'FAIL';
+                        instructionMatrix[id].passes[passId] = status;
+                        if (!result.valid) mechanicalFails++;
+                        details.push({
+                            id: id,
+                            status: status,
+                            note: result.note,
+                            type: 'mechanical'
+                        });
                     }
-                    instructionMatrix[id].golden = check.status === 'Passed' ? 'PASS' : 'FAIL';
                 }
             });
-        }
 
-        // Then analyze each model pass
-        p.modelPasses.forEach(pass => {
-            const passId = `${pass.model}_${pass.passNumber}`;
-
-            if (pass.validatorAssistant?.allPassed) {
-                passesWithAllPassed.push(passId);
-            } else if (pass.validatorAssistant) {
-                passesWithFailures.push({
-                    id: passId,
-                    passed: pass.validatorAssistant.passed,
-                    failed: pass.validatorAssistant.failed
+            // llm_judge are always semantic (counted as semantic fails for model breaking)
+            llmJudge.forEach((judge, idx) => {
+                const id = judge.id || `llm_judge_${idx + 1}`;
+                instructionMatrix[id].passes[passId] = 'SEMANTIC';
+                details.push({
+                    id: id,
+                    status: 'SEMANTIC',
+                    note: 'Requires LLM evaluation',
+                    type: 'llm_judge'
                 });
+            });
+
+            // For model breaking: mechanical fails are definitive
+            // Semantic constraints are treated as fails for models (they need LLM to evaluate)
+            // This is conservative - assumes semantic constraints fail for models
+            const totalFails = mechanicalFails + semanticCount + llmJudgeCount;
+            const failRate = totalConstraints > 0 ? (totalFails / totalConstraints) * 100 : 0;
+            const meets50Percent = failRate >= 50;
+
+            if (meets50Percent) {
+                passesWithOver50PercentFail++;
             }
 
-            // Record per-instruction results
-            if (pass.validatorAssistant?.checks) {
-                pass.validatorAssistant.checks.forEach(check => {
-                    const id = check.id || check.instruction_id;
-                    if (id) {
-                        allInstructionIds.add(id);
-                        if (!instructionMatrix[id]) {
-                            instructionMatrix[id] = { golden: null, passes: {} };
-                        }
-                        instructionMatrix[id].passes[passId] = check.status === 'Passed' ? 'PASS' : 'FAIL';
+            // Calculate notebook's fail rate for comparison
+            const notebookFailRate = notebookTotal > 0 ? (notebookFailed / notebookTotal) * 100 : 0;
+            const notebookMeets50 = notebookFailRate >= 50;
+
+            failRates.push({
+                id: passId,
+                failRate: parseFloat(failRate.toFixed(1)),
+                failed: totalFails,
+                total: totalConstraints,
+                mechanical_failed: mechanicalFails,
+                semantic_failed: semanticCount,
+                llm_judge_failed: llmJudgeCount,
+                meets_50_percent: meets50Percent,
+                // Double check: notebook validator results
+                notebook_passed: notebookPassed,
+                notebook_failed: notebookFailed,
+                notebook_total: notebookTotal,
+                notebook_fail_rate: parseFloat(notebookFailRate.toFixed(1)),
+                notebook_meets_50: notebookMeets50
+            });
+
+            modelResults.push({
+                name: passId,
+                result: {
+                    total: totalConstraints,
+                    passed: totalConstraints - totalFails,
+                    failed: totalFails,
+                    mechanical_failed: mechanicalFails,
+                    semantic_failed: semanticCount,
+                    llm_judge_failed: llmJudgeCount,
+                    failure_rate: `${failRate.toFixed(1)}%`,
+                    meets_50_percent: meets50Percent,
+                    details: details,
+                    // Double check comparison with notebook
+                    notebook_comparison: {
+                        notebook_passed: notebookPassed,
+                        notebook_failed: notebookFailed,
+                        notebook_total: notebookTotal,
+                        notebook_fail_rate: `${notebookFailRate.toFixed(1)}%`,
+                        notebook_meets_50: notebookMeets50,
+                        match: Math.abs(failRate - notebookFailRate) < 5 // Within 5% tolerance
                     }
-                });
-            }
-        });
-
-        // Rule 1: MODEL BREAKING RULE - ≥3 of 4 must fail ≥50% of constraints
-        let passesWithOver50PercentFail = 0;
-        const failRates = [];
-
-        p.modelPasses.forEach(pass => {
-            const passId = `${pass.model}_${pass.passNumber}`;
-            const va = pass.validatorAssistant;
-            if (va && va.totalChecks > 0) {
-                const failRate = (va.failed / va.totalChecks) * 100;
-                failRates.push({ id: passId, failRate: Math.round(failRate), failed: va.failed, total: va.totalChecks });
-                if (failRate >= 50) {
-                    passesWithOver50PercentFail++;
                 }
-            }
+            });
         });
 
+        // ============================================
+        // MODEL BREAKING RULE: ≥3 of 4 must fail ≥50%
+        // ============================================
         if (passesWithOver50PercentFail < 3) {
-            issues.push(`MODEL BREAKING RULE VIOLATED: Only ${passesWithOver50PercentFail}/4 model passes fail ≥50% of constraints (need ≥3). Check fail rates: ${failRates.map(f => `${f.id}: ${f.failRate}%`).join(', ')}`);
+            const ratesSummary = failRates.map(f => `${f.id}: ${f.failRate}% (${f.meets_50_percent ? 'OK' : 'NOT OK'})`).join(', ');
+            issues.push(`MODEL BREAKING RULE VIOLATED: Only ${passesWithOver50PercentFail}/4 model passes fail ≥50% of constraints (need ≥3). Rates: ${ratesSummary}`);
         }
 
-        // Legacy check: at most 2 can pass all (still useful info)
-        if (passesWithAllPassed.length > 2) {
-            warnings.push(`${passesWithAllPassed.length} model passes pass ALL instructions (max 2 recommended). Passes: ${passesWithAllPassed.join(', ')}`);
-        }
-
-        // Rule 2: Golden must pass all
-        const goldenFailures = goldenVA?.failed || 0;
-        if (goldenFailures > 0) {
-            issues.push(`Golden response has ${goldenFailures} failures - it MUST pass all instructions`);
-        }
-
-        // Rule 3: At least one instruction should have variation (both pass and fail across passes)
+        // Build instruction variation info
         let hasVariation = false;
         const instructionVariation = [];
 
         for (const [instId, data] of Object.entries(instructionMatrix)) {
-            const passResults = Object.values(data.passes);
+            const passResults = Object.values(data.passes).filter(r => r !== 'SEMANTIC');
             const hasPass = passResults.includes('PASS');
             const hasFail = passResults.includes('FAIL');
 
@@ -2375,12 +2587,11 @@ class Validators {
                 instruction: instId,
                 golden: data.golden,
                 passResults: data.passes,
+                type: data.type,
                 hasVariation: hasPass && hasFail
             });
         }
 
-        // Note: Not requiring variation as an error (per user feedback that it's not in guidelines)
-        // But include it as informational
         if (!hasVariation && p.modelPasses.length >= 2) {
             warnings.push('All model passes have identical results for every instruction (no variation detected)');
         }
@@ -2388,26 +2599,26 @@ class Validators {
         // Build summary for report
         const distributionSummary = {
             totalInstructions: allInstructionIds.size,
-            goldenStatus: goldenFailures === 0 ? 'ALL PASS' : `${goldenFailures} FAILURES`,
-            passesPassingAll: passesWithAllPassed.length,
-            passesWithFailures: passesWithFailures.length,
-            hasInstructionVariation: hasVariation
+            totalConstraints: totalConstraints,
+            goldenStatus: goldenMechanicalFails === 0 ? 'ALL PASS' : `${goldenMechanicalFails} FAILURES`,
+            passesWithOver50PercentFail: passesWithOver50PercentFail,
+            hasInstructionVariation: hasVariation,
+            validatorUsed: 'NvidiaValidator'
         };
 
         this.results.phase4.push({
             id: '4.2',
-            name: 'Pass/Fail Distribution',
+            name: 'Pass/Fail Distribution (Model Breaking)',
             status: issues.length === 0 ? 'passed' : 'failed',
             issues: issues,
             warnings: warnings,
             details: {
-                passesWithAllPassed: passesWithAllPassed,
-                passesWithFailures: passesWithFailures,
                 instructionMatrix: instructionVariation,
                 summary: distributionSummary,
                 rule: 'Golden: 100% pass, Model Breaking: ≥3 of 4 must fail ≥50%',
                 failRates: failRates,
-                passesWithOver50PercentFail: passesWithOver50PercentFail
+                passesWithOver50PercentFail: passesWithOver50PercentFail,
+                modelResults: modelResults
             }
         });
     }

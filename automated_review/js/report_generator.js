@@ -214,6 +214,36 @@ class ReportGenerator {
             </div>`;
         }
 
+        // Check 3.0 - JSON Validation
+        if (check.id === '3.0' && check.details?.jsonStatus?.length > 0) {
+            html += `<div class="verification-table-container">
+                <h5>JSON Validation Status:</h5>
+                <div class="distribution-summary" style="margin-bottom: 12px;">
+                    <span class="${check.status === 'passed' ? 'summary-item pass' : 'summary-item fail'}">
+                        <strong>${check.details.summary}</strong>
+                    </span>
+                </div>
+                <table class="verification-table">
+                    <thead>
+                        <tr>
+                            <th>Cell</th>
+                            <th>Status</th>
+                            <th>Error</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${check.details.jsonStatus.map(j => `
+                            <tr class="${j.valid ? 'row-pass' : 'row-fail'}">
+                                <td><strong>${this.escapeHTML(j.cell)}</strong></td>
+                                <td>${j.status === 'VALID' ? '✓ VALID' : j.status === 'NOT FOUND' ? '⚠ NOT FOUND' : '✗ INVALID'}</td>
+                                <td class="inst-evidence">${this.escapeHTML(j.error || '-')}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>`;
+        }
+
         // Check 3.6 - Keyword Explicitness
         if (check.id === '3.6' && check.details?.analysis?.length > 0) {
             html += `<div class="verification-table-container">
@@ -265,19 +295,43 @@ class ReportGenerator {
 
             if (failRates.length > 0) {
                 html += `<table class="verification-table">
-                    <thead><tr><th>Model Pass</th><th>Failed</th><th>Total</th><th>Fail Rate</th><th>Status</th></tr></thead>
+                    <thead>
+                        <tr>
+                            <th>Model Pass</th>
+                            <th colspan="3" style="background: #1a4d1a; color: #4ade80;">Script Analysis</th>
+                            <th colspan="3" style="background: #4d4d1a; color: #fde047;">Notebook Validator</th>
+                            <th>Status</th>
+                        </tr>
+                        <tr>
+                            <th></th>
+                            <th>Mech.</th>
+                            <th>Sem.</th>
+                            <th>Fail%</th>
+                            <th>Pass</th>
+                            <th>Fail</th>
+                            <th>Fail%</th>
+                            <th></th>
+                        </tr>
+                    </thead>
                     <tbody>
                         ${failRates.map(f => `
-                            <tr class="${f.failRate >= 50 ? 'row-pass' : 'row-fail'}">
+                            <tr class="${f.meets_50_percent ? 'row-pass' : 'row-fail'}">
                                 <td><strong>${this.escapeHTML(f.id)}</strong></td>
-                                <td>${f.failed}</td>
-                                <td>${f.total}</td>
+                                <td>${f.mechanical_failed || 0}</td>
+                                <td>${f.semantic_failed || 0}+${f.llm_judge_failed || 0}</td>
                                 <td><strong>${f.failRate}%</strong></td>
-                                <td>${f.failRate >= 50 ? '✓ OK' : '✗ Too low'}</td>
+                                <td>${f.notebook_passed || '-'}</td>
+                                <td>${f.notebook_failed || '-'}</td>
+                                <td><strong>${f.notebook_fail_rate || '-'}%</strong></td>
+                                <td>${f.meets_50_percent ? '✓ OK' : '✗ <50%'}</td>
                             </tr>
                         `).join('')}
                     </tbody>
-                </table>`;
+                </table>
+                <div style="font-size: 11px; color: var(--text-muted); margin-top: 8px;">
+                    <strong>Script:</strong> Our validator analysis | <strong>Notebook:</strong> Trainer's validator_assistant cell |
+                    <strong>Mech.:</strong> Mechanical fails | <strong>Sem.:</strong> Semantic + LLM Judge (treated as fails for model breaking)
+                </div>`;
             }
 
             html += `<div class="distribution-summary" style="margin-top: 12px;">
@@ -787,6 +841,7 @@ class ReportGenerator {
             '2.4': 'Prompt Length',
             '2.5': 'Incomplete User Query',
             '2.6': 'Intermediate Turn Issues',
+            '3.0': 'JSON Validation Error',
             '3.1': 'IF Instructions Count',
             '3.2': 'Missing LLM Eval',
             '3.3': 'Missing LLM Judge',
