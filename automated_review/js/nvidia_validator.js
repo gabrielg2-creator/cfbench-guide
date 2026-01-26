@@ -467,8 +467,24 @@ function validateInstruction(response, instType, kwargs) {
 
         if (instType === 'detectable_format:title') {
             const firstLine = response.split('\n')[0].trim();
-            const valid = firstLine.startsWith('<<') && firstLine.endsWith('>>');
-            return { valid, note: valid ? 'OK' : 'Title not wrapped in << >> on first line' };
+            // Accept multiple title formats:
+            // 1. <<Title>> format
+            // 2. # Title (markdown h1-h6)
+            // 3. **Title** (bold)
+            const isWrappedTitle = firstLine.startsWith('<<') && firstLine.endsWith('>>');
+            const isMarkdownTitle = /^#{1,6}\s*\S/.test(firstLine);
+            const isBoldTitle = firstLine.startsWith('**') && firstLine.endsWith('**') && firstLine.length > 4;
+
+            const valid = isWrappedTitle || isMarkdownTitle || isBoldTitle;
+            let format = '';
+            if (isWrappedTitle) format = '<< >>';
+            else if (isMarkdownTitle) format = 'Markdown #';
+            else if (isBoldTitle) format = '**bold**';
+
+            return {
+                valid,
+                note: valid ? `Title found (${format}): "${firstLine.substring(0, 50)}${firstLine.length > 50 ? '...' : ''}"` : 'No title found on first line (expected <<>>, # header, or **bold**)'
+            };
         }
 
         if (instType === 'detectable_format:multiple_sections') {

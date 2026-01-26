@@ -655,7 +655,7 @@
 
         let checkResults = [];
 
-        // Robust JSON parser that handles common issues
+        // Robust JSON parser that handles common issues (arrays and objects)
         function parseJsonRobust(str) {
             if (!str) return null;
 
@@ -666,27 +666,35 @@
                 // Continue with fixes
             }
 
-            // Clean the string
+            // Clean the string - remove control characters and fix common issues
             let cleaned = str
                 .replace(/[\x00-\x1F\x7F]/g, ' ')  // Remove control characters
+                .replace(/\r\n/g, '\n')             // Normalize line endings
                 .replace(/,\s*}/g, '}')             // Remove trailing commas before }
                 .replace(/,\s*]/g, ']')             // Remove trailing commas before ]
+                .replace(/\bTrue\b/g, 'true')       // Python True -> JSON true
+                .replace(/\bFalse\b/g, 'false')     // Python False -> JSON false
+                .replace(/\bNone\b/g, 'null')       // Python None -> JSON null
                 .trim();
 
-            // Try to find the JSON object/array boundaries
+            // Try to find the JSON boundaries (array or object)
             let firstBrace = cleaned.indexOf('{');
             let firstBracket = cleaned.indexOf('[');
             let lastBrace = cleaned.lastIndexOf('}');
             let lastBracket = cleaned.lastIndexOf(']');
 
-            // Determine if it's an object or array
-            let start, end;
-            if (firstBrace !== -1 && (firstBracket === -1 || firstBrace < firstBracket)) {
-                start = firstBrace;
-                end = lastBrace;
-            } else if (firstBracket !== -1) {
+            // Determine if it's an object or array (whichever comes first)
+            let start, end, isArray;
+            if (firstBracket !== -1 && (firstBrace === -1 || firstBracket < firstBrace)) {
+                // Array starts first
                 start = firstBracket;
                 end = lastBracket;
+                isArray = true;
+            } else if (firstBrace !== -1) {
+                // Object starts first
+                start = firstBrace;
+                end = lastBrace;
+                isArray = false;
             }
 
             if (start !== undefined && end !== undefined && end > start) {
@@ -697,25 +705,28 @@
             try {
                 return JSON.parse(cleaned);
             } catch (e2) {
-                // Try even more aggressive cleaning - handle Python-style output
+                // Try fixing common JSON issues
                 try {
-                    // Replace Python True/False/None with JSON equivalents
-                    let pythonFixed = cleaned
-                        .replace(/\bTrue\b/g, 'true')
-                        .replace(/\bFalse\b/g, 'false')
-                        .replace(/\bNone\b/g, 'null')
-                        .replace(/'/g, '"');  // Single to double quotes
-                    return JSON.parse(pythonFixed);
+                    // Fix unquoted keys and single quotes
+                    let fixed = cleaned
+                        .replace(/(['"])?([a-zA-Z_][a-zA-Z0-9_]*)\1\s*:/g, '"$2":')  // Quote keys
+                        .replace(/:\s*'([^']*)'/g, ':"$1"');  // Single to double quotes in values
+                    return JSON.parse(fixed);
                 } catch (e3) {
-                    // Last resort: try to extract the "checks" array specifically
-                    try {
-                        const checksMatch = str.match(/"checks"\s*:\s*\[([\s\S]*?)\](?=\s*[,}]|$)/);
-                        if (checksMatch) {
-                            const checksStr = '[' + checksMatch[1] + ']';
-                            const checks = JSON.parse(checksStr.replace(/'/g, '"').replace(/\bTrue\b/g, 'true').replace(/\bFalse\b/g, 'false'));
-                            return { checks };
-                        }
-                    } catch (e4) {}
+                    // Last resort for arrays: try to parse item by item
+                    if (isArray) {
+                        try {
+                            // Extract individual objects from array
+                            const itemPattern = /\{[^{}]*\}/g;
+                            const items = cleaned.match(itemPattern);
+                            if (items && items.length > 0) {
+                                const parsedItems = items.map(item => {
+                                    try { return JSON.parse(item); } catch { return null; }
+                                }).filter(x => x !== null);
+                                if (parsedItems.length > 0) return parsedItems;
+                            }
+                        } catch (e4) {}
+                    }
                     throw new Error(e2.message.substring(0, 50));
                 }
             }
@@ -993,29 +1004,94 @@
                 });
             }
 
+            // Helper function to extract JSON from validator cell (handles arrays in ```json blocks)
+            function extractValidatorJson(cellContent, cellName) {
+                console.log(`[extractValidatorJson] Processing ${cellName}, content length: ${cellContent.length}`);
+
+                // Try multiple patterns to find JSON inside ```json block
+                // Pattern 1: Standard ```json block with flexible whitespace (allows space between ``` and json)
+                let codeBlockMatch = cellContent.match(/```\s*json\s*\n?([\s\S]*?)\n?\s*```/i);
+
+                // Pattern 2: Try without the 'json' label (just ``` blocks)
+                if (!codeBlockMatch) {
+                    codeBlockMatch = cellContent.match(/```\s*\n?([\s\S]*?)\n?\s*```/i);
+                    if (codeBlockMatch) {
+                        console.log(`[extractValidatorJson] Found generic code block for ${cellName}`);
+                    }
+                }
+
+                if (codeBlockMatch) {
+                    console.log(`[extractValidatorJson] Found code block for ${cellName}, captured length: ${codeBlockMatch[1].length}`);
+                }
+
+                let jsonStr = codeBlockMatch ? codeBlockMatch[1].trim() : cellContent.trim();
+
+                // If still no match, try to find JSON directly in the content
+                if (!jsonStr || jsonStr.length === 0) {
+                    jsonStr = cellContent.trim();
+                }
+
+                console.log(`[extractValidatorJson] JSON string preview for ${cellName}: ${jsonStr.substring(0, 100)}...`);
+
+                // Find the JSON (could be array [...] or object {...})
+                // Use greedy match to get the complete array/object
+                const arrayMatch = jsonStr.match(/\[[\s\S]*\]/);
+                const objectMatch = jsonStr.match(/\{[\s\S]*\}/);
+
+                // Prefer array match (validator format is usually an array)
+                const match = arrayMatch || objectMatch;
+                if (!match) {
+                    console.error(`[extractValidatorJson] No JSON found in ${cellName}. Content: ${jsonStr.substring(0, 200)}`);
+                    throw new Error('No JSON found in content');
+                }
+
+                console.log(`[extractValidatorJson] Found JSON for ${cellName}, length: ${match[0].length}`);
+
+                const parsed = parseJsonRobust(match[0]);
+
+                if (!parsed) {
+                    console.error(`[extractValidatorJson] Failed to parse JSON for ${cellName}`);
+                    throw new Error('Failed to parse JSON');
+                }
+
+                // If it's an array, wrap it in object with "checks" property
+                if (Array.isArray(parsed)) {
+                    console.log(`[extractValidatorJson] Successfully parsed ${parsed.length} checks for ${cellName}`);
+                    return { checks: parsed };
+                }
+
+                // If it's already an object with checks, return as-is
+                if (parsed.checks && Array.isArray(parsed.checks)) {
+                    console.log(`[extractValidatorJson] Found object with ${parsed.checks.length} checks for ${cellName}`);
+                    return parsed;
+                }
+
+                console.log(`[extractValidatorJson] Returning parsed object for ${cellName}`);
+                return parsed;
+            }
+
             // Golden validator_assistant
             const goldenVAMatch = content.match(/\*\*\[validator_assistant\]\*\*\s*([\s\S]*?)(?=\*\*\[|$)/i);
             if (goldenVAMatch) {
+                console.log(`[parseContent] Found golden validator_assistant, content length: ${goldenVAMatch[1].length}`);
                 try {
-                    const jsonMatch = goldenVAMatch[1].match(/\{[\s\S]*\}/);
-                    if (jsonMatch) {
-                        extractedData.validatorAssistant.golden = parseJsonRobust(jsonMatch[0]);
-                        extractedData.jsonStatus.push({ cell: 'validator_assistant', valid: true, status: 'OK' });
-                    }
+                    extractedData.validatorAssistant.golden = extractValidatorJson(goldenVAMatch[1], 'validator_assistant');
+                    extractedData.jsonStatus.push({ cell: 'validator_assistant', valid: true, status: 'OK' });
+                    console.log(`[parseContent] Successfully extracted golden validator_assistant`);
                 } catch (e) {
+                    console.error(`[parseContent] Failed to extract golden validator_assistant:`, e.message);
                     extractedData.jsonStatus.push({ cell: 'validator_assistant', valid: false, status: 'INVALID', error: e.message });
                 }
+            } else {
+                console.log('[parseContent] No golden validator_assistant found');
             }
 
             // Golden validator_human
             const goldenVHMatch = content.match(/\*\*\[validator_human\]\*\*\s*([\s\S]*?)(?=\*\*\[|$)/i);
             if (goldenVHMatch) {
                 try {
-                    const jsonMatch = goldenVHMatch[1].match(/\{[\s\S]*\}/);
-                    if (jsonMatch) {
-                        extractedData.validatorHuman.golden = parseJsonRobust(jsonMatch[0]);
-                        extractedData.jsonStatus.push({ cell: 'validator_human', valid: true, status: 'OK' });
-                    }
+                    extractedData.validatorHuman.golden = extractValidatorJson(goldenVHMatch[1], 'validator_human');
+                    extractedData.jsonStatus.push({ cell: 'validator_human', valid: true, status: 'OK' });
                 } catch (e) {
                     extractedData.jsonStatus.push({ cell: 'validator_human', valid: false, status: 'INVALID', error: e.message });
                 }
@@ -1024,32 +1100,34 @@
             // Model pass validator_assistant (qwen3 and nemotron)
             const modelVAPattern = /\*\*\[validator_assistant_((?:qwen3|nemotron)_\d+)\]\*\*\s*([\s\S]*?)(?=\*\*\[|$)/gi;
             let modelVAMatch;
+            let vaMatchCount = 0;
             while ((modelVAMatch = modelVAPattern.exec(content)) !== null) {
+                vaMatchCount++;
+                const cellName = `validator_assistant_${modelVAMatch[1]}`;
+                console.log(`[parseContent] Found ${cellName}, content length: ${modelVAMatch[2].length}`);
                 try {
-                    const jsonMatch = modelVAMatch[2].match(/\{[\s\S]*\}/);
-                    if (jsonMatch) {
-                        const key = `assistant_${modelVAMatch[1]}`;
-                        extractedData.validatorAssistant[key] = parseJsonRobust(jsonMatch[0]);
-                        extractedData.jsonStatus.push({ cell: `validator_assistant_${modelVAMatch[1]}`, valid: true, status: 'OK' });
-                    }
+                    const key = `assistant_${modelVAMatch[1]}`;
+                    extractedData.validatorAssistant[key] = extractValidatorJson(modelVAMatch[2], cellName);
+                    extractedData.jsonStatus.push({ cell: cellName, valid: true, status: 'OK' });
+                    console.log(`[parseContent] Successfully extracted ${cellName}`);
                 } catch (e) {
-                    extractedData.jsonStatus.push({ cell: `validator_assistant_${modelVAMatch[1]}`, valid: false, status: 'INVALID', error: e.message });
+                    console.error(`[parseContent] Failed to extract ${cellName}:`, e.message);
+                    extractedData.jsonStatus.push({ cell: cellName, valid: false, status: 'INVALID', error: e.message });
                 }
             }
+            console.log(`[parseContent] Total validator_assistant matches found: ${vaMatchCount}`);
 
             // Model pass validator_human (qwen3 and nemotron)
             const modelVHPattern = /\*\*\[validator_human_((?:qwen3|nemotron)_\d+)\]\*\*\s*([\s\S]*?)(?=\*\*\[|$)/gi;
             let modelVHMatch;
             while ((modelVHMatch = modelVHPattern.exec(content)) !== null) {
+                const cellName = `validator_human_${modelVHMatch[1]}`;
                 try {
-                    const jsonMatch = modelVHMatch[2].match(/\{[\s\S]*\}/);
-                    if (jsonMatch) {
-                        const key = `assistant_${modelVHMatch[1]}`;
-                        extractedData.validatorHuman[key] = parseJsonRobust(jsonMatch[0]);
-                        extractedData.jsonStatus.push({ cell: `validator_human_${modelVHMatch[1]}`, valid: true, status: 'OK' });
-                    }
+                    const key = `assistant_${modelVHMatch[1]}`;
+                    extractedData.validatorHuman[key] = extractValidatorJson(modelVHMatch[2], cellName);
+                    extractedData.jsonStatus.push({ cell: cellName, valid: true, status: 'OK' });
                 } catch (e) {
-                    extractedData.jsonStatus.push({ cell: `validator_human_${modelVHMatch[1]}`, valid: false, status: 'INVALID', error: e.message });
+                    extractedData.jsonStatus.push({ cell: cellName, valid: false, status: 'INVALID', error: e.message });
                 }
             }
 
