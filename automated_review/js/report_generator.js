@@ -25,6 +25,7 @@ class ReportGenerator {
     generateHTMLReport() {
         const status = this.getOverallStatus();
         const statusClass = status === 'PASS' ? 'status-pass' :
+                           status === 'NEEDS_REVIEW' ? 'status-needs-review' :
                            status === 'MINOR_REVISION' ? 'status-minor' : 'status-major';
 
         let html = `
@@ -64,6 +65,7 @@ class ReportGenerator {
         const checksHTML = checks.map(check => {
             const statusIcon = check.status === 'passed' ? '&#10004;' :
                               check.status === 'failed' ? '&#10008;' :
+                              check.status === 'needs_review' ? '&#63;' :
                               check.status === 'warning' ? '&#9888;' : '&#8226;';
             const statusClass = `check-${check.status}`;
 
@@ -136,8 +138,9 @@ class ReportGenerator {
             </div>`;
 
             if (check.details?.verificationResults?.length > 0) {
+                const isAIVerified = check.details.verificationMethod === 'AI';
                 html += `<div class="verification-table-container">
-                    <h5>Constraints with source: "user" (must be in user query)</h5>
+                    <h5>Constraints with source: "user" (must be in user query) ${isAIVerified ? '<span class="ai-badge">AI Verified</span>' : ''}</h5>
                     <table class="verification-table">
                         <thead>
                             <tr>
@@ -148,21 +151,42 @@ class ReportGenerator {
                         </thead>
                         <tbody>
                             ${check.details.verificationResults.map(r => {
-                                const statusClass = r.found === true ? 'row-pass' : r.found === false ? 'row-fail' : 'row-skip';
-                                const statusText = r.found === true ? 'PASS' : r.found === false ? 'MISSING' : 'N/A';
-                                const statusIcon = r.found === true ? '✓' : r.found === false ? '✗' : '—';
+                                // Determine status based on found and method
+                                let statusClass, statusText, statusIcon;
+                                if (r.found === true) {
+                                    statusClass = 'row-pass';
+                                    statusText = 'PASS';
+                                    statusIcon = '✓';
+                                } else if (r.found === false && r.method === 'AI') {
+                                    // AI confirmed it's missing - definitive FAIL
+                                    statusClass = 'row-fail';
+                                    statusText = 'FAIL';
+                                    statusIcon = '✗';
+                                } else if (r.found === false || r.status === 'needs_review') {
+                                    // Regex didn't find it - needs review (yellow)
+                                    statusClass = 'row-needs-review';
+                                    statusText = 'NEEDS REVIEW';
+                                    statusIcon = '?';
+                                } else {
+                                    statusClass = 'row-skip';
+                                    statusText = 'N/A';
+                                    statusIcon = '—';
+                                }
+
                                 const quote = r.exact_quote || r.evidence || 'Not found in query';
+                                const methodBadge = r.method === 'AI' ? '<span class="method-badge ai">AI</span>' :
+                                                   r.method === 'regex' ? '<span class="method-badge regex">regex</span>' : '';
 
                                 return `
                                 <tr class="${statusClass}">
                                     <td>
                                         <strong>${this.escapeHTML(r.constraint_description || r.instruction_id)}</strong>
-                                        <div style="font-size: 0.65rem; color: var(--text-muted);">${this.escapeHTML(r.instruction_id)}</div>
+                                        <div style="font-size: 0.65rem; color: var(--text-muted);">${this.escapeHTML(r.instruction_id)} ${methodBadge}</div>
                                     </td>
                                     <td class="inst-evidence" style="max-width: 400px; font-style: italic;">
                                         ${this.escapeHTML(quote)}
                                     </td>
-                                    <td class="${r.found === true ? 'cell-pass' : r.found === false ? 'cell-fail' : ''}" style="text-align: center; font-weight: 600;">
+                                    <td class="${statusClass.replace('row-', 'cell-')}" style="text-align: center; font-weight: 600;">
                                         ${statusIcon} ${statusText}
                                     </td>
                                 </tr>`;
@@ -171,11 +195,12 @@ class ReportGenerator {
                     </table>
                     <div class="verification-summary">
                         <span class="summary-item pass">✓ PASS: ${check.details.verified || 0}</span>
-                        <span class="summary-item fail">✗ MISSING: ${check.details.potentiallyMissing || 0}</span>
-                        <span class="summary-item" style="background: var(--bg-tertiary); color: var(--text-muted);">LLM Eval: ${check.details.llmEvalToVerify || 0}</span>
+                        ${check.details.failed > 0 ? `<span class="summary-item fail">✗ FAIL: ${check.details.failed}</span>` : ''}
+                        ${(check.details.needsReview || check.details.potentiallyMissing || 0) > 0 ? `<span class="summary-item needs-review">? NEEDS REVIEW: ${check.details.needsReview || check.details.potentiallyMissing || 0}</span>` : ''}
+                        ${!isAIVerified ? `<span class="summary-item" style="background: var(--bg-tertiary); color: var(--text-muted);">LLM Eval: ${check.details.llmEvalToVerify || 0}</span>` : ''}
                     </div>
                     <p style="font-size: 0.7rem; color: var(--text-muted); margin-top: 8px;">
-                        Note: Basic check uses regex. Numbers written in words need AI Analysis.
+                        ${isAIVerified ? 'AI-verified constraints. PASS = found, FAIL = not found in user query.' : 'Note: Basic check uses regex. Items marked NEEDS REVIEW may have numbers written in words - use "Full AI Analysis" for accurate verification.'}
                     </p>
                 </div>`;
             }
@@ -216,31 +241,83 @@ class ReportGenerator {
 
         // Check 3.0 - JSON Validation
         if (check.id === '3.0' && check.details?.jsonStatus?.length > 0) {
+            // Separate by category
+            const turnMetaStatus = check.details.jsonStatus.filter(j => j.cell.includes('turn_metadata'));
+            const goldenStatus = check.details.jsonStatus.filter(j => j.cell.includes('golden'));
+            const modelPassStatus = check.details.jsonStatus.filter(j => !j.cell.includes('golden') && !j.cell.includes('turn_metadata'));
+
+            const validCount = check.details.jsonStatus.filter(j => j.valid).length;
+            const totalCount = check.details.jsonStatus.length;
+            const allValid = validCount === totalCount;
+
             html += `<div class="verification-table-container">
-                <h5>JSON Validation Status:</h5>
-                <div class="distribution-summary" style="margin-bottom: 12px;">
-                    <span class="${check.status === 'passed' ? 'summary-item pass' : 'summary-item fail'}">
-                        <strong>${check.details.summary}</strong>
+                <h5>JSON Validation Status - Todas as células com JSON</h5>
+                <div class="distribution-summary" style="margin-bottom: 12px; display: flex; gap: 12px; flex-wrap: wrap;">
+                    <span class="${allValid ? 'summary-item pass' : 'summary-item fail'}" style="font-size: 0.9rem;">
+                        ${allValid ? '✓' : '✗'} <strong>${validCount}/${totalCount}</strong> JSONs válidos
                     </span>
+                    ${!allValid ? `<span class="summary-item fail">⚠ Alguns JSONs estão quebrados!</span>` : ''}
                 </div>
-                <table class="verification-table">
-                    <thead>
-                        <tr>
-                            <th>Cell</th>
-                            <th>Status</th>
-                            <th>Error</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${check.details.jsonStatus.map(j => `
-                            <tr class="${j.valid ? 'row-pass' : 'row-fail'}">
-                                <td><strong>${this.escapeHTML(j.cell)}</strong></td>
-                                <td>${j.status === 'VALID' ? '✓ VALID' : j.status === 'NOT FOUND' ? '⚠ NOT FOUND' : '✗ INVALID'}</td>
-                                <td class="inst-evidence">${this.escapeHTML(j.error || '-')}</td>
+
+                <!-- Visual grid of JSON status -->
+                <div class="json-status-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; margin-bottom: 16px;">
+                    ${check.details.jsonStatus.map(j => {
+                        const bgColor = j.valid ? 'linear-gradient(135deg, #1a2f1a 0%, #0d1a0d 100%)' :
+                                       j.status === 'NOT FOUND' ? 'linear-gradient(135deg, #2f2f1a 0%, #1a1a0d 100%)' :
+                                       'linear-gradient(135deg, #2f1a1a 0%, #1a0d0d 100%)';
+                        const borderColor = j.valid ? '#2d5a2d' : j.status === 'NOT FOUND' ? '#5a5a2d' : '#5a2d2d';
+                        const iconColor = j.valid ? '#4ade80' : j.status === 'NOT FOUND' ? '#fde047' : '#f87171';
+                        const icon = j.valid ? '✓' : j.status === 'NOT FOUND' ? '?' : '✗';
+
+                        return `
+                        <div class="json-cell-status" style="background: ${bgColor}; border: 1px solid ${borderColor}; border-radius: 6px; padding: 8px 10px;">
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <span style="color: ${iconColor}; font-size: 1.1rem; font-weight: bold;">${icon}</span>
+                                <span style="color: var(--text-primary); font-size: 0.75rem; font-weight: 500;">${this.escapeHTML(j.cell)}</span>
+                            </div>
+                            ${j.error ? `<div style="color: #f87171; font-size: 0.65rem; margin-top: 4px; word-break: break-all;">${this.escapeHTML(j.error)}</div>` : ''}
+                        </div>`;
+                    }).join('')}
+                </div>
+
+                <!-- Detailed table -->
+                <details style="margin-top: 8px;">
+                    <summary style="cursor: pointer; font-weight: 600; font-size: 0.8rem; color: var(--text-secondary);">Ver tabela detalhada</summary>
+                    <table class="verification-table" style="margin-top: 8px;">
+                        <thead>
+                            <tr>
+                                <th>Célula</th>
+                                <th>Tipo</th>
+                                <th>Status JSON</th>
+                                <th>Erro</th>
                             </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            ${check.details.jsonStatus.map(j => {
+                                const cellType = j.cell.includes('turn_metadata') ? 'Metadata' :
+                                                j.cell.includes('validator_assistant') ? 'Validator Assistant' :
+                                                j.cell.includes('validator_human') ? 'Validator Human' : 'Outro';
+                                return `
+                                <tr class="${j.valid ? 'row-pass' : 'row-fail'}">
+                                    <td><strong>${this.escapeHTML(j.cell)}</strong></td>
+                                    <td style="color: var(--text-muted); font-size: 0.75rem;">${cellType}</td>
+                                    <td style="text-align: center;">
+                                        ${j.status === 'VALID' ? '<span style="color:#4ade80; font-weight:600;">✓ VALID</span>' :
+                                          j.status === 'NOT FOUND' ? '<span style="color:#fde047;">⚠ NOT FOUND</span>' :
+                                          '<span style="color:#f87171; font-weight:600;">✗ INVALID</span>'}
+                                    </td>
+                                    <td class="inst-evidence" style="color: #f87171; font-size: 0.7rem;">${this.escapeHTML(j.error || '-')}</td>
+                                </tr>`;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </details>
+
+                <div style="font-size: 11px; color: var(--text-muted); margin-top: 12px; padding: 8px; background: var(--bg-tertiary); border-radius: 4px;">
+                    <strong>✓ VALID:</strong> JSON parseado com sucesso, dados disponíveis para análise<br>
+                    <strong>✗ INVALID:</strong> JSON com erro de sintaxe - não foi possível ler os dados<br>
+                    <strong>⚠ NOT FOUND:</strong> Célula não encontrada no notebook
+                </div>
             </div>`;
         }
 
@@ -294,43 +371,117 @@ class ReportGenerator {
                 </div>`;
 
             if (failRates.length > 0) {
-                html += `<table class="verification-table">
-                    <thead>
-                        <tr>
-                            <th>Model Pass</th>
-                            <th colspan="3" style="background: #1a4d1a; color: #4ade80;">Script Analysis</th>
-                            <th colspan="3" style="background: #4d4d1a; color: #fde047;">Notebook Validator</th>
-                            <th>Status</th>
-                        </tr>
-                        <tr>
-                            <th></th>
-                            <th>Mech.</th>
-                            <th>Sem.</th>
-                            <th>Fail%</th>
-                            <th>Pass</th>
-                            <th>Fail</th>
-                            <th>Fail%</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${failRates.map(f => `
-                            <tr class="${f.meets_50_percent ? 'row-pass' : 'row-fail'}">
-                                <td><strong>${this.escapeHTML(f.id)}</strong></td>
-                                <td>${f.mechanical_failed || 0}</td>
-                                <td>${f.semantic_failed || 0}+${f.llm_judge_failed || 0}</td>
-                                <td><strong>${f.failRate}%</strong></td>
-                                <td>${f.notebook_passed || '-'}</td>
-                                <td>${f.notebook_failed || '-'}</td>
-                                <td><strong>${f.notebook_fail_rate || '-'}%</strong></td>
-                                <td>${f.meets_50_percent ? '✓ OK' : '✗ <50%'}</td>
+                html += `
+                <div class="parallel-validators" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+                    <!-- CELL RESULTS (Notebook) -->
+                    <div class="validator-panel" style="background: linear-gradient(135deg, #1a2f1a 0%, #0d1a0d 100%); border: 1px solid #2d5a2d; border-radius: 8px; padding: 12px;">
+                        <h6 style="color: #4ade80; margin: 0 0 8px 0; font-size: 0.85rem; display: flex; align-items: center; gap: 6px;">
+                            <span style="background: #4ade80; color: #0d1a0d; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem;">CELL</span>
+                            Notebook Validator (validator_assistant)
+                        </h6>
+                        <p style="color: #a3e635; font-size: 0.7rem; margin: 0 0 8px 0;">Resultados da célula do notebook - fonte primária</p>
+                        <table class="verification-table" style="font-size: 0.75rem;">
+                            <thead>
+                                <tr style="background: #1a3d1a;">
+                                    <th>Model</th>
+                                    <th>Pass</th>
+                                    <th>Fail</th>
+                                    <th>Fail%</th>
+                                    <th>JSON</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${failRates.map(f => {
+                                    const cellFailRate = f.notebook_fail_rate || 0;
+                                    const cellMeets50 = cellFailRate >= 50;
+                                    const jsonValid = f.json_valid !== false && f.notebook_total > 0;
+                                    const jsonError = f.json_error;
+                                    return `
+                                    <tr class="${cellMeets50 ? 'row-pass' : 'row-fail'}">
+                                        <td><strong>${this.escapeHTML(f.id)}</strong></td>
+                                        <td style="color: #4ade80;">${f.notebook_passed || 0}</td>
+                                        <td style="color: #f87171;">${f.notebook_failed || 0}</td>
+                                        <td><strong>${cellFailRate}%</strong></td>
+                                        <td title="${jsonError ? this.escapeHTML(jsonError) : 'JSON válido'}">${jsonValid ? '<span style="color:#4ade80;">✓</span>' : '<span style="color:#f87171;">✗</span>'}</td>
+                                    </tr>`;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- SCRIPT VALIDATION (Tool) -->
+                    <div class="validator-panel" style="background: linear-gradient(135deg, #2f2f1a 0%, #1a1a0d 100%); border: 1px solid #5a5a2d; border-radius: 8px; padding: 12px;">
+                        <h6 style="color: #fde047; margin: 0 0 8px 0; font-size: 0.85rem; display: flex; align-items: center; gap: 6px;">
+                            <span style="background: #fde047; color: #1a1a0d; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem;">SCRIPT</span>
+                            Tool Validation (NvidiaValidator)
+                        </h6>
+                        <p style="color: #fef08a; font-size: 0.7rem; margin: 0 0 8px 0;">Validação própria do script - double-check</p>
+                        <table class="verification-table" style="font-size: 0.75rem;">
+                            <thead>
+                                <tr style="background: #3d3d1a;">
+                                    <th>Model</th>
+                                    <th>Mech</th>
+                                    <th>Sem</th>
+                                    <th>LLM</th>
+                                    <th>Fail%</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${failRates.map(f => {
+                                    const scriptMeets50 = f.meets_50_percent;
+                                    return `
+                                    <tr class="${scriptMeets50 ? 'row-pass' : 'row-fail'}">
+                                        <td><strong>${this.escapeHTML(f.id)}</strong></td>
+                                        <td style="color: #f87171;">${f.mechanical_failed || 0}</td>
+                                        <td style="color: #fb923c;">${f.semantic_failed || 0}</td>
+                                        <td style="color: #c084fc;">${f.llm_judge_failed || 0}</td>
+                                        <td><strong>${f.failRate}%</strong></td>
+                                    </tr>`;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Comparison Summary -->
+                <div class="comparison-summary" style="background: #1a1a2e; border: 1px solid #3b3b5c; border-radius: 8px; padding: 12px; margin-bottom: 12px;">
+                    <h6 style="color: #a5b4fc; margin: 0 0 8px 0; font-size: 0.8rem;">Comparação: Cell vs Script</h6>
+                    <table class="verification-table" style="font-size: 0.75rem;">
+                        <thead>
+                            <tr>
+                                <th>Model</th>
+                                <th>Cell Fail%</th>
+                                <th>Script Fail%</th>
+                                <th>Diferença</th>
+                                <th>Status</th>
                             </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-                <div style="font-size: 11px; color: var(--text-muted); margin-top: 8px;">
-                    <strong>Script:</strong> Our validator analysis | <strong>Notebook:</strong> Trainer's validator_assistant cell |
-                    <strong>Mech.:</strong> Mechanical fails | <strong>Sem.:</strong> Semantic + LLM Judge (treated as fails for model breaking)
+                        </thead>
+                        <tbody>
+                            ${failRates.map(f => {
+                                const cellRate = f.notebook_fail_rate || 0;
+                                const scriptRate = f.failRate || 0;
+                                const diff = Math.abs(cellRate - scriptRate);
+                                const hasDivergence = diff > 10;
+                                const cellMeets = cellRate >= 50;
+                                const scriptMeets = scriptRate >= 50;
+                                const bothAgree = cellMeets === scriptMeets;
+                                return `
+                                <tr class="${bothAgree ? 'row-pass' : 'row-warn'}">
+                                    <td><strong>${this.escapeHTML(f.id)}</strong></td>
+                                    <td>${cellRate}%</td>
+                                    <td>${scriptRate}%</td>
+                                    <td style="color: ${hasDivergence ? '#f87171' : '#4ade80'};">${diff.toFixed(1)}%</td>
+                                    <td>${bothAgree ? '✓ Concordam' : '⚠ Divergem'}</td>
+                                </tr>`;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div style="font-size: 11px; color: var(--text-muted); margin-top: 8px; padding: 8px; background: var(--bg-tertiary); border-radius: 4px;">
+                    <strong>CELL (Verde):</strong> Dados diretamente da célula validator_assistant do notebook (fonte primária)<br>
+                    <strong>SCRIPT (Amarelo):</strong> Validação própria usando NvidiaValidator (double-check)<br>
+                    <strong>JSON:</strong> ✓ = JSON da célula válido e parseado corretamente
                 </div>`;
             }
 
@@ -718,8 +869,8 @@ class ReportGenerator {
         return `
         <div class="report-feedback">
             <h3 class="feedback-title">📋 Trainer Feedback (Copy & Paste)</h3>
-            <div class="feedback-status ${status.toLowerCase()}">
-                <strong>Status:</strong> ${status === 'PASS' ? '✅ APPROVED' : status === 'MINOR_REVISION' ? '⚠️ MINOR REVISION' : '❌ MAJOR REVISION'}
+            <div class="feedback-status ${status.toLowerCase().replace('_', '-')}">
+                <strong>Status:</strong> ${status === 'PASS' ? '✅ APPROVED' : status === 'NEEDS_REVIEW' ? '🔍 NEEDS REVIEW' : status === 'MINOR_REVISION' ? '⚠️ MINOR REVISION' : '❌ MAJOR REVISION'}
             </div>
             <div class="feedback-content">
                 <pre id="feedback-text">${feedbackData.text}</pre>

@@ -4,8 +4,9 @@
  */
 
 class Validators {
-    constructor(parsed) {
+    constructor(parsed, apiHandler = null) {
         this.parsed = parsed;
+        this.apiHandler = apiHandler;
         this.results = {
             phase1: [], // Structure checks
             phase2: [], // Content checks
@@ -15,9 +16,24 @@ class Validators {
                 totalChecks: 0,
                 passed: 0,
                 failed: 0,
-                warnings: 0
+                warnings: 0,
+                needsReview: 0
             }
         };
+    }
+
+    /**
+     * Set API handler for AI-powered verification
+     */
+    setApiHandler(apiHandler) {
+        this.apiHandler = apiHandler;
+    }
+
+    /**
+     * Check if API handler is available
+     */
+    hasApiHandler() {
+        return this.apiHandler && this.apiHandler.hasApiKey && this.apiHandler.hasApiKey();
     }
 
     /**
@@ -604,7 +620,8 @@ class Validators {
                 found: false,
                 evidence: null,
                 exact_quote: null,
-                details: {}
+                details: {},
+                method: 'regex' // 'regex' or 'AI'
             };
 
             // Check number_words - multilingual patterns
@@ -891,10 +908,19 @@ class Validators {
         const llmEvalMissing = verificationResults.filter(r => r.found === false && r.isLLMEval);
         const unchecked = verificationResults.filter(r => r.found === null);
 
+        // Mark items not found by regex as 'needs_review' instead of definitive fail
+        // This is because regex can't handle numbers written in words
+        missing.forEach(r => {
+            r.status = 'needs_review'; // Will show yellow in report
+        });
+        llmEvalMissing.forEach(r => {
+            r.status = 'needs_review';
+        });
+
         // NOTE: This deterministic check cannot recognize numbers written in words
         // (e.g., "trecentottantacinque" = 385 in Italian)
-        // The REAL validation is done by AI in "Full AI Analysis" mode
-        // So we only generate WARNINGS here, not failures
+        // Without API: show NEEDS_REVIEW (yellow) for uncertain items
+        // With API: the enhanceCheck2_3WithAI method will update to definitive PASS/FAIL
 
         // Generate warnings for potentially missing constraints (not issues!)
         missing.forEach(r => {
@@ -910,6 +936,8 @@ class Validators {
                 warnMsg += `Word length constraint - verify manually`;
             } else if (detail.type === 'paragraph_count') {
                 warnMsg += `Paragraph count "${detail.expected}" not found as numeric (may be written in words)`;
+            } else if (detail.type === 'sentence_count') {
+                warnMsg += `Sentence count "${detail.expected}" not found as numeric (may be written in words)`;
             } else {
                 warnMsg += `Constraint not found by regex - use AI Analysis for accurate check`;
             }
@@ -921,13 +949,22 @@ class Validators {
             warnings.push(`[${r.instruction_id}] LLM Eval - verify in AI Analysis`);
         });
 
-        // Status: passed (basic), but warnings indicate need for AI verification
-        const hasWarnings = warnings.length > 0;
+        // Status logic:
+        // - 'passed' = all found by regex
+        // - 'needs_review' = some not found by regex, needs AI or manual verification
+        // - 'warning' = has other warnings
+        const needsReviewCount = missing.length + llmEvalMissing.length;
+        let status = 'passed';
+        if (needsReviewCount > 0) {
+            status = 'needs_review';
+        } else if (warnings.length > 0) {
+            status = 'warning';
+        }
 
         this.results.phase2.push({
             id: '2.3',
-            name: 'Value Consistency (Basic)',
-            status: hasWarnings ? 'warning' : 'passed',
+            name: 'Value Consistency',
+            status: status,
             issues: [], // No failures - AI does the real check
             warnings: warnings,
             details: {
@@ -936,6 +973,7 @@ class Validators {
                 systemSourceCount: systemInstructions.length,
                 verified: verified.length,
                 potentiallyMissing: missing.length,
+                needsReview: needsReviewCount,
                 llmEvalToVerify: llmEvalMissing.length,
                 unchecked: unchecked.length,
                 verificationResults: verificationResults,
@@ -946,9 +984,116 @@ class Validators {
                 })),
                 finalUserQueryLength: query.length,
                 finalUserQueryPreview: query.substring(0, 200) + (query.length > 200 ? '...' : ''),
-                note: 'Only constraints with source: "user" are checked against user query. Use "Full AI Analysis" for comprehensive validation.'
+                verificationMethod: 'regex',
+                note: 'Regex-based check. Items marked NEEDS_REVIEW may have numbers written in words. Use "Full AI Analysis" for accurate verification.'
             }
         });
+    }
+
+    /**
+     * Enhance Check 2.3 results with AI verification
+     * Call this after runAll() when API is available
+     * @param {object} apiHandler - The API handler instance
+     * @returns {object} Enhanced check 2.3 results
+     */
+    async enhanceCheck2_3WithAI(apiHandler) {
+        if (!apiHandler || !apiHandler.hasApiKey()) {
+            console.warn('No API handler available for AI enhancement');
+            return null;
+        }
+
+        // Find the check 2.3 result
+        const check23 = this.results.phase2.find(c => c.id === '2.3');
+        if (!check23 || !check23.details?.verificationResults) {
+            console.warn('Check 2.3 results not found');
+            return null;
+        }
+
+        const p = this.parsed;
+        const query = p.finalTurn?.user?.content || '';
+        const verificationResults = check23.details.verificationResults;
+
+        // Get items that need AI verification (not found by regex or need review)
+        const needsVerification = verificationResults.filter(r =>
+            r.found === false || r.status === 'needs_review'
+        );
+
+        if (needsVerification.length === 0) {
+            console.log('No items need AI verification');
+            return check23;
+        }
+
+        console.log(`Enhancing ${needsVerification.length} items with AI verification...`);
+
+        try {
+            // Use batch verification for efficiency
+            const originalInstructions = needsVerification.map(r => r.details?.raw || {
+                instruction_id: r.instruction_id,
+                ...r.details
+            });
+
+            const aiResults = await apiHandler.verifyConstraintsBatch(query, originalInstructions);
+
+            // Merge AI results back into verification results
+            aiResults.forEach(aiResult => {
+                const existing = verificationResults.find(r =>
+                    r.instruction_id === aiResult.instruction_id
+                );
+                if (existing) {
+                    existing.found = aiResult.found;
+                    existing.evidence = aiResult.evidence;
+                    existing.exact_quote = aiResult.exact_quote;
+                    existing.method = aiResult.method;
+                    existing.confidence = aiResult.confidence;
+                    // Remove needs_review status - now we have definitive answer
+                    delete existing.status;
+                }
+            });
+
+            // Recategorize and update check status
+            const verified = verificationResults.filter(r => r.found === true);
+            const failed = verificationResults.filter(r => r.found === false && r.method === 'AI');
+            const needsReview = verificationResults.filter(r => r.found === false && r.method !== 'AI');
+
+            // Update check 2.3 status
+            if (failed.length > 0) {
+                check23.status = 'failed';
+                check23.issues = failed.map(r =>
+                    `[${r.instruction_id}] ${r.constraint_description || 'Constraint'} NOT found in user query (AI verified)`
+                );
+            } else if (needsReview.length > 0) {
+                check23.status = 'needs_review';
+            } else {
+                check23.status = 'passed';
+            }
+
+            // Update details
+            check23.details.verified = verified.length;
+            check23.details.failed = failed.length;
+            check23.details.needsReview = needsReview.length;
+            check23.details.verificationMethod = 'AI';
+            check23.details.note = 'AI-verified constraints. Green = PASS, Red = FAIL (constraint missing from user query).';
+            check23.name = 'Value Consistency (AI Verified)';
+
+            // Clear warnings that were addressed by AI
+            check23.warnings = check23.warnings.filter(w => {
+                const match = w.match(/\[([^\]]+)\]/);
+                if (match) {
+                    const id = match[1];
+                    const aiResult = verificationResults.find(r => r.instruction_id === id && r.method === 'AI');
+                    return !aiResult; // Keep warning only if not AI-verified
+                }
+                return true;
+            });
+
+            // Recalculate summary
+            this.calculateSummary();
+
+            return check23;
+        } catch (error) {
+            console.error('AI enhancement failed:', error);
+            return null;
+        }
     }
 
     /**
@@ -2461,6 +2606,8 @@ class Validators {
             const notebookPassed = notebookValidator?.passed || 0;
             const notebookFailed = notebookValidator?.failed || 0;
             const notebookTotal = notebookValidator?.totalChecks || 0;
+            const notebookJsonValid = notebookValidator && !notebookValidator.error;
+            const notebookJsonError = notebookValidator?.error || null;
 
             // Validate each instruction using NvidiaValidator
             instructions.forEach(inst => {
@@ -2534,7 +2681,10 @@ class Validators {
                 notebook_failed: notebookFailed,
                 notebook_total: notebookTotal,
                 notebook_fail_rate: parseFloat(notebookFailRate.toFixed(1)),
-                notebook_meets_50: notebookMeets50
+                notebook_meets_50: notebookMeets50,
+                // JSON status
+                json_valid: notebookJsonValid,
+                json_error: notebookJsonError
             });
 
             modelResults.push({
@@ -2816,6 +2966,7 @@ class Validators {
             passed: allChecks.filter(c => c.status === 'passed').length,
             failed: allChecks.filter(c => c.status === 'failed').length,
             skipped: allChecks.filter(c => c.status === 'skipped').length,
+            needsReview: allChecks.filter(c => c.status === 'needs_review').length,
             warnings: allChecks.reduce((sum, c) => sum + (c.warnings?.length || 0), 0),
             status: this.determineOverallStatus(allChecks)
         };
@@ -2826,10 +2977,13 @@ class Validators {
      */
     determineOverallStatus(checks) {
         const failed = checks.filter(c => c.status === 'failed');
+        const needsReview = checks.filter(c => c.status === 'needs_review');
         const warnings = checks.reduce((sum, c) => sum + (c.warnings?.length || 0), 0);
 
-        if (failed.length === 0 && warnings === 0) {
+        if (failed.length === 0 && needsReview.length === 0 && warnings === 0) {
             return 'PASS';
+        } else if (failed.length === 0 && needsReview.length > 0) {
+            return 'NEEDS_REVIEW'; // New status for items needing AI or manual verification
         } else if (failed.length <= 2) {
             return 'MINOR_REVISION';
         } else {

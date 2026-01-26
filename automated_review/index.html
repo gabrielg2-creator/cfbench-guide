@@ -375,7 +375,18 @@
                     }
                 }
 
-                updateProgress(80, 'Running comprehensive analysis...');
+                updateProgress(75, 'Running AI verification on constraints...');
+                await sleep(500);
+
+                // Enhance check 2.3 with AI verification
+                try {
+                    await validators.enhanceCheck2_3WithAI(apiHandler);
+                    console.log('Check 2.3 enhanced with AI verification');
+                } catch (e) {
+                    console.warn('AI enhancement for check 2.3 failed:', e);
+                }
+
+                updateProgress(85, 'Running comprehensive analysis...');
                 await sleep(500);
 
                 // Comprehensive review
@@ -393,6 +404,22 @@
                 const hasHiddenConstraints = constraintsResult?.critical_issues?.length > 0 ||
                                              constraintsResult?.overall_valid === false;
 
+                // Determine overall status considering NEEDS_REVIEW
+                let overallStatus;
+                if (hasHiddenConstraints) {
+                    overallStatus = 'MAJOR_REVISION';
+                } else if (comprehensiveResult?.overall_status) {
+                    overallStatus = comprehensiveResult.overall_status;
+                } else if (deterministicResults.summary.failed > 2) {
+                    overallStatus = 'MAJOR_REVISION';
+                } else if (deterministicResults.summary.failed > 0) {
+                    overallStatus = 'MINOR_REVISION';
+                } else if (deterministicResults.summary.needsReview > 0) {
+                    overallStatus = 'NEEDS_REVIEW';
+                } else {
+                    overallStatus = 'PASS';
+                }
+
                 const apiResults = {
                     query_analysis: queryResult || {},
                     constraints_validation: constraintsResult || {},
@@ -402,10 +429,7 @@
                         difficulty_appropriate: evasions.length < 2
                     },
                     ...(comprehensiveResult || {}),
-                    overall_status: hasHiddenConstraints ? 'MAJOR_REVISION' :
-                                   (comprehensiveResult?.overall_status ||
-                                   (deterministicResults.summary.failed > 2 ? 'MAJOR_REVISION' :
-                                    deterministicResults.summary.failed > 0 ? 'MINOR_REVISION' : 'PASS'))
+                    overall_status: overallStatus
                 };
 
                 reportGenerator.setData(parsedNotebook, deterministicResults, apiResults);

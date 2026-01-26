@@ -637,6 +637,208 @@ Responda em JSON:
     }
 
     /**
+     * Verify a single constraint in the user query using AI
+     * This is a lightweight check for individual constraints
+     * @param {string} userQuery - The user query text to analyze
+     * @param {object} instruction - The instruction/constraint to verify
+     * @returns {object} { found: boolean, evidence: string, exact_quote: string, method: 'AI' }
+     */
+    async verifyConstraintInQuery(userQuery, instruction) {
+        const id = instruction.instruction_id || 'unknown';
+
+        // Build a description of what to look for
+        let constraintDesc = id;
+        let expectedValue = '';
+
+        if (instruction.num_words) {
+            constraintDesc = `word count requirement`;
+            expectedValue = `${instruction.num_words} words`;
+        } else if (instruction.num_unique) {
+            constraintDesc = `unique words requirement`;
+            expectedValue = `${instruction.num_unique} unique words`;
+        } else if (instruction.num_chars) {
+            constraintDesc = `character count requirement`;
+            expectedValue = `${instruction.num_chars} characters`;
+        } else if (instruction.num_sentences) {
+            constraintDesc = `sentence count requirement`;
+            expectedValue = `${instruction.num_sentences} sentences`;
+        } else if (instruction.num_paragraphs) {
+            constraintDesc = `paragraph count requirement`;
+            expectedValue = `${instruction.num_paragraphs} paragraphs`;
+        } else if (instruction.keyword && instruction.frequency) {
+            constraintDesc = `keyword frequency requirement`;
+            expectedValue = `keyword "${instruction.keyword}" used ${instruction.frequency} times`;
+        } else if (instruction.keywords) {
+            constraintDesc = `keywords existence requirement`;
+            expectedValue = `must include keywords: ${instruction.keywords.join(', ')}`;
+        } else if (instruction.first_word) {
+            constraintDesc = `first word requirement`;
+            expectedValue = `start with "${instruction.first_word}"`;
+        } else if (instruction.last_word) {
+            constraintDesc = `last word requirement`;
+            expectedValue = `end with "${instruction.last_word}"`;
+        } else if (instruction.mood_type) {
+            constraintDesc = `grammatical mood requirement`;
+            expectedValue = `use ${instruction.mood_type} mood`;
+        } else if (id.includes('no_comma')) {
+            constraintDesc = `no commas requirement`;
+            expectedValue = `text without commas`;
+        }
+
+        const prompt = `You are analyzing a user query to check if a specific constraint is EXPLICITLY requested.
+
+CONSTRAINT TO VERIFY:
+- Type: ${constraintDesc}
+- Expected value: ${expectedValue}
+- Instruction ID: ${id}
+
+USER QUERY:
+---
+${userQuery}
+---
+
+IMPORTANT RULES:
+1. Numbers can appear written out in words in ANY language:
+   - Italian: "venticinque" = 25, "trecentottantacinque" = 385, "sei" = 6
+   - Portuguese: "vinte e cinco" = 25
+   - Spanish: "veinticinco" = 25
+   - German: "funfundzwanzig" = 25
+   - French: "vingt-cinq" = 25
+
+2. The constraint must be EXPLICITLY REQUESTED in the query text, not just implied.
+
+3. Look for the semantic meaning, not just exact words. For example:
+   - "25 frasi" = 25 sentences (Italian)
+   - "venticinque frasi" = 25 sentences (Italian, number in words)
+   - "non usare virgole" = no commas
+   - "senza virgole" = without commas
+
+Respond ONLY in this JSON format:
+{
+  "found": true or false,
+  "evidence": "exact quote from query where constraint appears, or 'Not found in query'",
+  "confidence": 0.0 to 1.0,
+  "note": "brief explanation"
+}`;
+
+        try {
+            const response = await this.callGemini(prompt, { maxTokens: 500, temperature: 0.1 });
+            const result = this.parseJSONResponse(response.text);
+
+            return {
+                found: result.found === true,
+                evidence: result.evidence || 'Not found',
+                exact_quote: result.evidence ? `"${result.evidence}"` : null,
+                confidence: result.confidence || 0,
+                note: result.note || '',
+                method: 'AI'
+            };
+        } catch (error) {
+            console.warn('AI verification failed:', error.message);
+            return {
+                found: null, // null = could not verify
+                evidence: `AI verification failed: ${error.message}`,
+                exact_quote: null,
+                method: 'AI_ERROR'
+            };
+        }
+    }
+
+    /**
+     * Verify multiple constraints in batch (more efficient)
+     * @param {string} userQuery - The user query text
+     * @param {array} instructions - Array of instructions to verify
+     * @returns {array} Array of verification results
+     */
+    async verifyConstraintsBatch(userQuery, instructions) {
+        if (!instructions || instructions.length === 0) {
+            return [];
+        }
+
+        // Build constraint list for the prompt
+        const constraintList = instructions.map((inst, idx) => {
+            const id = inst.instruction_id || `inst_${idx}`;
+            let desc = id;
+            let value = '';
+
+            if (inst.num_words) { desc = 'word_count'; value = `${inst.num_words} words`; }
+            else if (inst.num_unique) { desc = 'unique_words'; value = `${inst.num_unique} unique`; }
+            else if (inst.num_chars) { desc = 'char_count'; value = `${inst.num_chars} chars`; }
+            else if (inst.num_sentences) { desc = 'sentence_count'; value = `${inst.num_sentences} sentences`; }
+            else if (inst.num_paragraphs) { desc = 'paragraph_count'; value = `${inst.num_paragraphs} paragraphs`; }
+            else if (inst.keyword) { desc = 'keyword_freq'; value = `"${inst.keyword}" x${inst.frequency || 1}`; }
+            else if (inst.keywords) { desc = 'keywords_exist'; value = inst.keywords.join(', '); }
+            else if (inst.first_word) { desc = 'first_word'; value = `"${inst.first_word}"`; }
+            else if (inst.last_word) { desc = 'last_word'; value = `"${inst.last_word}"`; }
+            else if (inst.mood_type) { desc = 'mood'; value = inst.mood_type; }
+            else if (id.includes('no_comma')) { desc = 'no_comma'; value = 'no commas allowed'; }
+
+            return { idx, id, desc, value, original: inst };
+        });
+
+        const prompt = `You are analyzing a user query to check if specific constraints are EXPLICITLY requested.
+
+CONSTRAINTS TO VERIFY:
+${constraintList.map((c, i) => `${i + 1}. [${c.id}] ${c.desc}: ${c.value}`).join('\n')}
+
+USER QUERY:
+---
+${userQuery}
+---
+
+IMPORTANT:
+1. Numbers can be written in words in ANY language (e.g., "venticinque" = 25 in Italian)
+2. The constraint must be EXPLICITLY REQUESTED, not just implied
+3. Look for semantic meaning, not just exact words
+
+For EACH constraint, respond in JSON format:
+{
+  "results": [
+    {
+      "id": "instruction_id",
+      "found": true/false,
+      "evidence": "exact quote from query or 'Not found'",
+      "confidence": 0.0-1.0
+    }
+  ]
+}`;
+
+        try {
+            const response = await this.callGemini(prompt, { maxTokens: 2000, temperature: 0.1 });
+            const parsed = this.parseJSONResponse(response.text);
+
+            if (!parsed.results || !Array.isArray(parsed.results)) {
+                throw new Error('Invalid response format');
+            }
+
+            // Map results back to original instructions
+            return constraintList.map(c => {
+                const aiResult = parsed.results.find(r => r.id === c.id) || {};
+                return {
+                    instruction_id: c.id,
+                    found: aiResult.found === true,
+                    evidence: aiResult.evidence || 'Not found',
+                    exact_quote: aiResult.evidence ? `"${aiResult.evidence}"` : null,
+                    confidence: aiResult.confidence || 0,
+                    method: 'AI',
+                    original: c.original
+                };
+            });
+        } catch (error) {
+            console.warn('Batch AI verification failed:', error.message);
+            // Return null results for all
+            return constraintList.map(c => ({
+                instruction_id: c.id,
+                found: null,
+                evidence: `AI verification failed: ${error.message}`,
+                exact_quote: null,
+                method: 'AI_ERROR',
+                original: c.original
+            }));
+        }
+    }
+
+    /**
      * Parse JSON from API response
      */
     parseJSONResponse(text) {
