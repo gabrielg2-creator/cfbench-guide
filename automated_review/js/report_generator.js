@@ -123,6 +123,24 @@ class ReportGenerator {
             </div>`;
         }
 
+        // Check 2.1 - System Prompt (LLM Eval confirmation)
+        if (check.id === '2.1' && check.details) {
+            const hasLLMEval = check.details.hasLLMEvalConstraint;
+            html += `<div class="check-details-box">
+                <div class="detail-row"><strong>Word Count:</strong> ${check.details.wordCount || 0}</div>
+                <div class="detail-row"><strong>Has Role Definition:</strong> ${check.details.hasRole ? '<span style="color: #4ade80;">✓ Yes</span>' : '<span style="color: #f87171;">✗ No</span>'}</div>
+                <div class="detail-row"><strong>Has Format Spec:</strong> ${check.details.hasFormat ? '<span style="color: #4ade80;">✓ Yes</span>' : '<span style="color: #fde047;">⚠ Not detected</span>'}</div>
+                <div class="detail-row" style="margin-top: 8px; padding: 8px; background: ${hasLLMEval ? 'linear-gradient(135deg, #1a2f1a 0%, #0d1a0d 100%)' : 'linear-gradient(135deg, #2f1a1a 0%, #1a0d0d 100%)'}; border: 1px solid ${hasLLMEval ? '#2d5a2d' : '#5a2d2d'}; border-radius: 6px;">
+                    <strong style="color: ${hasLLMEval ? '#4ade80' : '#f87171'};">
+                        ${hasLLMEval ? '✓' : '✗'} LLM Eval Constraint:
+                    </strong>
+                    <span style="color: ${hasLLMEval ? '#a3e635' : '#fca5a5'};">
+                        ${hasLLMEval ? 'Found (tone/style/behavior guidance detected)' : 'NOT FOUND - System prompt MUST contain tone/style/behavior guidance'}
+                    </span>
+                </div>
+            </div>`;
+        }
+
         // Check 2.3 - Value Consistency (Constraint Verification Table)
         if (check.id === '2.3') {
             // Show final user query info for debugging
@@ -239,84 +257,101 @@ class ReportGenerator {
             </div>`;
         }
 
-        // Check 3.0 - JSON Validation
+        // Check 3.0 - JSON Parsing
         if (check.id === '3.0' && check.details?.jsonStatus?.length > 0) {
-            // Separate by category
-            const turnMetaStatus = check.details.jsonStatus.filter(j => j.cell.includes('turn_metadata'));
-            const goldenStatus = check.details.jsonStatus.filter(j => j.cell.includes('golden'));
-            const modelPassStatus = check.details.jsonStatus.filter(j => !j.cell.includes('golden') && !j.cell.includes('turn_metadata'));
-
             const validCount = check.details.jsonStatus.filter(j => j.valid).length;
             const totalCount = check.details.jsonStatus.length;
             const allValid = validCount === totalCount;
 
             html += `<div class="verification-table-container">
-                <h5>JSON Validation Status - Todas as células com JSON</h5>
-                <div class="distribution-summary" style="margin-bottom: 12px; display: flex; gap: 12px; flex-wrap: wrap;">
-                    <span class="${allValid ? 'summary-item pass' : 'summary-item fail'}" style="font-size: 0.9rem;">
-                        ${allValid ? '✓' : '✗'} <strong>${validCount}/${totalCount}</strong> JSONs válidos
-                    </span>
-                    ${!allValid ? `<span class="summary-item fail">⚠ Alguns JSONs estão quebrados!</span>` : ''}
-                </div>
+                <h5>JSON Parsing</h5>
 
-                <!-- Visual grid of JSON status -->
-                <div class="json-status-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; margin-bottom: 16px;">
+                <!-- Clean list format like user showed -->
+                <div class="json-parsing-list" style="background: ${allValid ? 'linear-gradient(135deg, #1a2f1a 0%, #0d1a0d 100%)' : 'linear-gradient(135deg, #2f1a1a 0%, #1a0d0d 100%)'}; border: 1px solid ${allValid ? '#2d5a2d' : '#5a2d2d'}; border-radius: 8px; padding: 12px 16px; margin-bottom: 12px;">
                     ${check.details.jsonStatus.map(j => {
-                        const bgColor = j.valid ? 'linear-gradient(135deg, #1a2f1a 0%, #0d1a0d 100%)' :
-                                       j.status === 'NOT FOUND' ? 'linear-gradient(135deg, #2f2f1a 0%, #1a1a0d 100%)' :
-                                       'linear-gradient(135deg, #2f1a1a 0%, #1a0d0d 100%)';
-                        const borderColor = j.valid ? '#2d5a2d' : j.status === 'NOT FOUND' ? '#5a5a2d' : '#5a2d2d';
-                        const iconColor = j.valid ? '#4ade80' : j.status === 'NOT FOUND' ? '#fde047' : '#f87171';
                         const icon = j.valid ? '✓' : j.status === 'NOT FOUND' ? '?' : '✗';
-
-                        return `
-                        <div class="json-cell-status" style="background: ${bgColor}; border: 1px solid ${borderColor}; border-radius: 6px; padding: 8px 10px;">
-                            <div style="display: flex; align-items: center; gap: 6px;">
-                                <span style="color: ${iconColor}; font-size: 1.1rem; font-weight: bold;">${icon}</span>
-                                <span style="color: var(--text-primary); font-size: 0.75rem; font-weight: 500;">${this.escapeHTML(j.cell)}</span>
-                            </div>
-                            ${j.error ? `<div style="color: #f87171; font-size: 0.65rem; margin-top: 4px; word-break: break-all;">${this.escapeHTML(j.error)}</div>` : ''}
+                        const color = j.valid ? '#4ade80' : j.status === 'NOT FOUND' ? '#fde047' : '#f87171';
+                        return `<div style="display: flex; align-items: center; gap: 8px; padding: 4px 0;">
+                            <span style="color: ${color}; font-weight: bold; font-size: 1rem; width: 16px;">${icon}</span>
+                            <span style="color: var(--text-primary); font-size: 0.85rem;">${this.escapeHTML(j.cell)}</span>
+                            ${j.error ? `<span style="color: #f87171; font-size: 0.7rem; margin-left: auto;">${this.escapeHTML(j.error)}</span>` : ''}
                         </div>`;
                     }).join('')}
                 </div>
 
-                <!-- Detailed table -->
-                <details style="margin-top: 8px;">
-                    <summary style="cursor: pointer; font-weight: 600; font-size: 0.8rem; color: var(--text-secondary);">Ver tabela detalhada</summary>
-                    <table class="verification-table" style="margin-top: 8px;">
-                        <thead>
-                            <tr>
-                                <th>Célula</th>
-                                <th>Tipo</th>
-                                <th>Status JSON</th>
-                                <th>Erro</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${check.details.jsonStatus.map(j => {
-                                const cellType = j.cell.includes('turn_metadata') ? 'Metadata' :
-                                                j.cell.includes('validator_assistant') ? 'Validator Assistant' :
-                                                j.cell.includes('validator_human') ? 'Validator Human' : 'Outro';
-                                return `
-                                <tr class="${j.valid ? 'row-pass' : 'row-fail'}">
-                                    <td><strong>${this.escapeHTML(j.cell)}</strong></td>
-                                    <td style="color: var(--text-muted); font-size: 0.75rem;">${cellType}</td>
-                                    <td style="text-align: center;">
-                                        ${j.status === 'VALID' ? '<span style="color:#4ade80; font-weight:600;">✓ VALID</span>' :
-                                          j.status === 'NOT FOUND' ? '<span style="color:#fde047;">⚠ NOT FOUND</span>' :
-                                          '<span style="color:#f87171; font-weight:600;">✗ INVALID</span>'}
-                                    </td>
-                                    <td class="inst-evidence" style="color: #f87171; font-size: 0.7rem;">${this.escapeHTML(j.error || '-')}</td>
-                                </tr>`;
-                            }).join('')}
-                        </tbody>
-                    </table>
-                </details>
+                <!-- Summary -->
+                <div class="distribution-summary" style="display: flex; gap: 12px; flex-wrap: wrap;">
+                    <span class="${allValid ? 'summary-item pass' : 'summary-item fail'}" style="font-size: 0.85rem;">
+                        ${allValid ? '✓' : '✗'} <strong>${validCount}/${totalCount}</strong> JSONs válidos
+                    </span>
+                    ${!allValid ? `<span class="summary-item fail">⚠ Alguns JSONs estão quebrados!</span>` : ''}
+                </div>
+            </div>`;
+        }
+
+        // Check 3.10 - validator_human Completeness
+        if (check.id === '3.10' && check.details) {
+            const results = check.details.validatorHumanResults || [];
+            const expectedChecks = check.details.expectedChecks || [];
+            const presentCount = check.details.presentCount || 0;
+            const totalCount = check.details.totalCount || 0;
+            const allPresent = presentCount === totalCount;
+
+            html += `<div class="verification-table-container">
+                <h5>validator_human Completeness</h5>
+
+                <!-- Expected checks from turn_metadata -->
+                <div style="margin-bottom: 12px; padding: 10px; background: var(--bg-tertiary); border-radius: 6px;">
+                    <strong style="color: var(--text-secondary);">Checks esperados (llm_eval + llm_judge):</strong>
+                    <div style="margin-top: 6px; display: flex; flex-wrap: wrap; gap: 6px;">
+                        ${expectedChecks.length > 0 ? expectedChecks.map(c => `
+                            <span style="background: ${c.type === 'llm_judge' ? 'linear-gradient(135deg, #2f1a2f 0%, #1a0d1a 100%)' : 'linear-gradient(135deg, #1a2f2f 0%, #0d1a1a 100%)'}; border: 1px solid ${c.type === 'llm_judge' ? '#5a2d5a' : '#2d5a5a'}; padding: 3px 8px; border-radius: 4px; font-size: 0.75rem; color: ${c.type === 'llm_judge' ? '#f0abfc' : '#5eead4'};">
+                                ${this.escapeHTML(c.id)}
+                            </span>
+                        `).join('') : '<span style="color: var(--text-muted); font-size: 0.8rem;">Nenhum llm_eval ou llm_judge encontrado no turn_metadata</span>'}
+                    </div>
+                </div>
+
+                <!-- validator_human status list -->
+                <div class="validator-human-list" style="background: ${allPresent ? 'linear-gradient(135deg, #1a2f1a 0%, #0d1a0d 100%)' : 'linear-gradient(135deg, #2f1a1a 0%, #1a0d0d 100%)'}; border: 1px solid ${allPresent ? '#2d5a2d' : '#5a2d2d'}; border-radius: 8px; padding: 12px 16px;">
+                    ${results.map(r => {
+                        const icon = r.present && !r.hasError ? '✓' : r.hasError ? '✗' : '?';
+                        const color = r.present && !r.hasError ? '#4ade80' : r.hasError ? '#f87171' : '#fde047';
+                        const foundCount = r.checksFound?.length || 0;
+                        const missingCount = r.checksMissing?.length || 0;
+                        const expectedTotal = expectedChecks.length;
+
+                        return `<div style="display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                            <span style="color: ${color}; font-weight: bold; font-size: 1rem; width: 16px;">${icon}</span>
+                            <span style="color: var(--text-primary); font-size: 0.85rem; flex: 1;">${this.escapeHTML(r.cell)}</span>
+                            ${r.present && !r.hasError && expectedTotal > 0 ? `
+                                <span style="color: ${foundCount === expectedTotal ? '#4ade80' : '#fde047'}; font-size: 0.75rem;">
+                                    ${foundCount}/${expectedTotal} checks
+                                </span>
+                            ` : ''}
+                            ${r.hasError ? `<span style="color: #f87171; font-size: 0.7rem;">${this.escapeHTML(r.error)}</span>` : ''}
+                            ${!r.present ? `<span style="color: #f87171; font-size: 0.75rem;">NOT FOUND</span>` : ''}
+                        </div>`;
+                    }).join('')}
+                </div>
+
+                <!-- Summary -->
+                <div class="distribution-summary" style="margin-top: 12px; display: flex; gap: 12px; flex-wrap: wrap;">
+                    <span class="${allPresent ? 'summary-item pass' : 'summary-item fail'}" style="font-size: 0.85rem;">
+                        ${allPresent ? '✓' : '✗'} <strong>${presentCount}/${totalCount}</strong> validator_human presentes
+                    </span>
+                    <span class="summary-item" style="background: linear-gradient(135deg, #1a2f2f 0%, #0d1a1a 100%); border: 1px solid #2d5a5a;">
+                        <strong style="color: #5eead4;">llm_eval:</strong> ${check.details.llmEvalCount || 0}
+                    </span>
+                    <span class="summary-item" style="background: linear-gradient(135deg, #2f1a2f 0%, #1a0d1a 100%); border: 1px solid #5a2d5a;">
+                        <strong style="color: #f0abfc;">llm_judge:</strong> ${check.details.llmJudgeCount || 0}
+                    </span>
+                </div>
 
                 <div style="font-size: 11px; color: var(--text-muted); margin-top: 12px; padding: 8px; background: var(--bg-tertiary); border-radius: 4px;">
-                    <strong>✓ VALID:</strong> JSON parseado com sucesso, dados disponíveis para análise<br>
-                    <strong>✗ INVALID:</strong> JSON com erro de sintaxe - não foi possível ler os dados<br>
-                    <strong>⚠ NOT FOUND:</strong> Célula não encontrada no notebook
+                    <strong>validator_human</strong> deve conter validações manuais para:<br>
+                    • <span style="color: #5eead4;">llm_eval</span> (stylistic:*, linguistic:*, situation:*) - tom, estilo, contexto<br>
+                    • <span style="color: #f0abfc;">llm_judge</span> - verificações subjetivas/factuais específicas
                 </div>
             </div>`;
         }
@@ -357,17 +392,45 @@ class ReportGenerator {
 
         // Check 4.2 - Pass/Fail Distribution (Model Breaking Rule)
         if (check.id === '4.2') {
-            // Show Model Breaking Rule summary first
+            // Show Model Breaking Rule summary first - NOW WITH BOTH SOURCES
             const failRates = check.details?.failRates || [];
-            const passesOver50 = check.details?.passesWithOver50PercentFail || 0;
-            const ruleStatus = passesOver50 >= 3 ? 'pass' : 'fail';
+            const summary = check.details?.summary || {};
+            const cellPassesOver50 = summary.cellPassesOver50 ?? 0;
+            const scriptPassesOver50 = summary.scriptPassesOver50 ?? (check.details?.passesWithOver50PercentFail || 0);
+            const hasDivergence = summary.hasDivergence || failRates.some(f => f.has_divergence);
+            const cellPassRule = cellPassesOver50 >= 3;
+            const scriptPassRule = scriptPassesOver50 >= 3;
+            const bothAgree = cellPassRule === scriptPassRule;
+
+            // Determine final status
+            let finalStatus, statusClass, statusIcon;
+            if (bothAgree && cellPassRule) {
+                finalStatus = 'PASS (ambos concordam)';
+                statusClass = 'pass';
+                statusIcon = '✓';
+            } else if (bothAgree && !cellPassRule) {
+                finalStatus = 'FAIL (ambos concordam)';
+                statusClass = 'fail';
+                statusIcon = '✗';
+            } else {
+                finalStatus = 'NEEDS REVIEW (divergência)';
+                statusClass = 'needs-review';
+                statusIcon = '⚠';
+            }
 
             html += `<div class="verification-table-container">
                 <h5>Model Breaking Rule: ≥3 of 4 must fail ≥50%</h5>
-                <div class="distribution-summary" style="margin-bottom: 12px;">
-                    <span class="${ruleStatus === 'pass' ? 'summary-item pass' : 'summary-item fail'}">
-                        <strong>Passes with ≥50% fail:</strong> ${passesOver50}/4 ${ruleStatus === 'pass' ? '✓' : '✗'}
+                <div class="distribution-summary" style="margin-bottom: 12px; display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
+                    <span class="summary-item" style="background: linear-gradient(135deg, #1a2f1a 0%, #0d1a0d 100%); border: 1px solid #2d5a2d;">
+                        <strong style="color: #4ade80;">CELL:</strong> ${cellPassesOver50}/4 ${cellPassRule ? '✓' : '✗'}
                     </span>
+                    <span class="summary-item" style="background: linear-gradient(135deg, #2f2f1a 0%, #1a1a0d 100%); border: 1px solid #5a5a2d;">
+                        <strong style="color: #fde047;">SCRIPT:</strong> ${scriptPassesOver50}/4 ${scriptPassRule ? '✓' : '✗'}
+                    </span>
+                    ${hasDivergence ? `<span class="summary-item" style="background: linear-gradient(135deg, #2f1a2f 0%, #1a0d1a 100%); border: 1px solid #5a2d5a; color: #f0abfc;">⚠ DIVERGÊNCIA</span>` : ''}
+                </div>
+                <div class="final-status" style="padding: 8px 12px; border-radius: 6px; margin-bottom: 12px; background: ${statusClass === 'pass' ? 'linear-gradient(135deg, #1a2f1a 0%, #0d1a0d 100%)' : statusClass === 'fail' ? 'linear-gradient(135deg, #2f1a1a 0%, #1a0d0d 100%)' : 'linear-gradient(135deg, #2f2f1a 0%, #1a1a0d 100%)'}; border: 1px solid ${statusClass === 'pass' ? '#2d5a2d' : statusClass === 'fail' ? '#5a2d2d' : '#5a5a2d'};">
+                    <strong style="color: ${statusClass === 'pass' ? '#4ade80' : statusClass === 'fail' ? '#f87171' : '#fde047'};">${statusIcon} Status Final: ${finalStatus}</strong>
                 </div>`;
 
             if (failRates.length > 0) {
@@ -379,7 +442,7 @@ class ReportGenerator {
                             <span style="background: #4ade80; color: #0d1a0d; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem;">CELL</span>
                             Notebook Validator (validator_assistant)
                         </h6>
-                        <p style="color: #a3e635; font-size: 0.7rem; margin: 0 0 8px 0;">Resultados da célula do notebook - fonte primária</p>
+                        <p style="color: #a3e635; font-size: 0.7rem; margin: 0 0 8px 0;">Resultados da célula do notebook - validação com semântica</p>
                         <table class="verification-table" style="font-size: 0.75rem;">
                             <thead>
                                 <tr style="background: #1a3d1a;">
@@ -387,26 +450,27 @@ class ReportGenerator {
                                     <th>Pass</th>
                                     <th>Fail</th>
                                     <th>Fail%</th>
-                                    <th>JSON</th>
+                                    <th>≥50%</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 ${failRates.map(f => {
                                     const cellFailRate = f.notebook_fail_rate || 0;
-                                    const cellMeets50 = cellFailRate >= 50;
-                                    const jsonValid = f.json_valid !== false && f.notebook_total > 0;
-                                    const jsonError = f.json_error;
+                                    const cellMeets50 = f.cell_meets_50 ?? (cellFailRate >= 50);
                                     return `
                                     <tr class="${cellMeets50 ? 'row-pass' : 'row-fail'}">
                                         <td><strong>${this.escapeHTML(f.id)}</strong></td>
                                         <td style="color: #4ade80;">${f.notebook_passed || 0}</td>
                                         <td style="color: #f87171;">${f.notebook_failed || 0}</td>
                                         <td><strong>${cellFailRate}%</strong></td>
-                                        <td title="${jsonError ? this.escapeHTML(jsonError) : 'JSON válido'}">${jsonValid ? '<span style="color:#4ade80;">✓</span>' : '<span style="color:#f87171;">✗</span>'}</td>
+                                        <td style="text-align: center; font-weight: bold; color: ${cellMeets50 ? '#4ade80' : '#f87171'};">${cellMeets50 ? '✓' : '✗'}</td>
                                     </tr>`;
                                 }).join('')}
                             </tbody>
                         </table>
+                        <div style="margin-top: 8px; text-align: center; font-weight: bold; color: ${cellPassRule ? '#4ade80' : '#f87171'};">
+                            Total: ${cellPassesOver50}/4 ≥50% ${cellPassRule ? '✓' : '✗'}
+                        </div>
                     </div>
 
                     <!-- SCRIPT VALIDATION (Tool) -->
@@ -415,7 +479,7 @@ class ReportGenerator {
                             <span style="background: #fde047; color: #1a1a0d; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem;">SCRIPT</span>
                             Tool Validation (NvidiaValidator)
                         </h6>
-                        <p style="color: #fef08a; font-size: 0.7rem; margin: 0 0 8px 0;">Validação própria do script - double-check</p>
+                        <p style="color: #fef08a; font-size: 0.7rem; margin: 0 0 8px 0;">Validação conservadora - semantic tratado como FAIL</p>
                         <table class="verification-table" style="font-size: 0.75rem;">
                             <thead>
                                 <tr style="background: #3d3d1a;">
@@ -424,11 +488,12 @@ class ReportGenerator {
                                     <th>Sem</th>
                                     <th>LLM</th>
                                     <th>Fail%</th>
+                                    <th>≥50%</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 ${failRates.map(f => {
-                                    const scriptMeets50 = f.meets_50_percent;
+                                    const scriptMeets50 = f.script_meets_50 ?? f.meets_50_percent;
                                     return `
                                     <tr class="${scriptMeets50 ? 'row-pass' : 'row-fail'}">
                                         <td><strong>${this.escapeHTML(f.id)}</strong></td>
@@ -436,23 +501,28 @@ class ReportGenerator {
                                         <td style="color: #fb923c;">${f.semantic_failed || 0}</td>
                                         <td style="color: #c084fc;">${f.llm_judge_failed || 0}</td>
                                         <td><strong>${f.failRate}%</strong></td>
+                                        <td style="text-align: center; font-weight: bold; color: ${scriptMeets50 ? '#4ade80' : '#f87171'};">${scriptMeets50 ? '✓' : '✗'}</td>
                                     </tr>`;
                                 }).join('')}
                             </tbody>
                         </table>
+                        <div style="margin-top: 8px; text-align: center; font-weight: bold; color: ${scriptPassRule ? '#4ade80' : '#f87171'};">
+                            Total: ${scriptPassesOver50}/4 ≥50% ${scriptPassRule ? '✓' : '✗'}
+                        </div>
                     </div>
                 </div>
 
-                <!-- Comparison Summary -->
+                <!-- Comparison Summary - CELL vs SCRIPT Decision -->
                 <div class="comparison-summary" style="background: #1a1a2e; border: 1px solid #3b3b5c; border-radius: 8px; padding: 12px; margin-bottom: 12px;">
-                    <h6 style="color: #a5b4fc; margin: 0 0 8px 0; font-size: 0.8rem;">Comparação: Cell vs Script</h6>
+                    <h6 style="color: #a5b4fc; margin: 0 0 8px 0; font-size: 0.8rem;">Comparação: Cell vs Script (Decisão ≥50%)</h6>
                     <table class="verification-table" style="font-size: 0.75rem;">
                         <thead>
                             <tr>
                                 <th>Model</th>
                                 <th>Cell Fail%</th>
+                                <th>Cell ≥50%</th>
                                 <th>Script Fail%</th>
-                                <th>Diferença</th>
+                                <th>Script ≥50%</th>
                                 <th>Status</th>
                             </tr>
                         </thead>
@@ -460,28 +530,35 @@ class ReportGenerator {
                             ${failRates.map(f => {
                                 const cellRate = f.notebook_fail_rate || 0;
                                 const scriptRate = f.failRate || 0;
-                                const diff = Math.abs(cellRate - scriptRate);
-                                const hasDivergence = diff > 10;
-                                const cellMeets = cellRate >= 50;
-                                const scriptMeets = scriptRate >= 50;
-                                const bothAgree = cellMeets === scriptMeets;
+                                const cellMeets = f.cell_meets_50 ?? (cellRate >= 50);
+                                const scriptMeets = f.script_meets_50 ?? (scriptRate >= 50);
+                                const diverges = f.has_divergence ?? (cellMeets !== scriptMeets);
                                 return `
-                                <tr class="${bothAgree ? 'row-pass' : 'row-warn'}">
+                                <tr class="${diverges ? 'row-warn' : 'row-pass'}" style="${diverges ? 'background: linear-gradient(90deg, rgba(250,204,21,0.1) 0%, rgba(250,204,21,0.05) 100%);' : ''}">
                                     <td><strong>${this.escapeHTML(f.id)}</strong></td>
-                                    <td>${cellRate}%</td>
-                                    <td>${scriptRate}%</td>
-                                    <td style="color: ${hasDivergence ? '#f87171' : '#4ade80'};">${diff.toFixed(1)}%</td>
-                                    <td>${bothAgree ? '✓ Concordam' : '⚠ Divergem'}</td>
+                                    <td style="color: #4ade80;">${cellRate}%</td>
+                                    <td style="text-align: center; font-weight: bold; color: ${cellMeets ? '#4ade80' : '#f87171'};">${cellMeets ? '✓' : '✗'}</td>
+                                    <td style="color: #fde047;">${scriptRate}%</td>
+                                    <td style="text-align: center; font-weight: bold; color: ${scriptMeets ? '#4ade80' : '#f87171'};">${scriptMeets ? '✓' : '✗'}</td>
+                                    <td style="font-weight: 600; color: ${diverges ? '#fde047' : '#4ade80'};">${diverges ? '⚠ DIVERGE' : '✓ OK'}</td>
                                 </tr>`;
                             }).join('')}
                         </tbody>
                     </table>
+                    ${hasDivergence ? `
+                    <div style="margin-top: 8px; padding: 8px; background: linear-gradient(135deg, #2f2f1a 0%, #1a1a0d 100%); border: 1px solid #5a5a2d; border-radius: 4px;">
+                        <strong style="color: #fde047;">⚠ Divergência Detectada:</strong>
+                        <span style="color: #fef08a; font-size: 0.75rem;"> CELL e SCRIPT discordam em pelo menos um model pass. Recomenda-se revisão humana para confirmar o resultado.</span>
+                    </div>` : ''}
                 </div>
 
                 <div style="font-size: 11px; color: var(--text-muted); margin-top: 8px; padding: 8px; background: var(--bg-tertiary); border-radius: 4px;">
-                    <strong>CELL (Verde):</strong> Dados diretamente da célula validator_assistant do notebook (fonte primária)<br>
-                    <strong>SCRIPT (Amarelo):</strong> Validação própria usando NvidiaValidator (double-check)<br>
-                    <strong>JSON:</strong> ✓ = JSON da célula válido e parseado corretamente
+                    <strong>CELL (Verde):</strong> Dados da célula validator_assistant do notebook - validação real com semântica<br>
+                    <strong>SCRIPT (Amarelo):</strong> Validação própria do script - conservadora (trata semantic como FAIL)<br>
+                    <strong>Decisão Final:</strong><br>
+                    &nbsp;&nbsp;• Se CELL ≥3 e SCRIPT ≥3 → <span style="color: #4ade80;">✓ PASS (ambos concordam)</span><br>
+                    &nbsp;&nbsp;• Se CELL <3 e SCRIPT <3 → <span style="color: #f87171;">✗ FAIL (ambos concordam)</span><br>
+                    &nbsp;&nbsp;• Se discordam → <span style="color: #fde047;">⚠ NEEDS REVIEW (revisão humana)</span>
                 </div>`;
             }
 

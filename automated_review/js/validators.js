@@ -1681,11 +1681,15 @@ class Validators {
 
         // Check 3.9: Format constraints must be explicit in query
         this.check3_9_FormatConstraintsExplicit();
+
+        // Check 3.10: validator_human must contain llm_eval and llm_judge checks
+        this.check3_10_ValidatorHumanCompleteness();
     }
 
     /**
      * Check 3.0: JSON Validation - Ensure all JSON cells are valid
-     * Validates: turn_metadata, validator_assistant (golden + all models), validator_human (golden + all models)
+     * Validates: turn_metadata, validator_assistant, validator_human (golden + all model passes)
+     * Cell names match notebook format: validator_assistant_qwen3_1, validator_human_nemotron_2, etc.
      */
     check3_0_JSONValidation() {
         const issues = [];
@@ -1708,53 +1712,58 @@ class Validators {
         // Check golden validator_assistant JSON
         const goldenVA = p.finalTurn?.validatorAssistant;
         if (!goldenVA) {
-            warnings.push('validator_assistant (golden): NOT FOUND');
-            jsonStatus.push({ cell: 'validator_assistant (golden)', status: 'NOT FOUND', valid: false });
+            warnings.push('validator_assistant: NOT FOUND');
+            jsonStatus.push({ cell: 'validator_assistant', status: 'NOT FOUND', valid: false });
         } else if (goldenVA.error) {
-            issues.push(`validator_assistant (golden): JSON ERROR - ${goldenVA.error}`);
-            jsonStatus.push({ cell: 'validator_assistant (golden)', status: 'INVALID', error: goldenVA.error, valid: false });
+            issues.push(`validator_assistant: JSON ERROR - ${goldenVA.error}`);
+            jsonStatus.push({ cell: 'validator_assistant', status: 'INVALID', error: goldenVA.error, valid: false });
         } else {
-            jsonStatus.push({ cell: 'validator_assistant (golden)', status: 'VALID', valid: true });
+            jsonStatus.push({ cell: 'validator_assistant', status: 'VALID', valid: true });
         }
 
         // Check golden validator_human JSON
         const goldenVH = p.finalTurn?.validatorHuman;
         if (!goldenVH) {
-            warnings.push('validator_human (golden): NOT FOUND');
-            jsonStatus.push({ cell: 'validator_human (golden)', status: 'NOT FOUND', valid: false });
+            warnings.push('validator_human: NOT FOUND');
+            jsonStatus.push({ cell: 'validator_human', status: 'NOT FOUND', valid: false });
         } else if (goldenVH.error) {
-            issues.push(`validator_human (golden): JSON ERROR - ${goldenVH.error}`);
-            jsonStatus.push({ cell: 'validator_human (golden)', status: 'INVALID', error: goldenVH.error, valid: false });
+            issues.push(`validator_human: JSON ERROR - ${goldenVH.error}`);
+            jsonStatus.push({ cell: 'validator_human', status: 'INVALID', error: goldenVH.error, valid: false });
         } else {
-            jsonStatus.push({ cell: 'validator_human (golden)', status: 'VALID', valid: true });
+            jsonStatus.push({ cell: 'validator_human', status: 'VALID', valid: true });
         }
 
-        // Check all model passes validators
+        // Check all model passes validators (uses actual cell names: validator_assistant_qwen3_1, etc.)
         (p.modelPasses || []).forEach((pass, idx) => {
-            const passId = `${pass.model}_${pass.passNumber}`;
+            const model = pass.model || 'unknown';
+            const passNum = pass.passNumber || (idx + 1);
+
+            // Actual cell name format: validator_assistant_qwen3_1, validator_assistant_nemotron_2, etc.
+            const vaCellName = `validator_assistant_${model}_${passNum}`;
+            const vhCellName = `validator_human_${model}_${passNum}`;
 
             // validator_assistant for model pass
             const va = pass.validatorAssistant;
             if (!va) {
-                warnings.push(`validator_assistant (${passId}): NOT FOUND`);
-                jsonStatus.push({ cell: `validator_assistant (${passId})`, status: 'NOT FOUND', valid: false });
+                warnings.push(`${vaCellName}: NOT FOUND`);
+                jsonStatus.push({ cell: vaCellName, status: 'NOT FOUND', valid: false });
             } else if (va.error) {
-                issues.push(`validator_assistant (${passId}): JSON ERROR - ${va.error}`);
-                jsonStatus.push({ cell: `validator_assistant (${passId})`, status: 'INVALID', error: va.error, valid: false });
+                issues.push(`${vaCellName}: JSON ERROR - ${va.error}`);
+                jsonStatus.push({ cell: vaCellName, status: 'INVALID', error: va.error, valid: false });
             } else {
-                jsonStatus.push({ cell: `validator_assistant (${passId})`, status: 'VALID', valid: true });
+                jsonStatus.push({ cell: vaCellName, status: 'VALID', valid: true });
             }
 
             // validator_human for model pass
             const vh = pass.validatorHuman;
             if (!vh) {
-                warnings.push(`validator_human (${passId}): NOT FOUND`);
-                jsonStatus.push({ cell: `validator_human (${passId})`, status: 'NOT FOUND', valid: false });
+                warnings.push(`${vhCellName}: NOT FOUND`);
+                jsonStatus.push({ cell: vhCellName, status: 'NOT FOUND', valid: false });
             } else if (vh.error) {
-                issues.push(`validator_human (${passId}): JSON ERROR - ${vh.error}`);
-                jsonStatus.push({ cell: `validator_human (${passId})`, status: 'INVALID', error: vh.error, valid: false });
+                issues.push(`${vhCellName}: JSON ERROR - ${vh.error}`);
+                jsonStatus.push({ cell: vhCellName, status: 'INVALID', error: vh.error, valid: false });
             } else {
-                jsonStatus.push({ cell: `validator_human (${passId})`, status: 'VALID', valid: true });
+                jsonStatus.push({ cell: vhCellName, status: 'VALID', valid: true });
             }
         });
 
@@ -1765,7 +1774,7 @@ class Validators {
 
         this.results.phase3.push({
             id: '3.0',
-            name: 'JSON Validation',
+            name: 'JSON Parsing',
             status: allValid ? 'passed' : 'failed',
             issues: issues,
             warnings: warnings,
@@ -2497,6 +2506,127 @@ class Validators {
     }
 
     /**
+     * Check 3.10: validator_human Completeness
+     * Verifies that all validator_human cells (golden + 4 model passes) are present
+     * and contain validations for llm_eval (stylistic/linguistic/situation) and llm_judge constraints
+     */
+    check3_10_ValidatorHumanCompleteness() {
+        const issues = [];
+        const warnings = [];
+        const p = this.parsed;
+
+        // Get llm_eval and llm_judge from turn_metadata
+        const instructions = p.finalTurn?.turnMetadata?.instructions || [];
+        const llmJudge = p.finalTurn?.turnMetadata?.llmJudge || [];
+
+        // Filter llm_eval constraints (stylistic:*, linguistic:*, situation:*)
+        const llmEvalConstraints = instructions.filter(inst => {
+            const id = inst.instruction_id || '';
+            return id.startsWith('stylistic:') || id.startsWith('linguistic:') || id.startsWith('situation:');
+        });
+
+        // Build list of expected checks in validator_human
+        const expectedChecks = [
+            ...llmEvalConstraints.map(inst => ({
+                id: inst.instruction_id,
+                type: 'llm_eval',
+                description: inst.instruction_id
+            })),
+            ...llmJudge.map((judge, idx) => ({
+                id: judge.uid || `llm_judge_${idx + 1}`,
+                type: 'llm_judge',
+                description: judge.content?.substring(0, 50) || 'llm_judge'
+            }))
+        ];
+
+        const validatorHumanResults = [];
+
+        // Helper function to check if validator_human contains expected checks
+        const checkValidatorHuman = (validatorHuman, cellName, isGolden) => {
+            const result = {
+                cell: cellName,
+                present: !!validatorHuman,
+                hasError: validatorHuman?.error ? true : false,
+                error: validatorHuman?.error || null,
+                checksFound: [],
+                checksMissing: [],
+                totalChecks: validatorHuman?.totalChecks || 0
+            };
+
+            if (!validatorHuman) {
+                issues.push(`${cellName}: NOT FOUND - validator_human must be present`);
+                result.checksMissing = expectedChecks.map(c => c.id);
+            } else if (validatorHuman.error) {
+                issues.push(`${cellName}: JSON ERROR - ${validatorHuman.error}`);
+                result.checksMissing = expectedChecks.map(c => c.id);
+            } else {
+                // Check if expected llm_eval/llm_judge validations are present
+                const checks = validatorHuman.checks || [];
+                const checkIds = checks.map(c => (c.id || '').toLowerCase());
+
+                expectedChecks.forEach(expected => {
+                    const expectedId = expected.id.toLowerCase();
+                    // Check various naming patterns
+                    const found = checkIds.some(id =>
+                        id === expectedId ||
+                        id.includes(expectedId) ||
+                        id.includes(expected.type) ||
+                        // For llm_judge, check if renamed to human_judge
+                        (expected.type === 'llm_judge' && id.includes('human_judge'))
+                    );
+
+                    if (found) {
+                        result.checksFound.push(expected.id);
+                    } else {
+                        result.checksMissing.push(expected.id);
+                    }
+                });
+
+                if (result.checksMissing.length > 0 && expectedChecks.length > 0) {
+                    warnings.push(`${cellName}: Missing ${result.checksMissing.length}/${expectedChecks.length} expected llm_eval/llm_judge checks: ${result.checksMissing.slice(0, 3).join(', ')}${result.checksMissing.length > 3 ? '...' : ''}`);
+                }
+            }
+
+            return result;
+        };
+
+        // Check golden validator_human
+        const goldenVH = p.finalTurn?.validatorHuman;
+        validatorHumanResults.push(checkValidatorHuman(goldenVH, 'validator_human', true));
+
+        // Check all model passes validator_human
+        (p.modelPasses || []).forEach((pass, idx) => {
+            const model = pass.model || 'unknown';
+            const passNum = pass.passNumber || (idx + 1);
+            const cellName = `validator_human_${model}_${passNum}`;
+            validatorHumanResults.push(checkValidatorHuman(pass.validatorHuman, cellName, false));
+        });
+
+        // Summary
+        const presentCount = validatorHumanResults.filter(r => r.present && !r.hasError).length;
+        const totalCount = validatorHumanResults.length;
+        const allPresent = presentCount === totalCount;
+
+        this.results.phase3.push({
+            id: '3.10',
+            name: 'validator_human Completeness',
+            status: issues.length === 0 ? 'passed' : 'failed',
+            issues: issues,
+            warnings: warnings,
+            details: {
+                expectedChecksCount: expectedChecks.length,
+                expectedChecks: expectedChecks,
+                llmEvalCount: llmEvalConstraints.length,
+                llmJudgeCount: llmJudge.length,
+                validatorHumanResults: validatorHumanResults,
+                presentCount: presentCount,
+                totalCount: totalCount,
+                summary: `${presentCount}/${totalCount} validator_human cells present`
+            }
+        });
+    }
+
+    /**
      * Phase 4: Model Passes Checks
      */
     runPhase4Checks() {
@@ -2589,7 +2719,9 @@ class Validators {
         // VALIDATE EACH MODEL PASS (≥3 must fail ≥50%)
         // ============================================
         const failRates = [];
-        let passesWithOver50PercentFail = 0;
+        let passesWithOver50PercentFail = 0;  // Legacy: based on SCRIPT
+        let cellPassesOver50 = 0;   // CELL: based on notebook validator_assistant
+        let scriptPassesOver50 = 0; // SCRIPT: based on our validation
         const modelResults = [];
 
         p.modelPasses.forEach(pass => {
@@ -2656,32 +2788,49 @@ class Validators {
             // Semantic constraints are treated as fails for models (they need LLM to evaluate)
             // This is conservative - assumes semantic constraints fail for models
             const totalFails = mechanicalFails + semanticCount + llmJudgeCount;
-            const failRate = totalConstraints > 0 ? (totalFails / totalConstraints) * 100 : 0;
-            const meets50Percent = failRate >= 50;
+            const scriptFailRate = totalConstraints > 0 ? (totalFails / totalConstraints) * 100 : 0;
+            const scriptMeets50 = scriptFailRate >= 50;
 
-            if (meets50Percent) {
+            // Calculate notebook's fail rate (CELL source - primary)
+            const cellFailRate = notebookTotal > 0 ? (notebookFailed / notebookTotal) * 100 : 0;
+            const cellMeets50 = cellFailRate >= 50;
+
+            // Count for each source separately
+            if (cellMeets50) cellPassesOver50++;
+            if (scriptMeets50) scriptPassesOver50++;
+
+            // Legacy counter (for backward compatibility - uses SCRIPT)
+            if (scriptMeets50) {
                 passesWithOver50PercentFail++;
             }
 
-            // Calculate notebook's fail rate for comparison
-            const notebookFailRate = notebookTotal > 0 ? (notebookFailed / notebookTotal) * 100 : 0;
-            const notebookMeets50 = notebookFailRate >= 50;
+            // Detect divergence: CELL and SCRIPT disagree on ≥50%
+            const hasDivergence = cellMeets50 !== scriptMeets50;
+            const divergenceNote = hasDivergence
+                ? `CELL: ${cellMeets50 ? '≥50%' : '<50%'}, SCRIPT: ${scriptMeets50 ? '≥50%' : '<50%'}`
+                : null;
 
             failRates.push({
                 id: passId,
-                failRate: parseFloat(failRate.toFixed(1)),
+                failRate: parseFloat(scriptFailRate.toFixed(1)),
                 failed: totalFails,
                 total: totalConstraints,
                 mechanical_failed: mechanicalFails,
                 semantic_failed: semanticCount,
                 llm_judge_failed: llmJudgeCount,
-                meets_50_percent: meets50Percent,
+                meets_50_percent: scriptMeets50,  // SCRIPT decision
                 // Double check: notebook validator results
                 notebook_passed: notebookPassed,
                 notebook_failed: notebookFailed,
                 notebook_total: notebookTotal,
-                notebook_fail_rate: parseFloat(notebookFailRate.toFixed(1)),
-                notebook_meets_50: notebookMeets50,
+                notebook_fail_rate: parseFloat(cellFailRate.toFixed(1)),
+                notebook_meets_50: cellMeets50,   // CELL decision (legacy name)
+                // NEW: Separate decisions for CELL vs SCRIPT
+                cell_meets_50: cellMeets50,
+                script_meets_50: scriptMeets50,
+                // Divergence tracking
+                has_divergence: hasDivergence,
+                divergence_note: divergenceNote,
                 // JSON status
                 json_valid: notebookJsonValid,
                 json_error: notebookJsonError
@@ -2714,10 +2863,34 @@ class Validators {
 
         // ============================================
         // MODEL BREAKING RULE: ≥3 of 4 must fail ≥50%
+        // Now shows BOTH sources (CELL vs SCRIPT)
         // ============================================
-        if (passesWithOver50PercentFail < 3) {
-            const ratesSummary = failRates.map(f => `${f.id}: ${f.failRate}% (${f.meets_50_percent ? 'OK' : 'NOT OK'})`).join(', ');
-            issues.push(`MODEL BREAKING RULE VIOLATED: Only ${passesWithOver50PercentFail}/4 model passes fail ≥50% of constraints (need ≥3). Rates: ${ratesSummary}`);
+        const hasDivergenceOverall = failRates.some(f => f.has_divergence);
+        const cellPassRule = cellPassesOver50 >= 3;
+        const scriptPassRule = scriptPassesOver50 >= 3;
+
+        if (hasDivergenceOverall) {
+            // Divergence detected - show both and mark for review
+            const ratesSummary = failRates.map(f =>
+                `${f.id}: CELL ${f.notebook_fail_rate}%${f.cell_meets_50 ? '✓' : '✗'}, SCRIPT ${f.failRate}%${f.script_meets_50 ? '✓' : '✗'}${f.has_divergence ? ' ⚠DIVERGE' : ''}`
+            ).join('; ');
+
+            if (cellPassRule && scriptPassRule) {
+                // Both agree it passes - OK
+                warnings.push(`CELL and SCRIPT have divergent rates but both agree rule is met. CELL: ${cellPassesOver50}/4, SCRIPT: ${scriptPassesOver50}/4`);
+            } else if (!cellPassRule && !scriptPassRule) {
+                // Both agree it fails
+                issues.push(`MODEL BREAKING RULE VIOLATED (both agree): CELL ${cellPassesOver50}/4, SCRIPT ${scriptPassesOver50}/4 fail ≥50% (need ≥3). ${ratesSummary}`);
+            } else {
+                // CELL and SCRIPT disagree on the final rule!
+                warnings.push(`⚠ NEEDS HUMAN REVIEW: CELL says ${cellPassRule ? 'PASS' : 'FAIL'} (${cellPassesOver50}/4), SCRIPT says ${scriptPassRule ? 'PASS' : 'FAIL'} (${scriptPassesOver50}/4). ${ratesSummary}`);
+            }
+        } else {
+            // No divergence - use CELL as primary source
+            if (!cellPassRule) {
+                const ratesSummary = failRates.map(f => `${f.id}: ${f.notebook_fail_rate}% (${f.cell_meets_50 ? 'OK' : 'NOT OK'})`).join(', ');
+                issues.push(`MODEL BREAKING RULE VIOLATED: Only ${cellPassesOver50}/4 model passes fail ≥50% of constraints (need ≥3). Rates: ${ratesSummary}`);
+            }
         }
 
         // Build instruction variation info
@@ -2751,7 +2924,13 @@ class Validators {
             totalInstructions: allInstructionIds.size,
             totalConstraints: totalConstraints,
             goldenStatus: goldenMechanicalFails === 0 ? 'ALL PASS' : `${goldenMechanicalFails} FAILURES`,
-            passesWithOver50PercentFail: passesWithOver50PercentFail,
+            passesWithOver50PercentFail: passesWithOver50PercentFail,  // Legacy (SCRIPT)
+            // NEW: Separate counts for CELL vs SCRIPT
+            cellPassesOver50: cellPassesOver50,
+            scriptPassesOver50: scriptPassesOver50,
+            cellPassRule: cellPassRule,
+            scriptPassRule: scriptPassRule,
+            hasDivergence: hasDivergenceOverall,
             hasInstructionVariation: hasVariation,
             validatorUsed: 'NvidiaValidator'
         };
