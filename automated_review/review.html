@@ -566,6 +566,7 @@
         .constraint-item .id { color: var(--text); font-weight: 500; }
         .constraint-item .detail { color: var(--text-muted); margin-top: 4px; }
     </style>
+    <script src="js/nvidia_validator.js"></script>
 </head>
 <body>
     <div class="container">
@@ -980,11 +981,10 @@
 
             for (const model of models) {
                 const words = countItalianWords(model.content);
-                const preview = model.content.substring(0, 300);
                 modelsHtml += `
                     <details class="constraint-item" style="cursor:pointer">
                         <summary><strong>${model.name}</strong> <span style="color:var(--text-muted)">(${words} words)</span></summary>
-                        <div class="content-text" style="margin-top:8px;max-height:200px">${escapeHtml(preview)}${model.content.length > 300 ? '...' : ''}</div>
+                        <div class="content-text" style="margin-top:8px;max-height:500px">${escapeHtml(model.content)}</div>
                     </details>
                 `;
             }
@@ -1224,41 +1224,141 @@ Respond with JSON: {"checks":[{"name":"check name","status":"PASS|FAIL","note":"
 
             const instructions = extractedData.turnMetadata?.instructions || [];
             const llmJudge = extractedData.turnMetadata?.llm_judge || [];
+            const goldenResponse = extractedData.goldenResponse || '';
 
-            const prompt = `Verify the golden response passes ALL constraints.
+            // === STEP 1: Validate mechanical constraints with NVIDIA validator ===
+            const mechanicalResults = [];
+            const semanticInstructions = [];
 
-**INSTRUCTIONS TO CHECK (verify each one is satisfied):**
-${JSON.stringify(instructions, null, 2)}
+            for (const inst of instructions) {
+                const result = NvidiaValidator.validateInstruction(goldenResponse, inst.instruction_id, inst);
+                if (result.semantic) {
+                    // Needs LLM to evaluate
+                    semanticInstructions.push(inst);
+                } else {
+                    // Deterministic validation done
+                    mechanicalResults.push({
+                        id: inst.instruction_id,
+                        status: result.valid ? 'PASS' : 'FAIL',
+                        note: result.note,
+                        type: 'mechanical'
+                    });
+                }
+            }
 
-**LLM_JUDGE TO CHECK (verify the response meets these criteria):**
+            // === STEP 2: Validate formatting with NVIDIA validator ===
+            const formattingResults = NvidiaValidator.validateFormatting(goldenResponse);
+
+            // === STEP 3: Send ONLY semantic instructions + llm_judge to API ===
+            let llmResults = { instructions: [], llm_judge: [] };
+
+            if (semanticInstructions.length > 0 || llmJudge.length > 0) {
+                const prompt = `Evaluate ONLY the semantic/qualitative constraints below.
+DO NOT count words, keywords, or check punctuation - those are already validated.
+
+**SEMANTIC INSTRUCTIONS TO EVALUATE:**
+${JSON.stringify(semanticInstructions, null, 2)}
+
+**LLM_JUDGE TO EVALUATE:**
 ${JSON.stringify(llmJudge, null, 2)}
 
-**GOLDEN RESPONSE:**
-${extractedData.goldenResponse}
+**RESPONSE TO EVALUATE:**
+${goldenResponse}
 
-CHECK EACH CONSTRAINT:
-- For instructions: count words/paragraphs, check keywords, verify format requirements
-- For llm_judge: verify the response achieves what is described (factual accuracy, logical flow, etc.)
-
-ALSO CHECK FORMATTING:
-- No emojis anywhere
-- No em-dash (—), only hyphens (-)
-- No currency symbols ($, €), should use ISO codes
-- No LaTeX
-- No preambles ("Sure!", "Of course!", "Certainly!")
-
+For each constraint, evaluate if the response meets the qualitative criteria.
 Respond with JSON:
-{"instructions":[{"id":"instruction_id","status":"PASS|FAIL","note":"why"}],"llm_judge":[{"uid":"uid","status":"PASS|FAIL","note":"why"}],"formatting":{"emojis":"PASS|FAIL","em_dash":"PASS|FAIL","currency":"PASS|FAIL","latex":"PASS|FAIL","preamble":"PASS|FAIL"},"issues":[]}`;
+{"instructions":[{"id":"instruction_id","status":"PASS|FAIL","note":"why"}],"llm_judge":[{"uid":"uid","status":"PASS|FAIL","note":"why"}]}`;
 
-            try {
-                const result = await callAPI(provider, apiKey, prompt);
-                const content = formatGoldenResults(result);
-                const hasIssues = result.toLowerCase().includes('fail');
-                setCheckStatus(3, hasIssues ? 'warn' : 'pass', content);
-                checkResults.push({ check: 3, status: hasIssues ? 'warn' : 'pass', raw: result });
-            } catch (e) {
-                setCheckStatus(3, 'fail', `<div class="issues-box"><p>Error: ${e.message}</p></div>`);
+                try {
+                    const result = await callAPI(provider, apiKey, prompt);
+                    const jsonMatch = result.match(/\{[\s\S]*\}/);
+                    if (jsonMatch) {
+                        llmResults = JSON.parse(jsonMatch[0]);
+                    }
+                } catch (e) {
+                    console.error('LLM evaluation failed:', e);
+                }
             }
+
+            // === STEP 4: Combine all results ===
+            const finalResults = {
+                instructions: [
+                    ...mechanicalResults,
+                    ...(llmResults.instructions || []).map(r => ({ ...r, type: 'semantic' }))
+                ],
+                llm_judge: llmResults.llm_judge || [],
+                formatting: formattingResults,
+                issues: []
+            };
+
+            // Build issues list
+            for (const r of finalResults.instructions) {
+                if (r.status === 'FAIL') finalResults.issues.push(`${r.id}: ${r.note}`);
+            }
+            for (const r of finalResults.llm_judge) {
+                if (r.status === 'FAIL') finalResults.issues.push(`${r.uid}: ${r.note}`);
+            }
+
+            // Format and display
+            const content = formatGoldenResultsFromData(finalResults);
+            const hasIssues = finalResults.instructions.some(i => i.status === 'FAIL') ||
+                              finalResults.llm_judge.some(j => j.status === 'FAIL') ||
+                              Object.values(formattingResults).includes('FAIL');
+
+            setCheckStatus(3, hasIssues ? 'warn' : 'pass', content);
+            checkResults.push({ check: 3, status: hasIssues ? 'warn' : 'pass', data: finalResults });
+        }
+
+        // Format results from data object (not raw API response)
+        function formatGoldenResultsFromData(data) {
+            let html = '<table class="result-table"><thead><tr><th>Type</th><th>Check</th><th>Note</th><th>Status</th></tr></thead><tbody>';
+
+            // Instructions
+            for (const c of data.instructions || []) {
+                const statusClass = c.status === 'PASS' ? 'pass' : 'fail';
+                const typeLabel = c.type === 'semantic' ? 'Semantic' : 'Mechanical';
+                html += `<tr>
+                    <td><span class="constraint-id">${typeLabel}</span></td>
+                    <td><span class="constraint-name">${escapeHtml(c.id)}</span></td>
+                    <td class="quote">${escapeHtml(c.note || '-')}</td>
+                    <td><span class="status-pill ${statusClass}">${c.status}</span></td>
+                </tr>`;
+            }
+
+            // LLM Judge
+            for (const c of data.llm_judge || []) {
+                const statusClass = c.status === 'PASS' ? 'pass' : 'fail';
+                html += `<tr>
+                    <td><span class="constraint-id">LLM Judge</span></td>
+                    <td><span class="constraint-name">${escapeHtml(c.uid || c.id || '-')}</span></td>
+                    <td class="quote">${escapeHtml(c.note || '-')}</td>
+                    <td><span class="status-pill ${statusClass}">${c.status}</span></td>
+                </tr>`;
+            }
+
+            // Formatting
+            if (data.formatting) {
+                for (const [key, val] of Object.entries(data.formatting)) {
+                    const statusClass = val === 'PASS' ? 'pass' : 'fail';
+                    html += `<tr>
+                        <td><span class="constraint-id">Format</span></td>
+                        <td><span class="constraint-name">${key.replace(/_/g, ' ')}</span></td>
+                        <td>-</td>
+                        <td><span class="status-pill ${statusClass}">${val}</span></td>
+                    </tr>`;
+                }
+            }
+            html += '</tbody></table>';
+
+            // Issues
+            if (data.issues?.length > 0) {
+                html += '<div class="issues-box"><h4>Issues Found</h4><ul>';
+                for (const issue of data.issues) {
+                    html += `<li class="issue-fail">${escapeHtml(issue)}</li>`;
+                }
+                html += '</ul></div>';
+            }
+            return html;
         }
 
         // CHECK 4: Model Tests
@@ -1270,42 +1370,93 @@ Respond with JSON:
                 return;
             }
 
+            const instructions = extractedData.turnMetadata?.instructions || [];
+            const llmJudge = extractedData.turnMetadata?.llm_judge || [];
+            const totalConstraints = instructions.length + llmJudge.length;
+
             let allResults = [];
             let failureCount = 0;
 
             for (let i = 0; i < extractedData.modelResponses.length; i++) {
                 const model = extractedData.modelResponses[i];
+                const modelContent = model.content || '';
 
-                const instructions = extractedData.turnMetadata?.instructions || [];
-                const llmJudge = extractedData.turnMetadata?.llm_judge || [];
+                // === STEP 1: Validate mechanical constraints with NVIDIA validator ===
+                let mechanicalFails = 0;
+                let mechanicalTotal = 0;
+                const details = [];
 
-                const prompt = `Check if this model response fails constraints (we WANT failures for a good test).
+                for (const inst of instructions) {
+                    const result = NvidiaValidator.validateInstruction(modelContent, inst.instruction_id, inst);
+                    if (!result.semantic) {
+                        mechanicalTotal++;
+                        if (!result.valid) mechanicalFails++;
+                        details.push({
+                            id: inst.instruction_id,
+                            status: result.valid ? 'PASS' : 'FAIL',
+                            note: result.note
+                        });
+                    }
+                }
 
-You must check TWO types of constraints:
+                // === STEP 2: Send semantic constraints + llm_judge to API ===
+                const semanticInstructions = instructions.filter(inst => {
+                    const result = NvidiaValidator.validateInstruction(modelContent, inst.instruction_id, inst);
+                    return result.semantic;
+                });
 
-**INSTRUCTIONS (${instructions.length} total):**
-${JSON.stringify(instructions, null, 2)}
+                let semanticFails = 0;
+                let llmJudgeFails = 0;
 
-**LLM_JUDGE (${llmJudge.length} total):**
+                if (semanticInstructions.length > 0 || llmJudge.length > 0) {
+                    const prompt = `Evaluate if this model response FAILS the semantic constraints.
+We WANT failures for a good test - count how many it fails.
+
+**SEMANTIC INSTRUCTIONS:**
+${JSON.stringify(semanticInstructions, null, 2)}
+
+**LLM_JUDGE:**
 ${JSON.stringify(llmJudge, null, 2)}
 
 **MODEL RESPONSE (${model.name}):**
-${model.content}
+${modelContent.substring(0, 3000)}${modelContent.length > 3000 ? '...[truncated]' : ''}
 
-Count how many constraints (from BOTH instructions AND llm_judge) the response FAILS.
-Total constraints = ${instructions.length + llmJudge.length}
+Respond with JSON: {"semantic_failed":N,"llm_judge_failed":N,"details":[{"id":"id","status":"PASS|FAIL"}]}`;
 
-Respond with JSON: {"total":${instructions.length + llmJudge.length},"passed":N,"failed":N,"failure_rate":"X%","meets_50_percent":true|false,"details":[{"id":"constraint_id","status":"PASS|FAIL"}]}`;
-
-                try {
-                    const result = await callAPI(provider, apiKey, prompt);
-                    allResults.push({ name: model.name, result });
-                    if (result.includes('"meets_50_percent":true') || result.includes('"meets_50_percent": true')) {
-                        failureCount++;
+                    try {
+                        const result = await callAPI(provider, apiKey, prompt);
+                        const jsonMatch = result.match(/\{[\s\S]*\}/);
+                        if (jsonMatch) {
+                            const parsed = JSON.parse(jsonMatch[0]);
+                            semanticFails = parsed.semantic_failed || 0;
+                            llmJudgeFails = parsed.llm_judge_failed || 0;
+                            if (parsed.details) details.push(...parsed.details);
+                        }
+                    } catch (e) {
+                        console.error('LLM check failed for model:', model.name, e);
                     }
-                } catch (e) {
-                    allResults.push({ name: model.name, error: e.message });
                 }
+
+                // === STEP 3: Calculate failure rate ===
+                const totalFails = mechanicalFails + semanticFails + llmJudgeFails;
+                const failureRate = totalConstraints > 0 ? (totalFails / totalConstraints * 100).toFixed(1) : 0;
+                const meets50 = parseFloat(failureRate) >= 50;
+
+                if (meets50) failureCount++;
+
+                allResults.push({
+                    name: model.name,
+                    result: JSON.stringify({
+                        total: totalConstraints,
+                        passed: totalConstraints - totalFails,
+                        failed: totalFails,
+                        mechanical_failed: mechanicalFails,
+                        semantic_failed: semanticFails,
+                        llm_judge_failed: llmJudgeFails,
+                        failure_rate: `${failureRate}%`,
+                        meets_50_percent: meets50
+                    }, null, 2)
+                });
             }
 
             const content = formatModelResults(allResults, failureCount);
