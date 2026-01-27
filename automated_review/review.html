@@ -2054,7 +2054,7 @@ Examples: "Above 1000" → min:1000,max:null | "50-100" → min:50,max:100`;
                 else if (inst.num_chars) desc += `MUST mention "${inst.num_chars}" characters`;
                 else if (inst.num_paragraphs) desc += `MUST mention "${inst.num_paragraphs}" paragraphs`;
                 else if (inst.num_sentences) desc += `MUST mention "${inst.num_sentences}" sentences`;
-                else if (inst.keyword && inst.frequency) desc += `MUST mention keyword "${inst.keyword}" AND frequency "${inst.frequency}" times`;
+                else if (inst.keyword && inst.frequency) desc += `The query MUST ASK/INSTRUCT that the word "${inst.keyword}" should appear "${inst.frequency}" times in the response. Look for phrases like "la parola X deve comparire Y volte" or "use X exactly Y times"`;
                 else if (inst.first_word) desc += `MUST mention starting with "${inst.first_word}"`;
                 else if (inst.last_word) desc += `MUST mention ending with "${inst.last_word}"`;
                 else if (inst.min_fraction || inst.max_fraction) desc += `MUST mention case ratio between ${inst.min_fraction || '0'} and ${inst.max_fraction || 'inf'} (lowercase/uppercase ratio)`;
@@ -2062,7 +2062,25 @@ Examples: "Above 1000" → min:1000,max:null | "50-100" → min:50,max:100`;
                 else if (inst.keywords) desc += `MUST explicitly request using these keywords: ${inst.keywords.join(', ')}`;
                 else if (inst.instruction_id && inst.instruction_id.startsWith('detectable_format:')) {
                     const formatType = inst.instruction_id.split(':')[1].replace(/_/g, ' ');
-                    desc += `Check if the query requests a ${formatType} format`;
+                    // Handle sentences_per_paragraph with specific number
+                    if (inst.instruction_id === 'detectable_format:sentences_per_paragraph' && inst.num_sentences) {
+                        desc += `MUST mention sentences per paragraph limit: "${inst.num_sentences}" sentences (Italian: "frasi" = sentences). Example: "meno di ${inst.num_sentences} frasi" = PASS`;
+                    } else {
+                        desc += `Check if the query requests a ${formatType} format`;
+                    }
+                }
+                // Handle change_case:last_letter and change_case:first_letter
+                else if (inst.instruction_id && inst.instruction_id.startsWith('change_case:') && inst.case) {
+                    const position = inst.instruction_id.includes('last') ? 'last' : 'first';
+                    if (inst.case === 'special') {
+                        desc += `MUST mention ending/starting with a SPECIAL CHARACTER (simbolo, carattere speciale, punctuation). The query should ask for ${position} character to be special/symbol`;
+                    } else if (inst.case === 'upper') {
+                        desc += `MUST mention ${position} letter being UPPERCASE (maiuscola, lettera maiuscola)`;
+                    } else if (inst.case === 'lower') {
+                        desc += `MUST mention ${position} letter being LOWERCASE (minuscola, lettera minuscola)`;
+                    } else {
+                        desc += `MUST mention ${position} character case requirement: "${inst.case}"`;
+                    }
                 }
                 else desc += `Check if explicitly requested in query`;
                 return desc;
@@ -2070,24 +2088,75 @@ Examples: "Above 1000" → min:1000,max:null | "50-100" → min:50,max:100`;
 
             const prompt = `You are a STRICT validator. Check if EACH constraint with specific values appears EXPLICITLY in the user query.
 
+## YOUR TASK - READ CAREFULLY:
+You are checking if the USER QUERY ASKS FOR each constraint.
+You are NOT checking if a response follows the constraint.
+
+PASS = The query MENTIONS or REQUESTS the constraint
+FAIL = The query does NOT mention the constraint
+
+## CRITICAL DISTINCTION:
+- You are checking if the query REQUESTS/INSTRUCTS each constraint
+- You are NOT counting word occurrences in the query
+- You are NOT validating if the constraint is followed
+
+For keywords:frequency:
+- WRONG: Count if "attrezzatura" appears 7 times in the query
+- RIGHT: Check if query says "use attrezzatura 7 times" or similar instruction
+
+Example: Query says "La parola 'attrezzatura' deve comparire 7 volte"
+- This IS the query asking for the constraint → PASS
+- We don't count if 'attrezzatura' appears 7 times in the query itself
+
+CRITICAL: If you find a quote that shows the query asks for the constraint, mark it as PASS!
+Example: "La parola X deve comparire esattamente Y volte" → PASS (the query IS asking for keyword frequency)
+Example: "rapporto tra maiuscoli e minuscoli" → PASS (the query IS asking for case ratio)
+
 ## CRITICAL RULES:
 1. For constraints with SPECIFIC VALUES (numbers, keywords, ratios), the EXACT values must appear in the query
 2. A vague/generic statement is NOT the same as the specific constraint
-3. **IMPORTANT - ITALIAN NUMBER WORDS COUNT AS VALID:**
-   - uno=1, due=2, tre=3, quattro=4, cinque=5, sei=6, sette=7, otto=8, nove=9, dieci=10
+3. **IMPORTANT - ITALIAN WORDS AND NUMBERS COUNT AS VALID:**
+   - NUMBERS: uno=1, due=2, tre=3, quattro=4, cinque=5, sei=6, sette=7, otto=8, nove=9, dieci=10
    - undici=11, dodici=12, tredici=13, quattordici=14, quindici=15, sedici=16
    - diciassette=17, diciotto=18, diciannove=19, venti=20, trenta=30, quaranta=40, cinquanta=50
    - cento=100, mille=1000
+   - VOCABULARY: frasi=sentences, paragrafi=paragraphs, parole=words, caratteri=characters
    - Example: "sei paragrafi" = "6 paragraphs" = PASS
+   - Example: "meno di 3 frasi" = "less than 3 sentences" = PASS (the number 3 IS mentioned!)
    - Example: "meno di venti frasi" = "less than 20 sentences" = PASS for num_sentences < 20
+   - CRITICAL: If query says "meno di X frasi" where X is a number, the number IS explicitly mentioned!
 4. If the constraint has min_fraction/max_fraction for case_ratio, the query MUST mention something about uppercase/lowercase ratio - NOT just "consistent spelling"
-5. **CRITICAL - SEMANTIC MATCHING FOR LLM_JUDGE:**
+5. **IMPORTANT - change_case CONSTRAINTS:**
+   - change_case:last_letter with case:"special" → query must ask for ending with special character/symbol
+     - VALID Italian: "terminare con un carattere speciale", "finire con un simbolo", "carattere speciale alla fine"
+   - change_case:first_letter with case:"special" → query must ask for starting with special character/symbol
+   - change_case:*_letter with case:"upper" → query must ask for uppercase first/last letter (maiuscola)
+   - change_case:*_letter with case:"lower" → query must ask for lowercase first/last letter (minuscola)
+   - Example: "terminare il documento con un carattere speciale" for change_case:last_letter + case:special = PASS
+6. **CRITICAL - SEMANTIC MATCHING FOR LLM_JUDGE:**
    - The llm_judge content is in ENGLISH but the user query may be in ANY language
    - You MUST perform SEMANTIC matching, not textual matching
    - If the query asks for the SAME THING in a different language, it's a PASS
    - Example: llm_judge="professional quality" + query="qualità professionale" = PASS
    - Example: llm_judge="business analysis" + query="analisi aziendale" = PASS
    - Focus on the MEANING, not the exact words
+7. **IMPORTANT - keywords:frequency CONSTRAINT:**
+   - This checks if the QUERY INSTRUCTS to use a word X times, NOT if the word appears X times in the query
+   - If query says "la parola X deve comparire esattamente Y volte" → PASS (the query IS requesting this!)
+   - If query says "usa la parola X almeno Y volte" → PASS
+   - If query says "ripeti X per Y volte" → PASS
+   - DO NOT count word occurrences in the query - that's not what this check does!
+   - You are verifying the query ASKS FOR the requirement, not that it follows it
+   - Example: "La parola 'violazione' deve comparire esattamente 9 volte" → PASS (query requests using the word 9 times)
+8. **IMPORTANT - case_ratio / change_case:case_ratio CONSTRAINT:**
+   - If query mentions "rapporto tra caratteri maiuscoli e minuscoli" → PASS
+   - Italian: "maiuscoli" = uppercase, "minuscoli" = lowercase
+   - If the specific ratio numbers are mentioned → PASS
+   - Example: "rapporto tra caratteri maiuscoli e minuscoli compreso tra 957/63 e 1244/21" → PASS
+9. **CRITICAL - WHAT IS A QUOTE:**
+   - If you find a quote that REQUESTS the constraint, it's a PASS
+   - The quote shows the query is ASKING for the requirement
+   - Do NOT say FAIL because "query doesn't confirm it actually does" - that's not what you're checking!
 
 ## CONSTRAINTS TO CHECK (source:"user" only):
 ${constraintDescriptions}
@@ -2197,7 +2266,8 @@ Respond with JSON: {"checks":[{"name":"check name","status":"PASS|FAIL","note":"
                         id: inst.instruction_id,
                         status: result.valid ? 'PASS' : 'FAIL',
                         note: result.note,
-                        type: 'mechanical'
+                        type: 'mechanical',
+                        source: inst.source
                     });
                 }
             }
@@ -2217,6 +2287,23 @@ Respond with JSON: {"checks":[{"name":"check name","status":"PASS|FAIL","note":"
 
             if (semanticInstructions.length > 0 || llmJudge.length > 0) {
                 const prompt = `You are evaluating if a RESPONSE satisfies specific quality criteria.
+
+## CRITICAL UNDERSTANDING:
+You are checking if the RESPONSE SATISFIES each criterion.
+
+For LLM_JUDGE items:
+- The "content" field describes what the response SHOULD do or SHOULD NOT do
+- If content says "avoid X" and response AVOIDS X → PASS
+- If content says "include Y" and response INCLUDES Y → PASS
+- PASS = The response correctly follows what the content asks for
+- FAIL = The response does NOT follow what the content asks for
+
+Example:
+- content: "evaluate if the response avoids explicit instructions"
+- If response has NO explicit instructions → PASS (it correctly avoids them!)
+- If response HAS explicit instructions → FAIL (it should have avoided them)
+
+DO NOT confuse "the criterion asks to avoid X" with "check if X exists".
 
 ## TASK:
 For each LLM_JUDGE item, check if the RESPONSE fulfills what the "content" field describes.
@@ -2240,13 +2327,17 @@ ${JSON.stringify(llmJudge, null, 2)}
 ${goldenResponse}
 
 ## HOW TO EVALUATE LLM_JUDGE:
-1. Read the "content" field of each llm_judge
-2. Check if the RESPONSE satisfies that specific criterion
-3. PASS = the response fulfills the criterion described in "content"
-4. FAIL = the response does NOT fulfill the criterion described in "content"
+1. Read the "content" field carefully - understand what it's asking FOR
+2. If content says "ensure X" or "include X" → check if response HAS X
+3. If content says "avoid X" or "do not include X" → check if response AVOIDS X
+4. PASS = The response correctly follows the criterion (does what it should, avoids what it shouldn't)
+5. FAIL = The response violates the criterion
+
+CRITICAL: A response that correctly AVOIDS something bad = PASS, not FAIL!
+Example: "evaluate that response avoids promotional language" → no promotional language found → PASS
 
 Respond with JSON:
-{"instructions":[{"id":"instruction_id","status":"PASS|FAIL","note":"why"}],"llm_judge":[{"uid":"uid","status":"PASS|FAIL","note":"brief explanation referencing the actual content criterion"}]}`;
+{"instructions":[{"id":"instruction_id","source":"user|system","status":"PASS|FAIL","note":"why"}],"llm_judge":[{"uid":"uid","status":"PASS|FAIL","note":"brief explanation referencing the actual content criterion"}]}`;
 
                 try {
                     const result = await callAPI(provider, apiKey, prompt);
@@ -2260,10 +2351,20 @@ Respond with JSON:
             }
 
             // === STEP 4: Combine all results ===
+            // Map semantic instruction IDs to their source for lookup
+            const semanticSourceMap = {};
+            for (const inst of semanticInstructions) {
+                semanticSourceMap[inst.instruction_id] = inst.source;
+            }
+
             const finalResults = {
                 instructions: [
                     ...mechanicalResults,
-                    ...(llmResults.instructions || []).map(r => ({ ...r, type: 'semantic' }))
+                    ...(llmResults.instructions || []).map(r => ({
+                        ...r,
+                        type: 'semantic',
+                        source: r.source || semanticSourceMap[r.id] || 'user'
+                    }))
                 ],
                 llm_judge: llmResults.llm_judge || [],
                 formatting: formattingResults,
@@ -2297,8 +2398,9 @@ Respond with JSON:
             for (const c of data.instructions || []) {
                 const statusClass = c.status === 'PASS' ? 'pass' : 'fail';
                 const typeLabel = c.type === 'semantic' ? 'Semantic' : 'Mechanical';
+                const sourceLabel = c.source ? ` (${c.source})` : '';
                 html += `<tr>
-                    <td><span class="constraint-id">${typeLabel}</span></td>
+                    <td><span class="constraint-id">${typeLabel}${sourceLabel}</span></td>
                     <td><span class="constraint-name">${escapeHtml(c.id)}</span></td>
                     <td class="quote">${escapeHtml(c.note || '-')}</td>
                     <td><span class="status-pill ${statusClass}">${c.status}</span></td>
