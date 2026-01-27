@@ -2286,74 +2286,76 @@ Respond with JSON: {"checks":[{"name":"check name","status":"PASS|FAIL","note":"
             let llmResults = { instructions: [], llm_judge: [] };
 
             if (semanticInstructions.length > 0 || llmJudge.length > 0) {
-                const prompt = `You are evaluating if a RESPONSE satisfies specific quality criteria.
+                const prompt = `Verify the golden response passes ALL constraints:
 
-## CRITICAL UNDERSTANDING:
-You are checking if the RESPONSE SATISFIES each criterion.
+===============================================================================
+PART A: SEMANTIC INSTRUCTIONS TO EVALUATE
+===============================================================================
+(Note: Mechanical IF constraints are already validated by code - only semantic ones here)
 
-For LLM_JUDGE items:
-- The "content" field describes what the response SHOULD do or SHOULD NOT do
-- If content says "avoid X" and response AVOIDS X → PASS
-- If content says "include Y" and response INCLUDES Y → PASS
-- PASS = The response correctly follows what the content asks for
-- FAIL = The response does NOT follow what the content asks for
-
-Example:
-- content: "evaluate if the response avoids explicit instructions"
-- If response has NO explicit instructions → PASS (it correctly avoids them!)
-- If response HAS explicit instructions → FAIL (it should have avoided them)
-
-DO NOT confuse "the criterion asks to avoid X" with "check if X exists".
-
-## TASK:
-For each LLM_JUDGE item, check if the RESPONSE fulfills what the "content" field describes.
-The "content" field contains the EXACT criteria you must evaluate.
-
-## CRITICAL INSTRUCTIONS FOR LLM_JUDGE:
-- Each llm_judge has a "content" field - THIS IS THE CRITERION TO EVALUATE
-- Your job is to check if the RESPONSE satisfies that specific criterion
-- Do NOT invent your own criteria (like "formal tone" or "conversational style")
-- ONLY evaluate what the "content" field explicitly asks for
-- If the content says "evaluate if the analysis navigates constraints" - check THAT, not tone
-- If the content says "professional quality" - check for professional quality, not formality
-
-CRITICAL - Use EXACT uid from the JSON:
-- Each llm_judge has a "uid" field (like "abc123..." or similar hash)
-- You MUST copy this EXACT uid into your response
-- Do NOT use numeric indices (1, 2, 3) - use the actual uid string from the JSON
-
-## SEMANTIC INSTRUCTIONS TO EVALUATE:
 ${JSON.stringify(semanticInstructions, null, 2)}
 
-## LLM_JUDGE TO EVALUATE:
+For each semantic instruction above:
+- Check if the response satisfies the style/tone requirement
+- Use the EXACT source field from the JSON (user or system) - DO NOT CHANGE IT
+- Example: "stylistic:tone_formality" with tone_level "formal" → check if tone IS formal
+- These are about STYLE/TONE/FORMAT, NOT about topic/content
+
+===============================================================================
+PART B: LLM_JUDGE TO EVALUATE
+===============================================================================
+
 ${JSON.stringify(llmJudge, null, 2)}
 
-## RESPONSE TO EVALUATE:
+For each llm_judge above:
+- Read the "content" field - this describes WHAT to check
+- The "uid" field contains the identifier - use it EXACTLY as shown
+- Evaluate ONLY what the content asks for
+- If content mentions a topic, check if response discusses that topic semantically
+- These are about CONTENT/TOPIC/QUALITY, separate from Part A
+
+===============================================================================
+GOLDEN RESPONSE TO EVALUATE
+===============================================================================
+
 ${goldenResponse}
 
-## HOW TO EVALUATE LLM_JUDGE:
-1. Each llm_judge has a "uid" field and a "content" field
-2. The "content" describes what to check in the response
-3. EVALUATE SEMANTICALLY - if content mentions a TOPIC (like "Government, Law & Public Safety"):
-   - Check if the response DISCUSSES that topic
-   - The response doesn't need to use exact words
-   - If response talks about laws, legal matters, public safety, government → PASS
-4. If content says "ensure X" or "include X" → check if response HAS X
-5. If content says "avoid X" or "do not include X" → check if response AVOIDS X
-6. PASS = The response satisfies the criterion
-7. FAIL = The response does NOT satisfy the criterion
+===============================================================================
+CRITICAL RULES - READ CAREFULLY
+===============================================================================
 
-IMPORTANT for topic-based criteria:
-- "discuss Government, Law & Public Safety" → response talks about legal/government topics = PASS
-- Do NOT require exact phrase matches - evaluate the MEANING and CONTENT
+1. INDEPENDENCE: Each constraint is INDEPENDENT - do NOT mix evaluations
+   - Part A (instructions) = style/tone/format checks
+   - Part B (llm_judge) = content/topic/quality checks
+   - NEVER use Part B criteria to evaluate Part A or vice versa
 
-CRITICAL: A response that correctly AVOIDS something bad = PASS, not FAIL!
-Example: "evaluate that response avoids promotional language" → no promotional language found → PASS
+2. For INSTRUCTIONS (Part A):
+   - "stylistic:tone_formality" → check TONE only (formal/informal/etc)
+   - "stylistic:*" → check STYLE aspects only
+   - Copy the source field EXACTLY as it appears (user or system)
 
-Respond with JSON (use EXACT uids from the llm_judge array above - do NOT use numeric indices):
-{"instructions":[{"id":"exact_instruction_id_from_above","source":"user|system","status":"PASS|FAIL","note":"why"}],"llm_judge":[{"uid":"exact_uid_string_from_llm_judge_above","status":"PASS|FAIL","note":"brief explanation"}]}
+3. For LLM_JUDGE (Part B):
+   - Read the "content" field - that's what you evaluate
+   - Topic checks: response discusses the topic semantically = PASS
+   - "avoid X" in content and response avoids X = PASS
+   - "include Y" in content and response includes Y = PASS
 
-IMPORTANT: For llm_judge uid, copy the EXACT uid value from the JSON I provided (e.g., "a1b2c3d4..."), NOT a number like "1" or "2".`;
+4. SOURCE FIELD: Use EXACT source from the instruction data
+   - If instruction has "source": "system" → use "system"
+   - If instruction has "source": "user" → use "user"
+   - NEVER guess or change the source
+
+===============================================================================
+OUTPUT FORMAT (JSON ONLY)
+===============================================================================
+{
+  "instructions": [
+    {"id": "instruction_id_from_part_a", "source": "user_or_system_from_data", "status": "PASS|FAIL", "note": "why"}
+  ],
+  "llm_judge": [
+    {"uid": "exact_uid_from_part_b", "status": "PASS|FAIL", "note": "why based on content field only"}
+  ]
+}`;
 
                 try {
                     const result = await callAPI(provider, apiKey, prompt);
