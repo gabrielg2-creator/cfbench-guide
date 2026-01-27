@@ -2317,6 +2317,11 @@ The "content" field contains the EXACT criteria you must evaluate.
 - If the content says "evaluate if the analysis navigates constraints" - check THAT, not tone
 - If the content says "professional quality" - check for professional quality, not formality
 
+CRITICAL - Use EXACT uid from the JSON:
+- Each llm_judge has a "uid" field (like "abc123..." or similar hash)
+- You MUST copy this EXACT uid into your response
+- Do NOT use numeric indices (1, 2, 3) - use the actual uid string from the JSON
+
 ## SEMANTIC INSTRUCTIONS TO EVALUATE:
 ${JSON.stringify(semanticInstructions, null, 2)}
 
@@ -2327,17 +2332,28 @@ ${JSON.stringify(llmJudge, null, 2)}
 ${goldenResponse}
 
 ## HOW TO EVALUATE LLM_JUDGE:
-1. Read the "content" field carefully - understand what it's asking FOR
-2. If content says "ensure X" or "include X" → check if response HAS X
-3. If content says "avoid X" or "do not include X" → check if response AVOIDS X
-4. PASS = The response correctly follows the criterion (does what it should, avoids what it shouldn't)
-5. FAIL = The response violates the criterion
+1. Each llm_judge has a "uid" field and a "content" field
+2. The "content" describes what to check in the response
+3. EVALUATE SEMANTICALLY - if content mentions a TOPIC (like "Government, Law & Public Safety"):
+   - Check if the response DISCUSSES that topic
+   - The response doesn't need to use exact words
+   - If response talks about laws, legal matters, public safety, government → PASS
+4. If content says "ensure X" or "include X" → check if response HAS X
+5. If content says "avoid X" or "do not include X" → check if response AVOIDS X
+6. PASS = The response satisfies the criterion
+7. FAIL = The response does NOT satisfy the criterion
+
+IMPORTANT for topic-based criteria:
+- "discuss Government, Law & Public Safety" → response talks about legal/government topics = PASS
+- Do NOT require exact phrase matches - evaluate the MEANING and CONTENT
 
 CRITICAL: A response that correctly AVOIDS something bad = PASS, not FAIL!
 Example: "evaluate that response avoids promotional language" → no promotional language found → PASS
 
-Respond with JSON:
-{"instructions":[{"id":"instruction_id","source":"user|system","status":"PASS|FAIL","note":"why"}],"llm_judge":[{"uid":"uid","status":"PASS|FAIL","note":"brief explanation referencing the actual content criterion"}]}`;
+Respond with JSON (use EXACT uids from the llm_judge array above - do NOT use numeric indices):
+{"instructions":[{"id":"exact_instruction_id_from_above","source":"user|system","status":"PASS|FAIL","note":"why"}],"llm_judge":[{"uid":"exact_uid_string_from_llm_judge_above","status":"PASS|FAIL","note":"brief explanation"}]}
+
+IMPORTANT: For llm_judge uid, copy the EXACT uid value from the JSON I provided (e.g., "a1b2c3d4..."), NOT a number like "1" or "2".`;
 
                 try {
                     const result = await callAPI(provider, apiKey, prompt);
