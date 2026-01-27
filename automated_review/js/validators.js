@@ -37,6 +37,77 @@ class Validators {
     }
 
     /**
+     * Dictionary of REAL constraint definitions for semantic validation.
+     * Used to detect when user request CONTRADICTS what the constraint actually requires.
+     */
+    static constraintDefinitions = {
+        'punctuation:end_rule': {
+            realMeaning: 'Sentences must end with standard punctuation marks',
+            allowedValues: ['.', '?', '!', '?!', '??', '!?', '!!'],
+            contradictionPatterns: [
+                /non\s+usar[ei]?\s+(punti|punteggiatura|punto)/i,
+                /senza\s+(punti|punteggiatura)/i,
+                /evita(re)?\s+(punti|punteggiatura)/i,
+                /no\s+(periods?|punctuation)/i,
+                /don'?t\s+use\s+(periods?|punctuation)/i,
+                /usa(re)?\s+(solo|only)\s+(@|simbolo|symbol)/i,
+                /non\s+(terminare|finire).*con\s+(punti|punteggiatura)/i,
+                /elimina(re)?\s+(punti|punteggiatura)/i,
+                /niente\s+(punti|punteggiatura)/i
+            ],
+            description: 'Each sentence must end with allowed punctuation marks: . ? ! ?! ?? !? !!'
+        },
+        // NOTE: detectable_format:title detection is handled by AI analysis
+        // (no contradiction patterns needed - AI finds where title is requested)
+        'detectable_format:number_bullet_lists': {
+            realMeaning: 'Response must use numbered or bullet lists',
+            contradictionPatterns: [
+                /senza\s+(elenco|lista|punti|elenchi|liste)/i,
+                /no\s+(lists?|bullets?|numbered)/i,
+                /evita(re)?\s+(elenchi|liste|bullet)/i,
+                /non\s+usar[ei]?\s+(elenchi|liste|bullet)/i
+            ],
+            description: 'Must use numbered (1. 2. 3.) or bullet (* - ) lists'
+        },
+        'detectable_format:json_format': {
+            realMeaning: 'Response must be in valid JSON format',
+            contradictionPatterns: [
+                /non\s+usar[ei]?\s+json/i,
+                /senza\s+json/i,
+                /no\s+json/i,
+                /avoid\s+json/i
+            ],
+            description: 'Response must be formatted as valid JSON'
+        }
+    };
+
+    /**
+     * Check if user request CONTRADICTS the constraint definition.
+     * Returns mismatch info if user asked for the OPPOSITE of what constraint requires.
+     * @param {string} constraintId - The constraint ID (e.g., 'punctuation:end_rule')
+     * @param {string} userQuery - The user query text
+     * @returns {object} - { hasMismatch: boolean, matchedText?, realMeaning?, description?, message? }
+     */
+    checkSemanticMismatch(constraintId, userQuery) {
+        const def = Validators.constraintDefinitions[constraintId];
+        if (!def || !def.contradictionPatterns) return { hasMismatch: false };
+
+        for (const pattern of def.contradictionPatterns) {
+            const match = userQuery.match(pattern);
+            if (match) {
+                return {
+                    hasMismatch: true,
+                    matchedText: match[0],
+                    realMeaning: def.realMeaning,
+                    description: def.description,
+                    message: `SEMANTIC MISMATCH: User requested "${match[0]}" but constraint requires: ${def.description}`
+                };
+            }
+        }
+        return { hasMismatch: false };
+    }
+
+    /**
      * Run all deterministic validation checks
      */
     runAll() {
@@ -902,19 +973,35 @@ class Validators {
             verificationResults.push(result);
         });
 
+        // Check for semantic mismatches - when user request CONTRADICTS constraint definition
+        for (const result of verificationResults) {
+            const mismatch = this.checkSemanticMismatch(result.instruction_id, query);
+            if (mismatch && mismatch.hasMismatch) {
+                result.semanticMismatch = true;
+                result.mismatchMessage = mismatch.message;
+                result.mismatchText = mismatch.matchedText;
+                result.realDefinition = mismatch.description;
+                result.status = 'mismatch';  // New status type for semantic contradictions
+                result.found = false;  // Override found to false since user asked for opposite
+                console.log(`SEMANTIC MISMATCH detected for ${result.instruction_id}: ${mismatch.matchedText}`);
+            }
+        }
+
         // Categorize results
-        const verified = verificationResults.filter(r => r.found === true);
-        const missing = verificationResults.filter(r => r.found === false && !r.isLLMEval);
-        const llmEvalMissing = verificationResults.filter(r => r.found === false && r.isLLMEval);
+        const verified = verificationResults.filter(r => r.found === true && !r.semanticMismatch);
+        const mismatches = verificationResults.filter(r => r.semanticMismatch === true);
+        const missing = verificationResults.filter(r => r.found === false && !r.isLLMEval && !r.semanticMismatch);
+        const llmEvalMissing = verificationResults.filter(r => r.found === false && r.isLLMEval && !r.semanticMismatch);
         const unchecked = verificationResults.filter(r => r.found === null);
 
         // Mark items not found by regex as 'needs_review' instead of definitive fail
         // This is because regex can't handle numbers written in words
+        // NOTE: Items with 'mismatch' status keep that status (don't override)
         missing.forEach(r => {
-            r.status = 'needs_review'; // Will show yellow in report
+            if (!r.status) r.status = 'needs_review'; // Will show yellow in report
         });
         llmEvalMissing.forEach(r => {
-            r.status = 'needs_review';
+            if (!r.status) r.status = 'needs_review';
         });
 
         // NOTE: This deterministic check cannot recognize numbers written in words
@@ -949,13 +1036,21 @@ class Validators {
             warnings.push(`[${r.instruction_id}] LLM Eval - verify in AI Analysis`);
         });
 
+        // Semantic mismatches = CRITICAL warnings (user asked for opposite of constraint)
+        mismatches.forEach(r => {
+            warnings.push(`⚠️ [${r.instruction_id}] SEMANTIC MISMATCH: User requested "${r.mismatchText}" but constraint requires: ${r.realDefinition}`);
+        });
+
         // Status logic:
         // - 'passed' = all found by regex
         // - 'needs_review' = some not found by regex, needs AI or manual verification
-        // - 'warning' = has other warnings
+        // - 'warning' = has other warnings or semantic mismatches
         const needsReviewCount = missing.length + llmEvalMissing.length;
+        const mismatchCount = mismatches.length;
         let status = 'passed';
-        if (needsReviewCount > 0) {
+        if (mismatchCount > 0) {
+            status = 'warning';  // Semantic mismatches are warnings (show orange)
+        } else if (needsReviewCount > 0) {
             status = 'needs_review';
         } else if (warnings.length > 0) {
             status = 'warning';
@@ -973,6 +1068,13 @@ class Validators {
                 systemSourceCount: systemInstructions.length,
                 verified: verified.length,
                 potentiallyMissing: missing.length,
+                semanticMismatches: mismatchCount,
+                mismatchDetails: mismatches.map(m => ({
+                    id: m.instruction_id,
+                    userRequested: m.mismatchText,
+                    constraintRequires: m.realDefinition,
+                    message: m.mismatchMessage
+                })),
                 needsReview: needsReviewCount,
                 llmEvalToVerify: llmEvalMissing.length,
                 unchecked: unchecked.length,
@@ -2365,13 +2467,16 @@ class Validators {
             'detectable_format:title': {
                 name: 'Title with <<>>',
                 requiredPatterns: [
+                    // Only detect explicit <<>> format requests via regex
+                    // Generic title detection is handled by AI analysis
                     /<<.*>>/,
                     /parentesi angolari|angle brackets|doppie parentesi/i,
                     /titolo.*<<|<<.*titolo/i,
                     /title.*<<|<<.*title/i,
                     /formato.*<<|<<.*formato/i
                 ],
-                errorMsg: 'Constraint requires <<title>> format but query does NOT ask for double angle brackets <<>>. Add: "Inizia con un titolo tra doppie parentesi angolari <<>>"'
+                needsAICheck: true,  // Flag: if regex fails, AI should check for generic title requests
+                errorMsg: 'Constraint requires title format - use AI Analysis to verify if title is requested in query'
             },
             'detectable_format:number_bullet_lists': {
                 name: 'Numbered/Bullet Lists',
@@ -2481,7 +2586,14 @@ class Validators {
                     if (!found) {
                         analysis.foundInQuery = false;
                         analysis.issue = check.errorMsg;
-                        issues.push(`[${id}] ${check.errorMsg}`);
+                        // If needsAICheck is true, add to warnings instead of issues
+                        // (AI analysis will provide definitive answer)
+                        if (check.needsAICheck) {
+                            analysis.needsAICheck = true;
+                            warnings.push(`[${id}] ${check.errorMsg}`);
+                        } else {
+                            issues.push(`[${id}] ${check.errorMsg}`);
+                        }
                     }
 
                     formatAnalysis.push(analysis);
@@ -2489,18 +2601,27 @@ class Validators {
             }
         });
 
+        // Determine status: failed if issues, warning if only AI-check warnings, passed otherwise
+        let check39Status = 'passed';
+        if (issues.length > 0) {
+            check39Status = 'failed';
+        } else if (warnings.length > 0) {
+            check39Status = 'warning';  // Has items that need AI verification
+        }
+
         this.results.phase3.push({
             id: '3.9',
             name: 'Format Constraints Explicit',
-            status: issues.length === 0 ? 'passed' : 'failed',
+            status: check39Status,
             issues: issues,
             warnings: warnings,
             details: {
                 formatConstraintsChecked: formatAnalysis.length,
                 explicit: formatAnalysis.filter(a => a.foundInQuery).length,
-                hidden: formatAnalysis.filter(a => !a.foundInQuery).length,
+                hidden: formatAnalysis.filter(a => !a.foundInQuery && !a.needsAICheck).length,
+                needsAIVerification: formatAnalysis.filter(a => a.needsAICheck).length,
                 analysis: formatAnalysis,
-                note: 'All format constraints (title, lists, JSON, keywords) MUST be explicitly requested in the user query'
+                note: 'Format constraints checked by regex. Items marked for AI verification need Full AI Analysis for definitive result.'
             }
         });
     }

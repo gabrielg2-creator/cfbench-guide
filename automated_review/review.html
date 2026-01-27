@@ -439,6 +439,9 @@
         .result-table tr:last-child td { border-bottom: none; }
         .result-table tr:hover td { background: var(--bg-tertiary); }
 
+        .result-table tr.row-fail td { background: rgba(248, 113, 113, 0.08); }
+        .result-table tr.row-mismatch td { background: rgba(251, 191, 36, 0.1); }
+
         .constraint-name { font-weight: 500; color: var(--text); }
         .constraint-id { font-size: 0.7rem; color: var(--text-muted); font-family: 'SF Mono', Monaco, monospace; }
         .quote { color: var(--text-secondary); font-style: italic; font-size: 0.8rem; line-height: 1.5; }
@@ -484,6 +487,16 @@
         .status-pill.warn::before {
             content: '!';
             font-weight: 700;
+        }
+
+        .status-pill.mismatch {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: #000;
+            border-color: #b45309;
+        }
+        .status-pill.mismatch::before {
+            content: '⚠';
+            font-size: 0.7rem;
         }
 
         /* Issues Box */
@@ -581,6 +594,74 @@
         }
 
         @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Toggle Switch */
+        .toggle-switch {
+            position: relative;
+            width: 44px;
+            height: 24px;
+            display: inline-block;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            transition: 0.3s;
+        }
+
+        .toggle-slider::before {
+            content: "";
+            position: absolute;
+            height: 18px;
+            width: 18px;
+            left: 2px;
+            bottom: 2px;
+            background: var(--text-muted);
+            border-radius: 50%;
+            transition: 0.3s;
+        }
+
+        .toggle-switch input:checked + .toggle-slider {
+            background: var(--warning-bg);
+            border-color: var(--warning);
+        }
+
+        .toggle-switch input:checked + .toggle-slider::before {
+            transform: translateX(20px);
+            background: var(--warning);
+        }
+
+        /* Secondary button style */
+        .run-btn.secondary {
+            background: linear-gradient(135deg, var(--bg-tertiary) 0%, var(--bg-secondary) 100%);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+
+        .run-btn.secondary:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        /* Skip badge */
+        .check-badge.skip {
+            background: var(--bg-tertiary);
+            color: var(--text-muted);
+            border: 1px solid var(--border);
+        }
 
         /* Smooth transitions for all interactive elements */
         button, input, select, a, .check-card, .content-card, .stat-card {
@@ -926,9 +1007,23 @@
 
         <!-- Run Button -->
         <div class="run-section" id="run-section" style="display:none">
-            <button class="run-btn" id="run-btn" onclick="runAllChecks()">
-                ▶ Run Full Analysis
-            </button>
+            <!-- Toggle para ignorar System Prompt -->
+            <div class="toggle-option" style="margin-bottom: 12px; display: flex; align-items: center; justify-content: center; gap: 10px;">
+                <label class="toggle-switch">
+                    <input type="checkbox" id="skip-system-prompt">
+                    <span class="toggle-slider"></span>
+                </label>
+                <span style="color: var(--text-muted); font-size: 0.85rem;">Skip System Prompt Check</span>
+            </div>
+
+            <div style="display: flex; gap: 12px; justify-content: center;">
+                <button class="run-btn" id="run-btn" onclick="runAllChecks()">
+                    ▶ Run Full Analysis
+                </button>
+                <button class="run-btn secondary" id="next-task-btn" onclick="resetForNextTask()" style="display:none;">
+                    ↻ Next Task
+                </button>
+            </div>
         </div>
 
         <!-- Results -->
@@ -938,6 +1033,24 @@
 
             <!-- Check cards -->
             <div id="checks-container"></div>
+
+            <!-- CFBench Problem Framing Evaluator -->
+            <div id="cfbench-framing-section" class="check-card" style="margin-top:24px; display:none;">
+                <div class="check-header">
+                    <span class="check-num" style="background:var(--purple-bg); color:var(--purple);">?</span>
+                    <div class="check-info">
+                        <div class="check-title">CFBench Problem Framing & Motivation</div>
+                        <div class="check-desc">Evaluate scenario quality in User Query</div>
+                    </div>
+                </div>
+                <div style="padding:16px;">
+                    <button id="cfbench-framing-btn" onclick="evaluateCFBenchFraming()"
+                            style="background:var(--purple); color:white; border:none; padding:10px 20px; border-radius:6px; cursor:pointer; font-weight:500;">
+                        Generate CFBench Problem Framing and Motivation Rate
+                    </button>
+                    <div id="cfbench-framing-result" style="margin-top:16px;"></div>
+                </div>
+            </div>
 
             <button class="copy-all-btn" onclick="copyAllResults()">📋 Copy Full Report</button>
         </div>
@@ -1513,6 +1626,7 @@
 
             container.innerHTML = html;
             document.getElementById('extracted-section').classList.add('show');
+            document.getElementById('cfbench-framing-section').style.display = 'block';
         }
 
         function buildContentCard(type, title, meta, content) {
@@ -1584,7 +1698,7 @@
                 <div class="content-card" id="${id}">
                     <div class="content-header" onclick="toggleContent('${id}')">
                         <div class="left">
-                            <div class="content-icon meta">C</div>
+                            <div class="content-icon meta">3</div>
                             <div>
                                 <div class="content-title">Constraints (turn_metadata)</div>
                                 <div class="content-meta">${instrCount} instructions + ${judgeCount} llm_judge</div>
@@ -1621,7 +1735,7 @@
                 <div class="content-card" id="${id}">
                     <div class="content-header" onclick="toggleContent('${id}')">
                         <div class="left">
-                            <div class="content-icon model">M</div>
+                            <div class="content-icon model">5</div>
                             <div>
                                 <div class="content-title">Model Responses</div>
                                 <div class="content-meta">${models.length} model passes</div>
@@ -1641,7 +1755,7 @@
         }
 
         function getIcon(type) {
-            const icons = { system: 'S', user: 'U', golden: 'G', meta: 'C', model: 'M' };
+            const icons = { system: '1', user: '2', meta: '3', golden: '4', model: '5' };
             return icons[type] || '?';
         }
 
@@ -1690,13 +1804,76 @@
             // Run checks sequentially
             await runCheck0(apiKey, provider);
             await runCheck1(apiKey, provider);
-            await runCheck2(apiKey, provider);
+
+            // Check if System Prompt should be skipped
+            const skipSystemPrompt = document.getElementById('skip-system-prompt').checked;
+            if (skipSystemPrompt) {
+                setCheckStatus(2, 'skip', '<div class="issues-box"><p style="color:var(--text-muted);">⏭️ Skipped by user request (toggle enabled)</p></div>');
+                checkResults.push({ check: 2, status: 'skip', skipped: true });
+            } else {
+                await runCheck2(apiKey, provider);
+            }
+
             await runCheck3(apiKey, provider);
             await runCheck4(apiKey, provider);
 
             // Show summary
             showSummary();
             document.getElementById('run-btn').disabled = false;
+            document.getElementById('next-task-btn').style.display = 'block';
+        }
+
+        // Reset UI for next task (without page refresh)
+        function resetForNextTask() {
+            // Reset extracted data
+            extractedData = {
+                metadata: null,
+                systemPrompt: null,
+                userQuery: null,
+                goldenResponse: null,
+                turnMetadata: null,
+                modelResponses: [],
+                validatorAssistant: [],
+                jsonStatus: [],
+                limits: { systemPrompt: null, userPrompt: null }
+            };
+
+            // Clear UI
+            document.getElementById('stats-grid').style.display = 'none';
+            document.getElementById('content-section').style.display = 'none';
+            document.getElementById('run-section').style.display = 'none';
+            document.getElementById('results-section').classList.remove('show');
+            document.getElementById('checks-container').innerHTML = '';
+            document.getElementById('summary-container').innerHTML = '';
+            document.getElementById('extracted-cards').innerHTML = '';
+            document.getElementById('cfbench-framing-section').style.display = 'none';
+
+            // Reset buttons
+            document.getElementById('run-btn').disabled = false;
+            document.getElementById('next-task-btn').style.display = 'none';
+
+            // Reset file input
+            document.getElementById('file-input').value = '';
+
+            // Reset upload area
+            const uploadArea = document.getElementById('upload-area');
+            uploadArea.classList.remove('loaded');
+            uploadArea.innerHTML = `
+                <div class="icon">📁</div>
+                <div class="text">Drop .ipynb file here or click to upload</div>
+            `;
+
+            // Reset stats
+            document.getElementById('stat-words').textContent = '-';
+            document.getElementById('stat-chars').textContent = '-';
+            document.getElementById('stat-cells').textContent = '-';
+            document.getElementById('stat-lang').textContent = '-';
+
+            // Clear check results
+            checkResults = [];
+
+            // Scroll to top
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
         function toggleCheck(id) {
@@ -1709,7 +1886,8 @@
             badge.innerHTML = status === 'running' ? '<span class="spinner"></span> Running' :
                               status === 'pass' ? '✓ Pass' :
                               status === 'fail' ? '✗ Issues' :
-                              status === 'warn' ? '⚠ Warning' : 'Pending';
+                              status === 'warn' ? '⚠ Warning' :
+                              status === 'skip' ? '⏭ Skipped' : 'Pending';
 
             if (content) {
                 document.getElementById(`content-${id}`).innerHTML = content;
@@ -1882,6 +2060,10 @@ Examples: "Above 1000" → min:1000,max:null | "50-100" → min:50,max:100`;
                 else if (inst.min_fraction || inst.max_fraction) desc += `MUST mention case ratio between ${inst.min_fraction || '0'} and ${inst.max_fraction || 'inf'} (lowercase/uppercase ratio)`;
                 else if (inst.forbidden_words) desc += `MUST mention forbidden words: ${inst.forbidden_words.join(', ')}`;
                 else if (inst.keywords) desc += `MUST explicitly request using these keywords: ${inst.keywords.join(', ')}`;
+                else if (inst.instruction_id && inst.instruction_id.startsWith('detectable_format:')) {
+                    const formatType = inst.instruction_id.split(':')[1].replace(/_/g, ' ');
+                    desc += `Check if the query requests a ${formatType} format`;
+                }
                 else desc += `Check if explicitly requested in query`;
                 return desc;
             }).join('\n');
@@ -1954,20 +2136,30 @@ Respond with JSON containing ALL constraints (both instructions AND llm_judge):
 
             const sysConstraints = extractedData.turnMetadata?.instructions?.filter(i => i.source === 'system') || [];
 
-            const prompt = `Analyze the system prompt:
+            const prompt = `Analyze the system prompt and answer each check:
 
-1. Does it define a clear ROLE?
-2. Does it have LLM Eval constraints (tone/style)?
-3. Any FORBIDDEN terms? (L1, L2, taxonomy, CFBench)
-4. Is it consistent?
-5. Any contradictions?
-${sysConstraints.length > 0 ? `6. Are these system constraints present?\n${JSON.stringify(sysConstraints)}` : ''}
+1. Role Definition - Does it define a clear ROLE? → PASS if role is defined, FAIL if missing
+2. LLM Eval Constraints - Does it have tone/style guidance? → PASS if present, FAIL if missing
+3. Forbidden Terms - Contains L1, L2, taxonomy, CFBench? → PASS if NONE found, FAIL if ANY found
+4. Consistency - Is the prompt internally consistent? → PASS if consistent, FAIL if inconsistent
+5. Contradictions Check - Are there contradictory instructions? → PASS if NO contradictions, FAIL if contradictions exist
+${sysConstraints.length > 0 ? `6. System Constraints - Are these constraints present?\n${JSON.stringify(sysConstraints)}` : ''}
 
 **METADATA:**
 ${extractedData.metadata}
 
 **SYSTEM PROMPT:**
 ${extractedData.systemPrompt}
+
+CRITICAL STATUS RULES (follow exactly):
+- PASS = The check is SATISFIED / GOOD / NO PROBLEMS
+- FAIL = The check has PROBLEMS / ISSUES
+
+For "Contradictions Check" specifically:
+- If you find NO contradictions → status: "PASS", note: "No contradictions found"
+- If you find contradictions → status: "FAIL", note: "Found contradiction: [describe it]"
+
+DO NOT invert these! "No contradictions" is a GOOD thing = PASS.
 
 Respond with JSON: {"checks":[{"name":"check name","status":"PASS|FAIL","note":"explanation"}],"issues":["issue1"]}`;
 
@@ -2010,8 +2202,15 @@ Respond with JSON: {"checks":[{"name":"check name","status":"PASS|FAIL","note":"
                 }
             }
 
-            // === STEP 2: Validate formatting with NVIDIA validator ===
-            const formattingResults = NvidiaValidator.validateFormatting(goldenResponse);
+            // === STEP 2: Validate formatting with NVIDIA validator for ALL 3 cells ===
+            const systemPromptText = extractedData.systemPrompt || '';
+            const userQueryText = extractedData.userQuery || '';
+
+            const formattingResults = {
+                system_query: NvidiaValidator.validateFormatting(systemPromptText),
+                user_query: NvidiaValidator.validateFormatting(userQueryText),
+                golden_response: NvidiaValidator.validateFormatting(goldenResponse)
+            };
 
             // === STEP 3: Send ONLY semantic instructions + llm_judge to API ===
             let llmResults = { instructions: [], llm_judge: [] };
@@ -2081,9 +2280,10 @@ Respond with JSON:
 
             // Format and display
             const content = formatGoldenResultsFromData(finalResults);
+            const hasFormatIssues = Object.values(formattingResults.golden_response || {}).includes('FAIL');
             const hasIssues = finalResults.instructions.some(i => i.status === 'FAIL') ||
                               finalResults.llm_judge.some(j => j.status === 'FAIL') ||
-                              Object.values(formattingResults).includes('FAIL');
+                              hasFormatIssues;
 
             setCheckStatus(3, hasIssues ? 'warn' : 'pass', content);
             checkResults.push({ check: 3, status: hasIssues ? 'warn' : 'pass', data: finalResults });
@@ -2116,19 +2316,32 @@ Respond with JSON:
                 </tr>`;
             }
 
-            // Formatting
-            if (data.formatting) {
-                for (const [key, val] of Object.entries(data.formatting)) {
-                    const statusClass = val === 'PASS' ? 'pass' : 'fail';
+            html += '</tbody></table>';
+
+            // Formatting section (separate table for all 3 cells)
+            if (data.formatting && data.formatting.system_query) {
+                html += '<h4 style="margin-top:16px;margin-bottom:8px;">Format Validation</h4>';
+                html += '<table class="result-table"><thead><tr><th>Check</th><th>System Query</th><th>User Query</th><th>Golden Response</th></tr></thead><tbody>';
+
+                const formatChecks = ['emojis', 'em_dash', 'currency', 'latex', 'preamble'];
+                for (const check of formatChecks) {
+                    const sysVal = data.formatting.system_query[check];
+                    const usrVal = data.formatting.user_query[check];
+                    const goldVal = data.formatting.golden_response[check];
+
+                    const sysClass = sysVal === 'PASS' ? 'pass' : 'fail';
+                    const usrClass = usrVal === 'PASS' ? 'pass' : 'fail';
+                    const goldClass = goldVal === 'PASS' ? 'pass' : 'fail';
+
                     html += `<tr>
-                        <td><span class="constraint-id">Format</span></td>
-                        <td><span class="constraint-name">${key.replace(/_/g, ' ')}</span></td>
-                        <td>-</td>
-                        <td><span class="status-pill ${statusClass}">${val}</span></td>
+                        <td><span class="constraint-name">${check.replace(/_/g, ' ')}</span></td>
+                        <td><span class="status-pill ${sysClass}">${sysVal}</span></td>
+                        <td><span class="status-pill ${usrClass}">${usrVal}</span></td>
+                        <td><span class="status-pill ${goldClass}">${goldVal}</span></td>
                     </tr>`;
                 }
+                html += '</tbody></table>';
             }
-            html += '</tbody></table>';
 
             // Issues
             if (data.issues?.length > 0) {
@@ -2239,13 +2452,21 @@ Respond with JSON: {"semantic_failed":N,"llm_judge_failed":N,"details":[{"id":"i
                 });
             }
 
-            const content = formatModelResults(allResults, failureCount);
-            const status = failureCount >= 3 ? 'pass' : 'fail';
+            const modelResult = formatModelResults(allResults, failureCount);
+            const content = modelResult.html;
+            const status = modelResult.bothRulesPass ? 'pass' : 'fail';
             setCheckStatus(4, status, content);
-            checkResults.push({ check: 4, status, failureCount, total: extractedData.modelResponses.length });
+            checkResults.push({ check: 4, status, failureCount, total: extractedData.modelResponses.length, hasVariation: modelResult.hasVariation });
         }
 
         function formatConstraintResults(result, source) {
+            // Helper function to get status class (handles PASS, FAIL, MISMATCH)
+            const getStatusClass = (status) => {
+                if (status === 'PASS') return 'pass';
+                if (status === 'MISMATCH') return 'mismatch';
+                return 'fail';
+            };
+
             // Try to parse JSON, fallback to raw display
             try {
                 const jsonMatch = result.match(/\{[\s\S]*\}/);
@@ -2257,9 +2478,10 @@ Respond with JSON: {"semantic_failed":N,"llm_judge_failed":N,"details":[{"id":"i
                     const constraints = data.constraints || [];
 
                     for (const c of constraints) {
-                        const statusClass = c.status === 'PASS' ? 'pass' : 'fail';
+                        const statusClass = getStatusClass(c.status);
                         const typeLabel = c.type === 'llm_judge' ? 'LLM Judge' : 'Instruction';
-                        html += `<tr class="${statusClass === 'fail' ? 'row-fail' : ''}">
+                        const rowClass = statusClass === 'fail' ? 'row-fail' : (statusClass === 'mismatch' ? 'row-mismatch' : '');
+                        html += `<tr class="${rowClass}">
                             <td><span class="constraint-id">${typeLabel}</span></td>
                             <td><span class="constraint-name">${escapeHtml(c.id)}</span></td>
                             <td><span class="quote" style="max-width:200px;display:block;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(c.quote || '-')}</span></td>
@@ -2303,6 +2525,13 @@ Respond with JSON: {"semantic_failed":N,"llm_judge_failed":N,"details":[{"id":"i
         }
 
         function formatGoldenResults(result) {
+            // Helper function to get status class (handles PASS, FAIL, MISMATCH)
+            const getStatusClass = (status) => {
+                if (status === 'PASS') return 'pass';
+                if (status === 'MISMATCH') return 'mismatch';
+                return 'fail';
+            };
+
             try {
                 const jsonMatch = result.match(/\{[\s\S]*\}/);
                 if (jsonMatch) {
@@ -2311,7 +2540,7 @@ Respond with JSON: {"semantic_failed":N,"llm_judge_failed":N,"details":[{"id":"i
 
                     // Handle instructions array
                     for (const c of data.instructions || []) {
-                        const statusClass = c.status === 'PASS' ? 'pass' : 'fail';
+                        const statusClass = getStatusClass(c.status);
                         html += `<tr>
                             <td><span class="constraint-id">Instruction</span></td>
                             <td><span class="constraint-name">${escapeHtml(c.id)}</span></td>
@@ -2322,7 +2551,7 @@ Respond with JSON: {"semantic_failed":N,"llm_judge_failed":N,"details":[{"id":"i
 
                     // Handle llm_judge array
                     for (const c of data.llm_judge || []) {
-                        const statusClass = c.status === 'PASS' ? 'pass' : 'fail';
+                        const statusClass = getStatusClass(c.status);
                         html += `<tr>
                             <td><span class="constraint-id">LLM Judge</span></td>
                             <td><span class="constraint-name">${escapeHtml(c.uid || c.id || '-')}</span></td>
@@ -2334,7 +2563,7 @@ Respond with JSON: {"semantic_failed":N,"llm_judge_failed":N,"details":[{"id":"i
                     // Fallback for old format with constraints array
                     if (!data.instructions && !data.llm_judge && data.constraints) {
                         for (const c of data.constraints) {
-                            const statusClass = c.status === 'PASS' ? 'pass' : 'fail';
+                            const statusClass = getStatusClass(c.status);
                             html += `<tr>
                                 <td><span class="constraint-id">-</span></td>
                                 <td><span class="constraint-name">${escapeHtml(c.id)}</span></td>
@@ -2347,7 +2576,7 @@ Respond with JSON: {"semantic_failed":N,"llm_judge_failed":N,"details":[{"id":"i
                     // Formatting checks
                     if (data.formatting) {
                         for (const [key, val] of Object.entries(data.formatting)) {
-                            const statusClass = val === 'PASS' ? 'pass' : 'fail';
+                            const statusClass = getStatusClass(val);
                             html += `<tr>
                                 <td><span class="constraint-id">Format</span></td>
                                 <td><span class="constraint-name">${key.replace(/_/g, ' ')}</span></td>
@@ -2417,36 +2646,70 @@ Respond with JSON: {"semantic_failed":N,"llm_judge_failed":N,"details":[{"id":"i
                 }
             }
 
-            // Summary - both sources
+            // === NEW RULE: Check if at least ONE constraint varies across models ===
+            const constraintVariation = {};
+            for (const r of notebookResults) {
+                if (r.noData || !r.checks) continue;
+                for (const check of r.checks) {
+                    const checkId = check.id || check.name || check.constraint;
+                    if (!checkId) continue;
+                    if (!constraintVariation[checkId]) {
+                        constraintVariation[checkId] = { pass: 0, fail: 0 };
+                    }
+                    if (check.status === 'Passed' || check.status === 'PASS') {
+                        constraintVariation[checkId].pass++;
+                    } else if (check.status === 'Failed' || check.status === 'FAIL') {
+                        constraintVariation[checkId].fail++;
+                    }
+                }
+            }
+
+            // Check if at least one constraint has variation (both pass and fail)
+            let hasVariation = false;
+            let variationDetails = [];
+            for (const [id, counts] of Object.entries(constraintVariation)) {
+                const varies = counts.pass > 0 && counts.fail > 0;
+                variationDetails.push({ id, pass: counts.pass, fail: counts.fail, varies });
+                if (varies) hasVariation = true;
+            }
+
+            const rule1Pass = notebookFailCount >= 3;
+            const rule2Pass = hasVariation;
+            const bothRulesPass = rule1Pass && rule2Pass;
+
+            // Summary - only notebook validator_assistant
             let html = `<div class="summary-card" style="margin-top:16px">
-                <div class="summary-title" style="margin-bottom:12px">Model Breaking Rule: ≥3 of 4 must fail ≥50%</div>
-                <div class="summary-grid">
-                    <div class="summary-item" style="background:linear-gradient(135deg, #1a2f1a 0%, #0d1a0d 100%); border: 1px solid #2d5a2d;">
-                        <div class="num" style="color:#4ade80">${notebookFailCount}/${notebookResults.length}</div>
-                        <div class="label" style="color:#a3e635">NOTEBOOK (validator_assistant)</div>
+                <div class="summary-title" style="margin-bottom:12px">Model Breaking Rules</div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:12px;">
+                    <div style="text-align:center; padding:12px; background:${rule1Pass ? 'linear-gradient(135deg, #1a2f1a 0%, #0d1a0d 100%)' : 'linear-gradient(135deg, #2f1a1a 0%, #1a0d0d 100%)'}; border-radius:8px; border:1px solid ${rule1Pass ? '#2d5a2d' : '#5a2d2d'};">
+                        <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:4px;">Rule 1: ≥3 of 4 fail ≥50%</div>
+                        <div style="font-size:1.5rem; font-weight:bold; color:${rule1Pass ? '#4ade80' : '#f87171'};">${notebookFailCount}/${notebookResults.length}</div>
+                        <strong style="display:block; margin-top:4px; color:${rule1Pass ? '#4ade80' : '#f87171'};">
+                            ${rule1Pass ? '✓ PASS' : '✗ FAIL'}
+                        </strong>
                     </div>
-                    <div class="summary-item" style="background:linear-gradient(135deg, #2f2f1a 0%, #1a1a0d 100%); border: 1px solid #5a5a2d;">
-                        <div class="num" style="color:#fde047">${failureCount}/${allResults.length}</div>
-                        <div class="label" style="color:#fef08a">SCRIPT (nossa validação)</div>
+                    <div style="text-align:center; padding:12px; background:${rule2Pass ? 'linear-gradient(135deg, #1a2f1a 0%, #0d1a0d 100%)' : 'linear-gradient(135deg, #2f1a1a 0%, #1a0d0d 100%)'}; border-radius:8px; border:1px solid ${rule2Pass ? '#2d5a2d' : '#5a2d2d'};">
+                        <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:4px;">Rule 2: ≥1 constraint varies</div>
+                        <div style="font-size:1.5rem; font-weight:bold; color:${rule2Pass ? '#4ade80' : '#f87171'};">${variationDetails.filter(v => v.varies).length}/${variationDetails.length}</div>
+                        <strong style="display:block; margin-top:4px; color:${rule2Pass ? '#4ade80' : '#f87171'};">
+                            ${rule2Pass ? '✓ PASS' : '✗ FAIL'}
+                        </strong>
                     </div>
                 </div>
-                <div style="text-align:center; margin-top:12px; padding:8px; background:${(notebookFailCount >= 3 && failureCount >= 3) ? 'linear-gradient(135deg, #1a2f1a 0%, #0d1a0d 100%)' : (notebookFailCount >= 3 !== failureCount >= 3) ? 'linear-gradient(135deg, #2f2f1a 0%, #1a1a0d 100%)' : 'linear-gradient(135deg, #2f1a1a 0%, #1a0d0d 100%)'}; border-radius:8px; border:1px solid ${(notebookFailCount >= 3 && failureCount >= 3) ? '#2d5a2d' : (notebookFailCount >= 3 !== failureCount >= 3) ? '#5a5a2d' : '#5a2d2d'};">
-                    <strong style="color:${(notebookFailCount >= 3 && failureCount >= 3) ? '#4ade80' : (notebookFailCount >= 3 !== failureCount >= 3) ? '#fde047' : '#f87171'};">
-                        ${(notebookFailCount >= 3 && failureCount >= 3) ? '✓ PASS (ambos concordam)' : (notebookFailCount >= 3 !== failureCount >= 3) ? '⚠ NEEDS REVIEW (divergência)' : '✗ FAIL (ambos concordam)'}
+                <div style="text-align:center; margin-top:12px; padding:8px; background:${bothRulesPass ? 'linear-gradient(135deg, #1a2f1a 0%, #0d1a0d 100%)' : 'linear-gradient(135deg, #2f1a1a 0%, #1a0d0d 100%)'}; border-radius:8px; border:2px solid ${bothRulesPass ? '#4ade80' : '#f87171'};">
+                    <strong style="font-size:1.2rem; color:${bothRulesPass ? '#4ade80' : '#f87171'};">
+                        ${bothRulesPass ? '✓ BOTH RULES PASSED' : '✗ RULES NOT MET'}
                     </strong>
                 </div>
             </div>`;
 
-            // Two parallel tables
-            html += `<div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:16px;">`;
-
-            // NOTEBOOK table (left)
-            html += `<div style="background:linear-gradient(135deg, #1a2f1a 0%, #0d1a0d 100%); border:1px solid #2d5a2d; border-radius:8px; padding:12px;">
+            // Single table - validator_assistant only
+            html += `<div style="background:linear-gradient(135deg, #1a2f1a 0%, #0d1a0d 100%); border:1px solid #2d5a2d; border-radius:8px; padding:12px; margin-top:16px;">
                 <h4 style="color:#4ade80; margin:0 0 12px 0; display:flex; align-items:center; gap:6px;">
                     <span style="background:#4ade80; color:#0d1a0d; padding:2px 6px; border-radius:4px; font-size:0.7rem;">NOTEBOOK</span>
                     validator_assistant (da tarefa)
                 </h4>
-                <table class="result-table" style="font-size:0.8rem;">
+                <table class="result-table" style="font-size:0.85rem;">
                     <thead><tr style="background:#1a3d1a"><th>Model</th><th>Pass</th><th>Fail</th><th>Fail%</th><th>≥50%</th></tr></thead>
                     <tbody>`;
 
@@ -2469,53 +2732,16 @@ Respond with JSON: {"semantic_failed":N,"llm_judge_failed":N,"details":[{"id":"i
             }
 
             html += `</tbody></table>
-                <div style="margin-top:8px; text-align:center; font-weight:bold; color:${notebookFailCount >= 3 ? '#4ade80' : '#f87171'};">
-                    Total: ${notebookFailCount}/${notebookResults.length} ≥50% ${notebookFailCount >= 3 ? '✓' : '✗'}
-                </div>
             </div>`;
-
-            // SCRIPT table (right) - Simplified like NOTEBOOK
-            html += `<div style="background:linear-gradient(135deg, #2f2f1a 0%, #1a1a0d 100%); border:1px solid #5a5a2d; border-radius:8px; padding:12px;">
-                <h4 style="color:#fde047; margin:0 0 12px 0; display:flex; align-items:center; gap:6px;">
-                    <span style="background:#fde047; color:#1a1a0d; padding:2px 6px; border-radius:4px; font-size:0.7rem;">SCRIPT</span>
-                    Nossa validação (NvidiaValidator)
-                </h4>
-                <table class="result-table" style="font-size:0.8rem;">
-                    <thead><tr style="background:#3d3d1a"><th>Model</th><th>Pass</th><th>Fail</th><th>Fail%</th><th>≥50%</th></tr></thead>
-                    <tbody>`;
-
-            for (const r of allResults) {
-                try {
-                    const data = JSON.parse(r.result);
-                    const meets50 = data.meets_50_percent;
-                    html += `<tr class="${meets50 ? 'row-pass' : 'row-fail'}">
-                        <td><strong>${escapeHtml(r.name.replace('assistant_', ''))}</strong></td>
-                        <td style="color:#4ade80">${data.passed || 0}</td>
-                        <td style="color:#f87171">${data.failed || 0}</td>
-                        <td><strong>${data.failure_rate}</strong></td>
-                        <td style="text-align:center; font-weight:bold; color:${meets50 ? '#4ade80' : '#f87171'}">${meets50 ? '✓' : '✗'}</td>
-                    </tr>`;
-                } catch (e) {
-                    html += `<tr><td colspan="5">${escapeHtml(r.name)}: Error</td></tr>`;
-                }
-            }
-
-            html += `</tbody></table>
-                <div style="margin-top:8px; text-align:center; font-weight:bold; color:${failureCount >= 3 ? '#4ade80' : '#f87171'};">
-                    Total: ${failureCount}/${allResults.length} ≥50% ${failureCount >= 3 ? '✓' : '✗'}
-                </div>
-            </div>`;
-
-            html += `</div>`; // end grid
 
             // Explanation
             html += `<div style="font-size:11px; color:var(--text-muted); margin-top:12px; padding:8px; background:var(--bg-tertiary); border-radius:4px;">
-                <strong>NOTEBOOK (Verde):</strong> Dados do validator_assistant que já existem na tarefa - validação real da NVIDIA<br>
-                <strong>SCRIPT (Amarelo):</strong> Nossa validação local usando NvidiaValidator - para conferência<br>
-                <strong>Decisão Final:</strong> Se ambos concordam → resultado confiável | Se divergem → revisar manualmente
+                <strong>validator_assistant:</strong> Dados de validação da tarefa (NVIDIA)<br>
+                <strong>Rule 1:</strong> ≥3 of 4 models must fail ≥50% of constraints<br>
+                <strong>Rule 2:</strong> At least 1 constraint must vary (PASS in some models, FAIL in others)
             </div>`;
 
-            return html;
+            return { html, bothRulesPass, hasVariation, rule1Pass, rule2Pass };
         }
 
         function showSummary() {
@@ -2578,6 +2804,78 @@ Respond with JSON: {"semantic_failed":N,"llm_judge_failed":N,"details":[{"id":"i
         function escapeHtml(str) {
             if (!str) return '';
             return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        async function evaluateCFBenchFraming() {
+            const apiKey = localStorage.getItem('review_api_key');
+            const provider = localStorage.getItem('review_api_provider') || 'gemini';
+
+            if (!apiKey) {
+                alert('Please save your API key first');
+                return;
+            }
+
+            const userQuery = extractedData.userQuery || '';
+            if (!userQuery) {
+                document.getElementById('cfbench-framing-result').innerHTML =
+                    '<div style="color:var(--warning);">No user query found</div>';
+                return;
+            }
+
+            document.getElementById('cfbench-framing-btn').disabled = true;
+            document.getElementById('cfbench-framing-result').innerHTML =
+                '<div style="color:var(--text-muted);">Evaluating...</div>';
+
+            const prompt = `Evaluate the USER QUERY below for "CFBench Problem Framing and Motivation" quality.
+
+## Scoring Rubric:
+- **Score 5**: Scenario is clear, specific, and grounded in realistic constraints. Demonstrates why comprehensive constraint-following matters with multiple overlapping real-world instructions, broad task coverage, and user-centric framing.
+- **Score 4**: Scenario is clear with good constraints, but one element is underdeveloped (e.g., constraints could be more challenging or realistic).
+- **Score 3**: Scenario is present but mostly generic. Has some constraints but weakly demonstrates why CFBench-style evaluation is needed.
+- **Score 2**: Scenario is vague or simplistic. Few constraints, unclear real-world value.
+- **Score 1**: No meaningful scenario. Trivial request with no constraint challenge.
+
+## USER QUERY TO EVALUATE:
+${userQuery}
+
+## INSTRUCTIONS:
+1. Analyze how well the user query presents a realistic, challenging scenario with multiple constraints
+2. Determine the score (1-5) based on the rubric
+3. Respond with EXACTLY this JSON format:
+{"score": N, "feedback": "One sentence explanation in English"}`;
+
+            try {
+                const result = await callAPI(provider, apiKey, prompt);
+                const jsonMatch = result.match(/\{[\s\S]*\}/);
+
+                if (jsonMatch) {
+                    const data = JSON.parse(jsonMatch[0]);
+                    const score = data.score || 0;
+                    const feedback = data.feedback || 'No feedback';
+
+                    const colors = {
+                        5: '#4ade80', // green
+                        4: '#a3e635', // lime
+                        3: '#fde047', // yellow
+                        2: '#fb923c', // orange
+                        1: '#f87171'  // red
+                    };
+
+                    document.getElementById('cfbench-framing-result').innerHTML = `
+                        <div style="display:flex; align-items:center; gap:16px; padding:12px; background:var(--bg-tertiary); border-radius:8px;">
+                            <div style="font-size:2.5rem; font-weight:bold; color:${colors[score] || '#888'};">${score}/5</div>
+                            <div style="flex:1; color:var(--text-secondary); font-style:italic;">"${escapeHtml(feedback)}"</div>
+                        </div>
+                    `;
+                } else {
+                    throw new Error('Invalid response format');
+                }
+            } catch (e) {
+                document.getElementById('cfbench-framing-result').innerHTML =
+                    `<div style="color:var(--danger);">Error: ${e.message}</div>`;
+            }
+
+            document.getElementById('cfbench-framing-btn').disabled = false;
         }
     </script>
 </body>

@@ -237,6 +237,17 @@ function validateInstruction(response, instType, kwargs) {
             return { valid, note: valid ? 'OK' : 'Not all words have first letter capitalized' };
         }
 
+        if (instType === 'change_case:last_letter') {
+            // Find the last letter in the response
+            const letters = response.match(/[a-zA-ZÀ-ÿ]/g);
+            if (!letters || letters.length === 0) {
+                return { valid: false, note: 'No letters found in response' };
+            }
+            const lastLetter = letters[letters.length - 1];
+            const valid = lastLetter === lastLetter.toUpperCase() && lastLetter !== lastLetter.toLowerCase();
+            return { valid, note: valid ? `OK - Last letter '${lastLetter}' is uppercase` : `Last letter '${lastLetter}' is not uppercase` };
+        }
+
         if (instType === 'change_case:capital_word_frequency') {
             const count = countAllCapsWords(response);
             const valid = checkRelation(count, kwargs.capital_relation, kwargs.capital_frequency);
