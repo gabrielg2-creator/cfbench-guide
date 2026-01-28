@@ -238,12 +238,33 @@ function validateInstruction(response, instType, kwargs) {
         }
 
         if (instType === 'change_case:last_letter') {
-            // Find the last letter in the response
+            const caseType = kwargs.case || 'upper';
+
+            if (caseType === 'special') {
+                // Check if response ends with a special character
+                const trimmed = response.trim();
+                if (trimmed.length === 0) {
+                    return { valid: false, note: 'Response is empty' };
+                }
+                const lastChar = trimmed[trimmed.length - 1];
+                // Special character = not a letter and not a digit
+                const isSpecial = !/[a-zA-ZÀ-ÿ0-9]/.test(lastChar);
+                return { valid: isSpecial, note: isSpecial ? `OK - Last character '${lastChar}' is a special character` : `Last character '${lastChar}' is not a special character` };
+            }
+
+            // For upper/lower, find the last letter
             const letters = response.match(/[a-zA-ZÀ-ÿ]/g);
             if (!letters || letters.length === 0) {
                 return { valid: false, note: 'No letters found in response' };
             }
             const lastLetter = letters[letters.length - 1];
+
+            if (caseType === 'lower') {
+                const valid = lastLetter === lastLetter.toLowerCase() && lastLetter !== lastLetter.toUpperCase();
+                return { valid, note: valid ? `OK - Last letter '${lastLetter}' is lowercase` : `Last letter '${lastLetter}' is not lowercase` };
+            }
+
+            // Default: upper
             const valid = lastLetter === lastLetter.toUpperCase() && lastLetter !== lastLetter.toLowerCase();
             return { valid, note: valid ? `OK - Last letter '${lastLetter}' is uppercase` : `Last letter '${lastLetter}' is not uppercase` };
         }

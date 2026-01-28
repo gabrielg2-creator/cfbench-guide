@@ -2184,8 +2184,22 @@ For LLM_JUDGE items, check if the USER QUERY SEMANTICALLY requests what the llm_
 IMPORTANT: The query may be in a DIFFERENT LANGUAGE than the llm_judge (which is in English).
 Accept TRANSLATIONS as valid - if the meaning is the same, it's a PASS even if the words are different.
 
+## CRITICAL - QUOTE EXTRACTION IS MANDATORY:
+When evaluating llm_judge items:
+1. FIRST: Find the part of the user query that relates to the llm_judge content
+2. SECOND: Copy that EXACT text as the quote
+3. THIRD: Decide PASS or FAIL based on whether the meaning matches
+
+If status is PASS, you MUST have found text in the query - copy that text as the quote!
+- Example: llm_judge content="practical recommendations"
+- User query (Italian): "...voglio consigli pratici per il weekend..."
+- Quote: "voglio consigli pratici per il weekend" ← COPY THE ACTUAL TEXT
+- Status: PASS (semantic match)
+
+NEVER return "NOT FOUND" if you're giving PASS - if you found a semantic match, you found text to quote!
+
 Respond with JSON containing ALL constraints (both instructions AND llm_judge):
-{"constraints":[{"id":"instruction_id or llm_judge uid","type":"instruction|llm_judge","status":"PASS|FAIL","quote":"exact quote from query that proves it, or 'NOT FOUND'","reason":"why pass or fail"}],"issues":["list of constraints that are HIDDEN (not explicit in query)"]}`;
+{"constraints":[{"id":"instruction_id or llm_judge uid","type":"instruction|llm_judge","status":"PASS|FAIL","quote":"EXACT text from query that proves it (REQUIRED for PASS)","reason":"why pass or fail"}],"issues":["list of constraints that are HIDDEN (not explicit in query)"]}`;
 
             try {
                 const result = await callAPI(provider, apiKey, prompt);
