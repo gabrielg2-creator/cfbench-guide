@@ -1631,7 +1631,7 @@
 
         function buildContentCard(type, title, meta, content) {
             const id = `content-${type}-${Date.now()}`;
-            const truncated = content.length > 5000 ? content.substring(0, 5000) + '\n\n... [truncated]' : content;
+            const truncated = content.length > 15000 ? content.substring(0, 15000) + '\n\n... [truncated]' : content;
             return `
                 <div class="content-card" id="${id}">
                     <div class="content-header" onclick="toggleContent('${id}')">
@@ -2899,7 +2899,7 @@ Respond with JSON: {"semantic_failed":N,"llm_judge_failed":N,"details":[{"id":"i
                 ? 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions'
                 : 'https://api.openai.com/v1/chat/completions';
 
-            const model = provider === 'gemini' ? 'gemini-2.5-flash-lite' : 'gpt-4o-mini';
+            const model = provider === 'gemini' ? 'gemini-2.5-flash-lite' : 'gpt-5-mini';
 
             const response = await fetch(url, {
                 method: 'POST',
