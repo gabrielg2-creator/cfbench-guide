@@ -212,6 +212,22 @@
             border-color: var(--success);
             border-style: solid;
             background: var(--success-bg);
+            padding: 16px 24px;
+        }
+        .upload-area.loaded .icon {
+            font-size: 1.2rem;
+            margin-bottom: 0;
+            display: inline;
+            margin-right: 8px;
+        }
+        .upload-area.loaded .filename {
+            display: inline;
+            font-weight: 600;
+            color: var(--success-light);
+        }
+        .upload-area.loaded .text {
+            font-size: 0.75rem;
+            margin-top: 4px;
         }
         .upload-area .icon {
             font-size: 2.5rem;
@@ -1218,6 +1234,17 @@
                 document.getElementById('api-key').value = '••••••••••••';
                 updateApiStatus(true);
             }
+
+            // Carregar estado salvo do skip-system-prompt
+            const savedSkipState = localStorage.getItem('skip_system_prompt');
+            if (savedSkipState === 'true') {
+                document.getElementById('skip-system-prompt').checked = true;
+            }
+
+            // Salvar estado quando mudar
+            document.getElementById('skip-system-prompt').addEventListener('change', (e) => {
+                localStorage.setItem('skip_system_prompt', e.target.checked);
+            });
         });
 
         function saveKey() {
@@ -1256,7 +1283,13 @@
             reader.onload = (e) => {
                 parseContent(e.target.result);
                 uploadArea.classList.add('loaded');
-                uploadArea.innerHTML = `<div class="icon">✓</div><div class="filename">${file.name}</div><div class="text">Click to upload a different file</div>`;
+                uploadArea.innerHTML = `
+                    <div style="display:flex; align-items:center; justify-content:center; gap:8px;">
+                        <span class="icon">✓</span>
+                        <span class="filename">${file.name}</span>
+                    </div>
+                    <div class="text">Click to change file</div>
+                `;
                 document.getElementById('stats-grid').style.display = 'grid';
                 document.getElementById('run-section').style.display = 'block';
                 updateStats();
@@ -1862,6 +1895,8 @@
                 <div class="icon">📁</div>
                 <div class="text">Drop .ipynb file here or click to upload</div>
             `;
+            // Restaurar onclick
+            uploadArea.onclick = () => document.getElementById('file-input').click();
 
             // Reset stats
             document.getElementById('stat-words').textContent = '-';
