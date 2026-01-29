@@ -1692,14 +1692,6 @@ class Validators {
             foundIssues.push({ type: 'em-dash', count: emDashes.length });
         }
 
-        // Check for currency symbols (should use ISO codes)
-        const currencyPattern = /[$€£¥₹₽]/g;
-        const currencies = content.match(currencyPattern);
-        if (currencies && currencies.length > 0) {
-            issues.push(`Golden response contains currency symbols (${currencies.join(', ')}) - use ISO codes (USD, EUR, GBP) instead`);
-            foundIssues.push({ type: 'currency', symbols: [...new Set(currencies)] });
-        }
-
         // Check for LaTeX
         const latexPattern = /\$\$[\s\S]*?\$\$|\$[^$]+\$|\\frac|\\sqrt|\\sum|\\int|\\alpha|\\beta/g;
         const latex = content.match(latexPattern);

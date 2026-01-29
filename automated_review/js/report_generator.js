@@ -697,7 +697,6 @@ class ReportGenerator {
                                 <td class="inst-evidence">${
                                     issue.type === 'emoji' ? `${issue.count} emoji(s): ${(issue.examples || []).join(' ')}` :
                                     issue.type === 'em-dash' ? `${issue.count} em-dash(es) found` :
-                                    issue.type === 'currency' ? `Symbols: ${(issue.symbols || []).join(', ')}` :
                                     issue.type === 'latex' ? `${issue.count} LaTeX expression(s)` :
                                     issue.type === 'preamble' ? `Starts with: "${issue.found}"` :
                                     JSON.stringify(issue)

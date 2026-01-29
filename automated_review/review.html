@@ -2223,7 +2223,7 @@ Respond with JSON containing ALL constraints (both instructions AND llm_judge):
 
 1. Role Definition - Does it define a clear ROLE? → PASS if role is defined, FAIL if missing
 2. LLM Eval Constraints - Does it have tone/style guidance? → PASS if present, FAIL if missing
-3. Forbidden Terms - Contains L1, L2, taxonomy, CFBench? → PASS if NONE found, FAIL if ANY found
+3. Forbidden Terms - Does the **SYSTEM PROMPT text** (NOT the METADATA) contain forbidden terms like "L1", "L2", "taxonomy", "CFBench"? → PASS if NONE found in system prompt, FAIL if ANY found. NOTE: The METADATA section has L1/L2/L3 Taxonomy fields - these are NORMAL notebook structure fields, NOT violations.
 4. Consistency - Is the prompt internally consistent? → PASS if consistent, FAIL if inconsistent
 5. Contradictions Check - Are there contradictory instructions? → PASS if NO contradictions, FAIL if contradictions exist
 ${sysConstraints.length > 0 ? `6. System Constraints - Are these constraints present?\n${JSON.stringify(sysConstraints)}` : ''}
@@ -2457,7 +2457,7 @@ OUTPUT FORMAT (JSON ONLY)
                 html += '<h4 style="margin-top:16px;margin-bottom:8px;">Format Validation</h4>';
                 html += '<table class="result-table"><thead><tr><th>Check</th><th>System Query</th><th>User Query</th><th>Golden Response</th></tr></thead><tbody>';
 
-                const formatChecks = ['emojis', 'em_dash', 'currency', 'latex', 'preamble'];
+                const formatChecks = ['emojis', 'em_dash', 'latex', 'preamble'];
                 for (const check of formatChecks) {
                     const sysVal = data.formatting.system_query[check];
                     const usrVal = data.formatting.user_query[check];

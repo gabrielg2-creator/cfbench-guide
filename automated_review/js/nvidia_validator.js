@@ -630,7 +630,6 @@ function validateFormatting(response) {
     return {
         emojis: !/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/u.test(response) ? 'PASS' : 'FAIL',
         em_dash: !response.includes('\u2014') ? 'PASS' : 'FAIL', // em-dash character
-        currency: !/[$\u20AC\u00A3\u00A5]/.test(response) ? 'PASS' : 'FAIL', // $, euro, pound, yen
         latex: !/\\[a-z]+\{|\\frac|\\sqrt|\\sum|\\int/.test(response) ? 'PASS' : 'FAIL',
         preamble: !/^(Sure!|Of course!|Certainly!|Absolutely!|Great!|I'd be happy)/i.test(response.trim()) ? 'PASS' : 'FAIL'
     };

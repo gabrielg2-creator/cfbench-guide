@@ -19,7 +19,7 @@ class APIHandler {
             },
             openai: {
                 name: 'OpenAI/GPT',
-                model: 'gpt-5-mini',
+                model: 'gpt-4o-mini',
                 baseUrl: 'https://api.openai.com/v1',
                 rateLimit: 1000
             }
@@ -130,7 +130,7 @@ class APIHandler {
                     content: prompt
                 }
             ],
-            temperature: options.temperature || 0.3,
+            temperature: options.temperature || 0.1,
             max_tokens: options.maxTokens || 4096,
             top_p: options.topP || 0.8
         };
