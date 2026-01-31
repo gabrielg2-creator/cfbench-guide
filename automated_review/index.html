@@ -386,6 +386,17 @@
                     console.warn('AI enhancement for check 2.3 failed:', e);
                 }
 
+                updateProgress(80, 'Analyzing intermediate turns...');
+                await sleep(300);
+
+                // Enhance check 2.6 with AI analysis of intermediate turns
+                try {
+                    await validators.enhanceCheck2_6WithAI(apiHandler);
+                    console.log('Check 2.6 enhanced with AI analysis');
+                } catch (e) {
+                    console.warn('AI enhancement for check 2.6 failed:', e);
+                }
+
                 updateProgress(85, 'Running comprehensive analysis...');
                 await sleep(500);
 

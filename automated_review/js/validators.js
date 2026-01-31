@@ -1511,6 +1511,83 @@ class Validators {
     }
 
     /**
+     * Enhance Check 2.6 with AI Analysis
+     * Analyzes intermediate turns for content quality, thinking process, and language compliance
+     * @param {APIHandler} apiHandler - The API handler instance
+     * @returns {object|null} The enhanced check result or null if skipped
+     */
+    async enhanceCheck2_6WithAI(apiHandler) {
+        // Skip if no API handler or no API key
+        if (!apiHandler?.hasApiKey()) {
+            console.log('Skipping AI analysis of intermediate turns: No API key');
+            return null;
+        }
+
+        // Find check 2.6 in results
+        const check26 = this.results.phase2.find(c => c.id === '2.6');
+        if (!check26) {
+            console.log('Check 2.6 not found in results');
+            return null;
+        }
+
+        // Skip if no intermediate turns
+        if (!this.parsed.turns || this.parsed.turns.length === 0) {
+            check26.details.aiAnalysisAvailable = false;
+            check26.details.aiAnalysisMessage = 'No intermediate turns to analyze';
+            return check26;
+        }
+
+        // Get expected language from turn_metadata or main metadata
+        const expectedLanguage = this.parsed.finalTurn?.turnMetadata?.language ||
+                                this.parsed.metadata?.language?.substring(0, 2) || 'en';
+
+        try {
+            console.log(`Starting AI analysis of ${this.parsed.turns.length} intermediate turns...`);
+
+            // Call API to validate all intermediate turns
+            const aiResults = await apiHandler.validateAllIntermediateTurns(
+                this.parsed.turns,
+                expectedLanguage
+            );
+
+            // Store AI results in check details
+            check26.details.aiAnalysis = aiResults;
+            check26.details.aiAnalysisAvailable = true;
+
+            // Add AI issues to check (MAJOR issues fail the check)
+            if (aiResults.issues?.length > 0) {
+                aiResults.issues.forEach(issue => {
+                    check26.issues.push(`[AI] ${issue}`);
+                });
+                check26.status = 'failed';
+            }
+
+            // Add AI warnings to check (MINOR issues are warnings only)
+            if (aiResults.warnings?.length > 0) {
+                aiResults.warnings.forEach(warning => {
+                    check26.warnings.push(`[AI] ${warning}`);
+                });
+            }
+
+            // Update check name to indicate AI analysis was performed
+            check26.name = 'Intermediate Turns (AI Analyzed)';
+
+            // Recalculate summary
+            this.calculateSummary();
+
+            console.log(`AI analysis complete: ${aiResults.issueCount} issues, ${aiResults.warningCount} warnings`);
+            return check26;
+
+        } catch (error) {
+            console.error('AI analysis of intermediate turns failed:', error);
+            check26.warnings.push(`[AI] Analysis failed: ${error.message}`);
+            check26.details.aiAnalysisAvailable = false;
+            check26.details.aiAnalysisError = error.message;
+            return null;
+        }
+    }
+
+    /**
      * Check 2.7: Verify constraints with source: "system" are in system prompt
      * These constraints should be defined in the system prompt, not just in turn_metadata
      */

@@ -856,6 +856,250 @@ For EACH constraint, respond in JSON format:
     }
 
     /**
+     * Call OpenAI GPT-5-nano for large context analysis
+     * Used for analyzing intermediate turns with potentially large thinking content
+     * @param {string} prompt - The prompt to send
+     * @returns {object} { text: response text }
+     */
+    async callOpenAINano(prompt) {
+        if (!this.apiKey) {
+            throw new Error('API key not set');
+        }
+
+        await this.applyRateLimit();
+
+        // Use GPT-5-nano for large context (400k tokens) and speed
+        const model = 'gpt-5-nano';
+        const url = 'https://api.openai.com/v1/chat/completions';
+
+        const requestBody = {
+            model: model,
+            messages: [{ role: 'user', content: prompt }],
+            temperature: 0.1,
+            max_tokens: 2000
+        };
+
+        // Retry logic
+        const maxRetries = 3;
+        let lastError = null;
+
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${this.apiKey}`
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+
+                if (response.status === 429) {
+                    const waitTime = Math.pow(2, attempt) * 2000;
+                    console.warn(`Rate limit hit. Attempt ${attempt}/${maxRetries}. Waiting ${waitTime/1000}s...`);
+                    if (attempt < maxRetries) {
+                        await this.sleep(waitTime);
+                        continue;
+                    }
+                    throw new Error('Rate limit exceeded after retries');
+                }
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(`API Error ${response.status}: ${errorData.error?.message || response.statusText}`);
+                }
+
+                const data = await response.json();
+                this.dailyCallCount++;
+
+                return { text: data.choices?.[0]?.message?.content || '' };
+            } catch (error) {
+                lastError = error;
+                if (attempt < maxRetries && (error.message.includes('fetch') || error.message.includes('500'))) {
+                    await this.sleep(Math.pow(2, attempt) * 1000);
+                    continue;
+                }
+                throw error;
+            }
+        }
+
+        throw lastError || new Error('API call failed after retries');
+    }
+
+    /**
+     * Validate a single intermediate turn using AI
+     * Checks content quality, thinking process, and language compliance
+     * @param {object} turn - The turn to validate (user, thinking, assistant)
+     * @param {string} expectedLanguage - The expected language code
+     * @param {number} turnIndex - The turn index (0-based)
+     * @returns {object} Validation result
+     */
+    async validateIntermediateTurn(turn, expectedLanguage, turnIndex) {
+        const userContent = turn.user?.content || 'N/A';
+        const thinkingContent = turn.thinking?.content || turn.thinking?.preview || 'N/A';
+        const assistantContent = turn.assistant?.content || 'N/A';
+
+        // Truncate if too large
+        const maxChars = 50000;
+        const truncatedThinking = thinkingContent.length > maxChars
+            ? thinkingContent.substring(0, maxChars) + '\n[TRUNCATED...]'
+            : thinkingContent;
+
+        const prompt = `You are a CFBench reviewer. Analyze this intermediate turn from a multi-turn conversation.
+
+## TURN ${turnIndex + 1}
+
+### USER PROMPT:
+${userContent.substring(0, 5000)}
+
+### THINKING PROCESS:
+${truncatedThinking}
+
+### ASSISTANT RESPONSE:
+${assistantContent.substring(0, 10000)}
+
+### EXPECTED LANGUAGE: ${expectedLanguage.toUpperCase()}
+
+## ANALYZE THE FOLLOWING:
+
+1. **CONTENT QUALITY**: Does the assistant's answer properly address the user's prompt? Are there:
+   - Unstated conditions being applied?
+   - Hallucinations or incorrect assumptions?
+   - Missing parts of the response?
+
+2. **THINKING PROCESS QUALITY**: Does the thinking:
+   - Cover all relevant possibilities before deciding?
+   - Lead directly to the answer given (answer derived from thinking)?
+   - Follow step-by-step analysis (not jumping to conclusions)?
+   - Consider edge cases and self-reference criteria?
+
+3. **LANGUAGE COMPLIANCE**: Check if:
+   - The thinking process is written in ${expectedLanguage}
+   - The assistant response is written in ${expectedLanguage}
+   - Note: Some technical terms in English are acceptable
+
+Respond in JSON format:
+{
+  "turn_index": ${turnIndex + 1},
+  "content_issues": {
+    "addresses_prompt": true/false,
+    "has_unstated_conditions": true/false,
+    "has_hallucinations": true/false,
+    "is_complete": true/false,
+    "issues": ["list of specific content issues"]
+  },
+  "thinking_issues": {
+    "covers_possibilities": true/false,
+    "answer_from_thinking": true/false,
+    "step_by_step": true/false,
+    "issues": ["list of specific thinking issues"]
+  },
+  "language_issues": {
+    "thinking_correct_language": true/false,
+    "response_correct_language": true/false,
+    "detected_thinking_lang": "detected language code",
+    "detected_response_lang": "detected language code",
+    "issues": ["list of language issues"]
+  },
+  "overall_status": "PASS" | "MINOR_ISSUES" | "MAJOR_ISSUES",
+  "summary": "Brief one-sentence summary of main finding"
+}`;
+
+        try {
+            // Try to use the current provider first, fallback to OpenAI nano for large content
+            let response;
+            if (thinkingContent.length > 30000) {
+                // Large thinking content - use GPT-5-nano
+                response = await this.callOpenAINano(prompt);
+            } else {
+                // Smaller content - use configured provider
+                response = await this.callGemini(prompt, { maxTokens: 2000, temperature: 0.1 });
+            }
+            return this.parseJSONResponse(response.text);
+        } catch (error) {
+            console.error(`Failed to validate turn ${turnIndex + 1}:`, error);
+            return {
+                turn_index: turnIndex + 1,
+                overall_status: 'ERROR',
+                error: error.message,
+                summary: `Analysis failed: ${error.message}`
+            };
+        }
+    }
+
+    /**
+     * Validate all intermediate turns in a conversation
+     * @param {array} turns - Array of intermediate turns
+     * @param {string} expectedLanguage - The expected language code
+     * @returns {object} Results with issues, warnings, and overall validity
+     */
+    async validateAllIntermediateTurns(turns, expectedLanguage) {
+        if (!turns || turns.length === 0) {
+            return {
+                valid: true,
+                message: 'No intermediate turns to analyze',
+                results: [],
+                issues: [],
+                warnings: [],
+                overall_valid: true
+            };
+        }
+
+        const results = [];
+        const issues = [];
+        const warnings = [];
+
+        for (let i = 0; i < turns.length; i++) {
+            try {
+                const result = await this.validateIntermediateTurn(turns[i], expectedLanguage, i);
+                results.push(result);
+
+                if (result.error) {
+                    warnings.push(`Turn ${i + 1}: Analysis failed - ${result.error}`);
+                    continue;
+                }
+
+                // Categorize issues by severity
+                // MAJOR: Content/thinking issues that affect quality
+                // MINOR: Language issues (warning only, doesn't fail)
+                if (result.overall_status === 'MAJOR_ISSUES') {
+                    // Check specific conditions for MAJOR
+                    if (result.content_issues?.has_hallucinations ||
+                        !result.content_issues?.addresses_prompt ||
+                        !result.thinking_issues?.answer_from_thinking) {
+                        issues.push(`Turn ${i + 1}: ${result.summary}`);
+                    } else {
+                        warnings.push(`Turn ${i + 1}: ${result.summary}`);
+                    }
+                } else if (result.overall_status === 'MINOR_ISSUES') {
+                    warnings.push(`Turn ${i + 1}: ${result.summary}`);
+                }
+
+                // Language issues always go to warnings (MINOR severity)
+                if (result.language_issues?.issues?.length > 0) {
+                    warnings.push(`Turn ${i + 1} [Language]: ${result.language_issues.issues.join(', ')}`);
+                }
+
+            } catch (error) {
+                warnings.push(`Turn ${i + 1}: Analysis failed - ${error.message}`);
+            }
+
+            // Rate limiting between calls
+            await this.applyRateLimit();
+        }
+
+        return {
+            results,
+            issues,
+            warnings,
+            overall_valid: issues.length === 0,
+            turnsAnalyzed: turns.length,
+            issueCount: issues.length,
+            warningCount: warnings.length
+        };
+    }
+
+    /**
      * Get remaining daily calls
      */
     getRemainingCalls() {

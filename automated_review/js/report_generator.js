@@ -257,6 +257,93 @@ class ReportGenerator {
             </div>`;
         }
 
+        // Check 2.6 - Intermediate Turns with AI Analysis
+        if (check.id === '2.6' && check.details?.aiAnalysisAvailable) {
+            const aiResults = check.details.aiAnalysis;
+            const turnsAnalyzed = aiResults?.turnsAnalyzed || 0;
+            const issueCount = aiResults?.issueCount || 0;
+            const warningCount = aiResults?.warningCount || 0;
+            const allPassed = issueCount === 0 && warningCount === 0;
+
+            html += `<div class="verification-table-container">
+                <h5>AI Analysis - Intermediate Turns</h5>
+                <div class="distribution-summary" style="margin-bottom: 12px; display: flex; gap: 12px; flex-wrap: wrap;">
+                    <span class="summary-item" style="background: linear-gradient(135deg, #1a2f2f 0%, #0d1a1a 100%); border: 1px solid #2d5a5a;">
+                        <strong style="color: #5eead4;">Turns Analyzed:</strong> ${turnsAnalyzed}
+                    </span>
+                    ${issueCount > 0 ? `<span class="summary-item fail">✗ Issues: ${issueCount}</span>` : ''}
+                    ${warningCount > 0 ? `<span class="summary-item warn">⚠ Warnings: ${warningCount}</span>` : ''}
+                    ${allPassed ? `<span class="summary-item pass">✓ All turns passed</span>` : ''}
+                </div>`;
+
+            if (aiResults?.results?.length > 0) {
+                html += `
+                <table class="verification-table">
+                    <thead>
+                        <tr>
+                            <th>Turn</th>
+                            <th>Content</th>
+                            <th>Thinking</th>
+                            <th>Language</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${aiResults.results.map(r => {
+                            const statusClass = r.overall_status === 'PASS' ? 'row-pass' :
+                                               r.overall_status === 'MINOR_ISSUES' ? 'row-warn' : 'row-fail';
+                            const contentOk = r.content_issues?.addresses_prompt && !r.content_issues?.has_hallucinations;
+                            const thinkingOk = r.thinking_issues?.step_by_step && r.thinking_issues?.answer_from_thinking;
+                            const langOk = r.language_issues?.thinking_correct_language && r.language_issues?.response_correct_language;
+
+                            return `
+                            <tr class="${statusClass}">
+                                <td><strong>Turn ${r.turn_index}</strong></td>
+                                <td style="text-align: center;">${contentOk ? '<span style="color: #4ade80;">✓</span>' : '<span style="color: #f87171;">✗</span>'}</td>
+                                <td style="text-align: center;">${thinkingOk ? '<span style="color: #4ade80;">✓</span>' : '<span style="color: #f87171;">✗</span>'}</td>
+                                <td style="text-align: center;">${langOk ? '<span style="color: #4ade80;">✓</span>' : '<span style="color: #fde047;">⚠</span>'}</td>
+                                <td style="text-align: center;"><strong class="${r.overall_status === 'PASS' ? 'status-pass' : r.overall_status === 'MINOR_ISSUES' ? 'status-warn' : 'status-fail'}">${r.overall_status || 'N/A'}</strong></td>
+                            </tr>
+                            ${r.summary ? `<tr class="${statusClass}"><td colspan="5" style="font-size: 0.75rem; font-style: italic; color: var(--text-muted); padding-left: 20px;">${this.escapeHTML(r.summary)}</td></tr>` : ''}`;
+                        }).join('')}
+                    </tbody>
+                </table>
+
+                <div style="font-size: 11px; color: var(--text-muted); margin-top: 12px; padding: 8px; background: var(--bg-tertiary); border-radius: 4px;">
+                    <strong>Legend:</strong><br>
+                    • <span style="color: #5eead4;">Content:</span> Does answer address prompt without hallucinations?<br>
+                    • <span style="color: #c084fc;">Thinking:</span> Is reasoning step-by-step and answer derived from thinking?<br>
+                    • <span style="color: #fde047;">Language:</span> Is content in expected language? (⚠ = warning only, doesn't fail)
+                </div>`;
+            }
+
+            // Show specific issues/warnings if any
+            if (aiResults?.issues?.length > 0) {
+                html += `<div style="margin-top: 12px; padding: 10px; background: linear-gradient(135deg, #2f1a1a 0%, #1a0d0d 100%); border: 1px solid #5a2d2d; border-radius: 6px;">
+                    <strong style="color: #f87171;">Issues (require revision):</strong>
+                    <ul style="margin: 8px 0 0 0; padding-left: 16px; font-size: 0.8rem; color: #fca5a5;">
+                        ${aiResults.issues.map(i => `<li>${this.escapeHTML(i)}</li>`).join('')}
+                    </ul>
+                </div>`;
+            }
+
+            if (aiResults?.warnings?.length > 0) {
+                html += `<div style="margin-top: 8px; padding: 10px; background: linear-gradient(135deg, #2f2f1a 0%, #1a1a0d 100%); border: 1px solid #5a5a2d; border-radius: 6px;">
+                    <strong style="color: #fde047;">Warnings:</strong>
+                    <ul style="margin: 8px 0 0 0; padding-left: 16px; font-size: 0.8rem; color: #fef08a;">
+                        ${aiResults.warnings.map(w => `<li>${this.escapeHTML(w)}</li>`).join('')}
+                    </ul>
+                </div>`;
+            }
+
+            html += `</div>`;
+        } else if (check.id === '2.6' && check.details?.aiAnalysisMessage) {
+            // Show message if AI analysis was skipped
+            html += `<div class="check-details-box" style="opacity: 0.7;">
+                <p style="color: var(--text-muted); font-style: italic;">${this.escapeHTML(check.details.aiAnalysisMessage)}</p>
+            </div>`;
+        }
+
         // Check 3.0 - JSON Parsing
         if (check.id === '3.0' && check.details?.jsonStatus?.length > 0) {
             const validCount = check.details.jsonStatus.filter(j => j.valid).length;

@@ -248,7 +248,8 @@ class NotebookParser {
                     } else if (afterFinalUser) {
                         components.finalTurn.thinking = this.parseThinkingCell(source);
                     } else if (currentTurn) {
-                        currentTurn.thinking = this.parseThinkingCell(source);
+                        // Pass true for intermediate turns to store full content for AI analysis
+                        currentTurn.thinking = this.parseThinkingCell(source, true);
                     }
                     break;
 
@@ -454,19 +455,35 @@ class NotebookParser {
     /**
      * Parse thinking cell - OPTIMIZED: only store metadata, not full content
      * Thinking cells can be huge (10k+ words) - we only need to verify they exist
+     * For intermediate turns, optionally store full content for AI analysis
+     * @param {string} source - The cell source content
+     * @param {boolean} isIntermediateTurn - If true, store full content for AI analysis
      */
-    parseThinkingCell(source) {
+    parseThinkingCell(source, isIntermediateTurn = false) {
         const content = source.replace(/\*\*\[thinking[^\]]*\]\*\*/i, '').replace(/^\[thinking[^\]]*\]/i, '').trim();
 
-        // Only store minimal data - not the full content
-        return {
+        const result = {
             exists: true,
             preview: content.substring(0, 100) + (content.length > 100 ? '...' : ''),
             wordCount: this.countWords(content),
             charCount: content.length,
             hasFirstPerson: /\b(I|io|ich|je|yo)\b/i.test(content.substring(0, 500)), // Check only first 500 chars
-            // NOT storing full content or raw to save tokens
         };
+
+        // Store full content for intermediate turns (for AI analysis)
+        if (isIntermediateTurn) {
+            // Truncate if extremely large to avoid token limits (max 100k chars)
+            const maxChars = 100000;
+            if (content.length > maxChars) {
+                result.content = content.substring(0, maxChars);
+                result.truncated = true;
+                result.originalLength = content.length;
+            } else {
+                result.content = content;
+            }
+        }
+
+        return result;
     }
 
     /**
