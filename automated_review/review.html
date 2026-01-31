@@ -457,6 +457,12 @@
 
         .result-table tr.row-fail td { background: rgba(248, 113, 113, 0.08); }
         .result-table tr.row-mismatch td { background: rgba(251, 191, 36, 0.1); }
+        .result-table tr.row-pass td { background: rgba(74, 222, 128, 0.08); }
+        .result-table tr.row-warn td { background: rgba(253, 224, 71, 0.08); }
+
+        .status-pass { color: #4ade80; font-weight: 600; }
+        .status-warn { color: #fde047; font-weight: 600; }
+        .status-fail { color: #f87171; font-weight: 600; }
 
         .constraint-name { font-weight: 500; color: var(--text); }
         .constraint-id { font-size: 0.7rem; color: var(--text-muted); font-family: 'SF Mono', Monaco, monospace; }
@@ -1812,7 +1818,8 @@
                 { id: 1, name: 'User Constraints', desc: 'Verify constraints appear in user query' },
                 { id: 2, name: 'System Prompt', desc: 'Analyze system prompt quality' },
                 { id: 3, name: 'Golden Response', desc: 'Verify response passes all constraints' },
-                { id: 4, name: 'Model Tests', desc: 'Check model failure rates' }
+                { id: 4, name: 'Model Tests', desc: 'Check model failure rates' },
+                { id: 5, name: 'Intermediate Turns', desc: 'AI analysis of non-final turns' }
             ];
 
             document.getElementById('checks-container').innerHTML = checks.map(c => `
@@ -1849,6 +1856,7 @@
 
             await runCheck3(apiKey, provider);
             await runCheck4(apiKey, provider);
+            await runCheck5(apiKey, provider);
 
             // Show summary
             showSummary();
@@ -2626,6 +2634,199 @@ Respond with JSON: {"semantic_failed":N,"llm_judge_failed":N,"details":[{"id":"i
             const status = modelResult.bothRulesPass ? 'pass' : 'fail';
             setCheckStatus(4, status, content);
             checkResults.push({ check: 4, status, failureCount, total: extractedData.modelResponses.length, hasVariation: modelResult.hasVariation });
+        }
+
+        // Função específica para GPT-5-nano (contexto grande para thinking)
+        async function callOpenAINano(apiKey, prompt) {
+            const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                },
+                body: JSON.stringify({
+                    model: 'gpt-5-nano',
+                    messages: [{ role: 'user', content: prompt }],
+                    temperature: 0.1,
+                    max_tokens: 2000
+                })
+            });
+
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({}));
+                throw new Error(err.error?.message || `API error ${response.status}`);
+            }
+
+            const data = await response.json();
+            return data.choices?.[0]?.message?.content || 'No response';
+        }
+
+        // CHECK 5: Intermediate Turns Analysis (usa GPT-5-nano)
+        async function runCheck5(apiKey, provider) {
+            setCheckStatus(5, 'running');
+
+            const turns = extractedData.parsed?.turns || [];
+
+            // Skip se não houver turnos intermediários
+            if (turns.length === 0) {
+                setCheckStatus(5, 'skip', `
+                    <div class="issues-box">
+                        <p style="color:var(--text-muted);">⏭️ Nenhum turno intermediário encontrado</p>
+                    </div>
+                `);
+                checkResults.push({ check: 5, status: 'skip', reason: 'No intermediate turns' });
+                return;
+            }
+
+            // Obter idioma esperado do metadata
+            const expectedLang = extractedData.parsed?.finalTurn?.turnMetadata?.language ||
+                                extractedData.parsed?.metadata?.language?.substring(0, 2) || 'en';
+
+            const results = [];
+            let hasIssues = false;
+            let hasWarnings = false;
+
+            // Analisar cada turno intermediário usando GPT-5-nano
+            for (let i = 0; i < turns.length; i++) {
+                const turn = turns[i];
+                const userContent = turn.user?.content || 'N/A';
+                const thinkingContent = turn.thinking?.content || turn.thinking?.preview || 'N/A';
+                const assistantContent = turn.assistant?.content || 'N/A';
+
+                // Truncar se muito grande (max 100k chars para caber no contexto)
+                const maxChars = 100000;
+                const truncThinking = thinkingContent.length > maxChars
+                    ? thinkingContent.substring(0, maxChars) + '\n[TRUNCATED...]'
+                    : thinkingContent;
+
+                const prompt = `You are a CFBench reviewer. Analyze this intermediate turn #${i + 1}.
+
+## USER PROMPT:
+${userContent.substring(0, 3000)}
+
+## THINKING PROCESS:
+${truncThinking}
+
+## ASSISTANT RESPONSE:
+${assistantContent.substring(0, 5000)}
+
+## EXPECTED LANGUAGE: ${expectedLang.toUpperCase()}
+
+## ANALYZE:
+
+1. **CONTENT**: Does assistant's answer address the user's prompt? Any hallucinations or unstated conditions?
+2. **THINKING**: Is it step-by-step? Is the answer derived from the thinking? Does it cover possibilities?
+3. **LANGUAGE**: Is thinking in ${expectedLang}? Is response in ${expectedLang}?
+
+Respond in JSON:
+{
+  "content_ok": true/false,
+  "content_issues": ["list of issues or empty"],
+  "thinking_ok": true/false,
+  "thinking_issues": ["list of issues or empty"],
+  "language_ok": true/false,
+  "language_issues": ["list of issues or empty"],
+  "overall_status": "PASS" | "MINOR_ISSUES" | "MAJOR_ISSUES",
+  "summary": "One sentence summary"
+}`;
+
+                try {
+                    // Usa GPT-5-nano especificamente (contexto grande para thinking)
+                    const response = await callOpenAINano(apiKey, prompt);
+                    const parsed = parseJsonRobust(response);
+
+                    results.push({
+                        turn: i + 1,
+                        ...parsed
+                    });
+
+                    if (parsed.overall_status === 'MAJOR_ISSUES') hasIssues = true;
+                    if (parsed.overall_status === 'MINOR_ISSUES') hasWarnings = true;
+
+                } catch (error) {
+                    results.push({
+                        turn: i + 1,
+                        overall_status: 'ERROR',
+                        summary: `Analysis failed: ${error.message}`
+                    });
+                    hasWarnings = true;
+                }
+
+                // Rate limiting
+                await new Promise(r => setTimeout(r, 1500));
+            }
+
+            // Gerar HTML do resultado
+            const tableRows = results.map(r => {
+                const statusClass = r.overall_status === 'PASS' ? 'pass' :
+                                   r.overall_status === 'MINOR_ISSUES' ? 'warn' : 'fail';
+                const contentIcon = r.content_ok ? '✓' : '✗';
+                const thinkingIcon = r.thinking_ok ? '✓' : '✗';
+                const langIcon = r.language_ok ? '✓' : '⚠';
+
+                return `
+                    <tr class="row-${statusClass}">
+                        <td><strong>Turn ${r.turn}</strong></td>
+                        <td style="text-align:center;color:${r.content_ok ? '#4ade80' : '#f87171'}">${contentIcon}</td>
+                        <td style="text-align:center;color:${r.thinking_ok ? '#4ade80' : '#f87171'}">${thinkingIcon}</td>
+                        <td style="text-align:center;color:${r.language_ok ? '#4ade80' : '#fde047'}">${langIcon}</td>
+                        <td><span class="status-${statusClass}">${r.overall_status}</span></td>
+                    </tr>
+                    ${r.summary ? `<tr class="row-${statusClass}"><td colspan="5" style="font-size:0.75rem;color:var(--text-muted);padding-left:20px;font-style:italic;">${escapeHtml(r.summary)}</td></tr>` : ''}
+                `;
+            }).join('');
+
+            const issuesList = results
+                .filter(r => r.overall_status !== 'PASS')
+                .map(r => {
+                    const issues = [
+                        ...(r.content_issues || []),
+                        ...(r.thinking_issues || []),
+                        ...(r.language_issues || [])
+                    ];
+                    return issues.map(i => `Turn ${r.turn}: ${i}`);
+                })
+                .flat();
+
+            const html = `
+                <div class="check-result">
+                    <h4>Intermediate Turns Analysis (${turns.length} turns)</h4>
+                    <table class="results-table" style="width:100%;border-collapse:collapse;margin-bottom:12px;">
+                        <thead>
+                            <tr style="background:var(--bg-tertiary);">
+                                <th style="padding:8px;text-align:left;">Turn</th>
+                                <th style="padding:8px;text-align:center;">Content</th>
+                                <th style="padding:8px;text-align:center;">Thinking</th>
+                                <th style="padding:8px;text-align:center;">Language</th>
+                                <th style="padding:8px;text-align:center;">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${tableRows}
+                        </tbody>
+                    </table>
+                    ${issuesList.length > 0 ? `
+                        <div class="issues-box" style="margin-top:12px;">
+                            <strong>Issues Found:</strong>
+                            <ul style="margin:8px 0 0 16px;">
+                                ${issuesList.slice(0, 10).map(i => `<li>${escapeHtml(i)}</li>`).join('')}
+                            </ul>
+                        </div>
+                    ` : ''}
+                    <div style="font-size:0.7rem;color:var(--text-muted);margin-top:8px;">
+                        <strong>Legend:</strong> Content=prompt addressed, Thinking=step-by-step analysis, Language=correct language (⚠=warning only)
+                    </div>
+                </div>
+            `;
+
+            const status = hasIssues ? 'fail' : hasWarnings ? 'warn' : 'pass';
+            setCheckStatus(5, status, html);
+            checkResults.push({
+                check: 5,
+                status,
+                turnsAnalyzed: turns.length,
+                results
+            });
         }
 
         function formatConstraintResults(result, source) {
