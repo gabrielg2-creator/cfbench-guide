@@ -1323,11 +1323,20 @@
                 }
             };
 
-            // Use NotebookParser if available (for .ipynb files)
-            if (typeof NotebookParser !== 'undefined' && content.includes('"cells"')) {
+            // Use NotebookParser if available (for .ipynb and .py files)
+            if (typeof NotebookParser !== 'undefined') {
                 try {
                     const parser = new NotebookParser();
-                    extractedData.parsed = parser.parseJSON(content);
+
+                    // Detect file type and parse accordingly
+                    if (content.includes('"cells"')) {
+                        // JSON notebook (.ipynb)
+                        extractedData.parsed = parser.parseJSON(content);
+                    } else if (content.includes('**[system]**') || content.includes('**[user]**')) {
+                        // Python/Colab export (.py) - convert first
+                        parser.notebook = parser.convertPyToNotebook(content);
+                        extractedData.parsed = parser.extractComponents();
+                    }
                     console.log('Parsed with NotebookParser:', extractedData.parsed);
 
                     // Extract data from parsed
