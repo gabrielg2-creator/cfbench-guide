@@ -1326,8 +1326,8 @@
             // Use NotebookParser if available (for .ipynb files)
             if (typeof NotebookParser !== 'undefined' && content.includes('"cells"')) {
                 try {
-                    const parser = new NotebookParser(JSON.parse(content));
-                    extractedData.parsed = parser.parse();
+                    const parser = new NotebookParser();
+                    extractedData.parsed = parser.parseJSON(content);
                     console.log('Parsed with NotebookParser:', extractedData.parsed);
 
                     // Extract data from parsed
