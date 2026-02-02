@@ -214,6 +214,11 @@ class NotebookParser {
                     if (cellType.isModelPass) {
                         // Model passes don't have user cells
                     } else if (isFinalUserCell) {
+                        // CORREÇÃO: Push turno intermediário anterior antes de processar final
+                        if (currentTurn && currentTurn.assistant) {
+                            components.turns.push(currentTurn);
+                            currentTurn = null;
+                        }
                         // This is THE final turn user (the challenging query)
                         afterFinalUser = true;
                         components.finalTurn.user = this.parseUserCell(source);
