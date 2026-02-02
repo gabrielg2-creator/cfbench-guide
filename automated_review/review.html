@@ -1337,74 +1337,79 @@
                         parser.notebook = parser.convertPyToNotebook(content);
                         extractedData.parsed = parser.extractComponents();
                     }
-                    console.log('Parsed with NotebookParser:', extractedData.parsed);
 
-                    // Extract data from parsed
-                    const p = extractedData.parsed;
-                    extractedData.metadata = p.metadata?.raw || '';
-                    extractedData.systemPrompt = p.system?.content || '';
-                    extractedData.userQuery = p.finalTurn?.user?.content || '';
-                    extractedData.goldenResponse = p.finalTurn?.assistant?.content || '';
-                    extractedData.turnMetadata = p.finalTurn?.turnMetadata?.json || null;
+                    // Only proceed if parsing was successful
+                    if (extractedData.parsed) {
+                        console.log('Parsed with NotebookParser:', extractedData.parsed);
+                        console.log('Intermediate turns found:', extractedData.parsed.turns?.length || 0);
 
-                    // Golden validator_assistant
-                    if (p.finalTurn?.validatorAssistant) {
-                        extractedData.validatorAssistant.golden = p.finalTurn.validatorAssistant;
-                        extractedData.jsonStatus.push({ cell: 'validator_assistant', valid: true, status: 'OK' });
-                    }
+                        // Extract data from parsed
+                        const p = extractedData.parsed;
+                        extractedData.metadata = p.metadata?.raw || '';
+                        extractedData.systemPrompt = p.system?.content || '';
+                        extractedData.userQuery = p.finalTurn?.user?.content || '';
+                        extractedData.goldenResponse = p.finalTurn?.assistant?.content || '';
+                        extractedData.turnMetadata = p.finalTurn?.turnMetadata?.json || null;
 
-                    // Golden validator_human
-                    if (p.finalTurn?.validatorHuman) {
-                        extractedData.validatorHuman.golden = p.finalTurn.validatorHuman;
-                        extractedData.jsonStatus.push({ cell: 'validator_human', valid: true, status: 'OK' });
-                    }
-
-                    // Model passes with their validators
-                    extractedData.modelResponses = [];
-                    for (const pass of p.modelPasses || []) {
-                        const name = `${pass.model}_${pass.passNumber}`;
-                        extractedData.modelResponses.push({
-                            name: `assistant_${name}`,
-                            content: pass.assistant?.content || ''
-                        });
-
-                        // validator_assistant for this model pass
-                        if (pass.validatorAssistant) {
-                            extractedData.validatorAssistant[`assistant_${name}`] = pass.validatorAssistant;
-                            extractedData.jsonStatus.push({ cell: `validator_assistant_${name}`, valid: true, status: 'OK' });
+                        // Golden validator_assistant
+                        if (p.finalTurn?.validatorAssistant) {
+                            extractedData.validatorAssistant.golden = p.finalTurn.validatorAssistant;
+                            extractedData.jsonStatus.push({ cell: 'validator_assistant', valid: true, status: 'OK' });
                         }
 
-                        // validator_human for this model pass
-                        if (pass.validatorHuman) {
-                            extractedData.validatorHuman[`assistant_${name}`] = pass.validatorHuman;
-                            extractedData.jsonStatus.push({ cell: `validator_human_${name}`, valid: true, status: 'OK' });
+                        // Golden validator_human
+                        if (p.finalTurn?.validatorHuman) {
+                            extractedData.validatorHuman.golden = p.finalTurn.validatorHuman;
+                            extractedData.jsonStatus.push({ cell: 'validator_human', valid: true, status: 'OK' });
                         }
-                    }
 
-                    // Parse limits from metadata
-                    if (extractedData.metadata) {
-                        const sysMatch = extractedData.metadata.match(/\*\*System Prompt Length:\*\*\s*-?\s*(.+)/i);
-                        const userMatch = extractedData.metadata.match(/\*\*User Prompt Length:\*\*\s*-?\s*(.+)/i);
-                        if (sysMatch) parseLimitString(sysMatch[1], extractedData.limits.systemPrompt);
-                        if (userMatch) parseLimitString(userMatch[1], extractedData.limits.userPrompt);
+                        // Model passes with their validators
+                        extractedData.modelResponses = [];
+                        for (const pass of p.modelPasses || []) {
+                            const name = `${pass.model}_${pass.passNumber}`;
+                            extractedData.modelResponses.push({
+                                name: `assistant_${name}`,
+                                content: pass.assistant?.content || ''
+                            });
 
-                        // Extract expected turn count from metadata
-                        const turnMatch = extractedData.metadata.match(/\*\*(?:Number of Turns|Turn Count|Turns):\*\*\s*-?\s*(\d+)/i);
-                        if (turnMatch) {
-                            extractedData.turnCount.expected = parseInt(turnMatch[1]);
+                            // validator_assistant for this model pass
+                            if (pass.validatorAssistant) {
+                                extractedData.validatorAssistant[`assistant_${name}`] = pass.validatorAssistant;
+                                extractedData.jsonStatus.push({ cell: `validator_assistant_${name}`, valid: true, status: 'OK' });
+                            }
+
+                            // validator_human for this model pass
+                            if (pass.validatorHuman) {
+                                extractedData.validatorHuman[`assistant_${name}`] = pass.validatorHuman;
+                                extractedData.jsonStatus.push({ cell: `validator_human_${name}`, valid: true, status: 'OK' });
+                            }
                         }
+
+                        // Parse limits from metadata
+                        if (extractedData.metadata) {
+                            const sysMatch = extractedData.metadata.match(/\*\*System Prompt Length:\*\*\s*-?\s*(.+)/i);
+                            const userMatch = extractedData.metadata.match(/\*\*User Prompt Length:\*\*\s*-?\s*(.+)/i);
+                            if (sysMatch) parseLimitString(sysMatch[1], extractedData.limits.systemPrompt);
+                            if (userMatch) parseLimitString(userMatch[1], extractedData.limits.userPrompt);
+
+                            // Extract expected turn count from metadata
+                            const turnMatch = extractedData.metadata.match(/\*\*(?:Number of Turns|Turn Count|Turns):\*\*\s*-?\s*(\d+)/i);
+                            if (turnMatch) {
+                                extractedData.turnCount.expected = parseInt(turnMatch[1]);
+                            }
+                        }
+
+                        // Count turns from parsed data
+                        extractedData.turnCount.user = (p.turns?.length || 0) + (p.finalTurn?.user ? 1 : 0);
+                        extractedData.turnCount.thinking = (p.turns?.filter(t => t.thinking)?.length || 0) + (p.finalTurn?.thinking ? 1 : 0);
+                        extractedData.turnCount.assistant = (p.turns?.filter(t => t.assistant)?.length || 0) + (p.finalTurn?.assistant ? 1 : 0);
+
+                        console.log('Turn count:', extractedData.turnCount);
+                        console.log('validator_assistant found:', Object.keys(extractedData.validatorAssistant));
+                        console.log('validator_human found:', Object.keys(extractedData.validatorHuman));
+                        console.log('JSON Status:', extractedData.jsonStatus);
+                        return;
                     }
-
-                    // Count turns from parsed data
-                    extractedData.turnCount.user = (p.turns?.length || 0) + (p.finalTurn?.user ? 1 : 0);
-                    extractedData.turnCount.thinking = (p.turns?.filter(t => t.thinking)?.length || 0) + (p.finalTurn?.thinking ? 1 : 0);
-                    extractedData.turnCount.assistant = (p.turns?.filter(t => t.assistant)?.length || 0) + (p.finalTurn?.assistant ? 1 : 0);
-
-                    console.log('Turn count:', extractedData.turnCount);
-                    console.log('validator_assistant found:', Object.keys(extractedData.validatorAssistant));
-                    console.log('validator_human found:', Object.keys(extractedData.validatorHuman));
-                    console.log('JSON Status:', extractedData.jsonStatus);
-                    return;
                 } catch (e) {
                     console.log('NotebookParser failed, falling back to regex parsing:', e);
                 }
@@ -3145,7 +3150,7 @@ Respond in JSON:
                 ? 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions'
                 : 'https://api.openai.com/v1/chat/completions';
 
-            const model = provider === 'gemini' ? 'gemini-2.5-flash-lite' : 'gpt-5-mini';
+            const model = provider === 'gemini' ? 'gemini-2.5-flash-lite' : 'gpt-5-nano';
 
             const response = await fetch(url, {
                 method: 'POST',
