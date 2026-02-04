@@ -2709,7 +2709,7 @@ Respond with JSON: {"semantic_failed":N,"llm_judge_failed":N,"details":[{"id":"i
                     'Authorization': `Bearer ${apiKey}`
                 },
                 body: JSON.stringify({
-                    model: 'gpt-5-nano',
+                    model: 'gpt-5-mini',
                     messages: [{ role: 'user', content: prompt }],
                     max_completion_tokens: 2000
                 })
@@ -2756,55 +2756,57 @@ Respond with JSON: {"semantic_failed":N,"llm_judge_failed":N,"details":[{"id":"i
                 const thinkingContent = turn.thinking?.content || turn.thinking?.preview || 'N/A';
                 const assistantContent = turn.assistant?.content || 'N/A';
 
-                // Truncar se muito grande (max 100k chars para caber no contexto)
-                const maxChars = 100000;
-                const truncThinking = thinkingContent.length > maxChars
-                    ? thinkingContent.substring(0, maxChars) + '\n[TRUNCATED...]'
+                // Truncar thinking para economizar tokens - só precisa amostra para verificar idioma
+                const maxThinkingChars = 2000;
+                const truncThinking = thinkingContent.length > maxThinkingChars
+                    ? thinkingContent.substring(0, maxThinkingChars)
                     : thinkingContent;
 
-                const prompt = `You are a CFBench reviewer. Analyze this intermediate turn #${i + 1}.
-
-## USER PROMPT:
-${userContent.substring(0, 3000)}
-
-## THINKING PROCESS:
-${truncThinking}
-
-## ASSISTANT RESPONSE:
-${assistantContent.substring(0, 5000)}
+                const prompt = `Check if the THINKING and RESPONSE are in the expected language.
 
 ## EXPECTED LANGUAGE: ${expectedLang.toUpperCase()}
 
-## ANALYZE:
+## THINKING SAMPLE:
+${truncThinking}
 
-1. **CONTENT**: Does assistant's answer address the user's prompt? Any hallucinations or unstated conditions?
-2. **THINKING**: Is it step-by-step? Is the answer derived from the thinking? Does it cover possibilities?
-3. **LANGUAGE**: Is thinking in ${expectedLang}? Is response in ${expectedLang}?
+## RESPONSE SAMPLE:
+${assistantContent.substring(0, 1500)}
 
-Respond in JSON:
+## TASK:
+Verify if BOTH the thinking and the response are written in ${expectedLang.toUpperCase()}.
+
+Respond ONLY in JSON:
 {
-  "content_ok": true/false,
-  "content_issues": ["list of issues or empty"],
-  "thinking_ok": true/false,
-  "thinking_issues": ["list of issues or empty"],
-  "language_ok": true/false,
-  "language_issues": ["list of issues or empty"],
-  "overall_status": "PASS" | "MINOR_ISSUES" | "MAJOR_ISSUES",
-  "summary": "One sentence summary"
+  "thinking_language_ok": true/false,
+  "response_language_ok": true/false,
+  "detected_thinking_lang": "detected language code",
+  "detected_response_lang": "detected language code",
+  "overall_status": "PASS" | "FAIL",
+  "summary": "Brief explanation"
 }`;
 
                 try {
                     // Usa GPT-5-nano especificamente (contexto grande para thinking)
                     const response = await callOpenAINano(apiKey, prompt);
+
+                    // Check if API returned empty/no response
+                    if (!response || response === 'No response') {
+                        throw new Error('API returned empty response - model may be unavailable');
+                    }
+
                     const parsed = parseJsonRobust(response);
+
+                    // Check if parsing failed
+                    if (!parsed || typeof parsed !== 'object') {
+                        throw new Error('Failed to parse API response as JSON');
+                    }
 
                     results.push({
                         turn: i + 1,
                         ...parsed
                     });
 
-                    if (parsed.overall_status === 'MAJOR_ISSUES') hasIssues = true;
-                    if (parsed.overall_status === 'MINOR_ISSUES') hasWarnings = true;
+                    if (parsed.overall_status === 'FAIL') hasIssues = true;
 
                 } catch (error) {
                     results.push({
@@ -2822,45 +2824,35 @@ Respond in JSON:
             // Gerar HTML do resultado
             const tableRows = results.map(r => {
                 const statusClass = r.overall_status === 'PASS' ? 'pass' :
-                                   r.overall_status === 'MINOR_ISSUES' ? 'warn' : 'fail';
-                const contentIcon = r.content_ok ? '✓' : '✗';
-                const thinkingIcon = r.thinking_ok ? '✓' : '✗';
-                const langIcon = r.language_ok ? '✓' : '⚠';
+                                   r.overall_status === 'ERROR' ? 'warn' : 'fail';
+                const thinkingLangIcon = r.thinking_language_ok ? '✓' : '✗';
+                const responseLangIcon = r.response_language_ok ? '✓' : '✗';
 
                 return `
                     <tr class="row-${statusClass}">
                         <td><strong>Turn ${r.turn}</strong></td>
-                        <td style="text-align:center;color:${r.content_ok ? '#4ade80' : '#f87171'}">${contentIcon}</td>
-                        <td style="text-align:center;color:${r.thinking_ok ? '#4ade80' : '#f87171'}">${thinkingIcon}</td>
-                        <td style="text-align:center;color:${r.language_ok ? '#4ade80' : '#fde047'}">${langIcon}</td>
+                        <td style="text-align:center;color:${r.thinking_language_ok ? '#4ade80' : '#f87171'}">${thinkingLangIcon} ${r.detected_thinking_lang || '?'}</td>
+                        <td style="text-align:center;color:${r.response_language_ok ? '#4ade80' : '#f87171'}">${responseLangIcon} ${r.detected_response_lang || '?'}</td>
                         <td><span class="status-${statusClass}">${r.overall_status}</span></td>
                     </tr>
-                    ${r.summary ? `<tr class="row-${statusClass}"><td colspan="5" style="font-size:0.75rem;color:var(--text-muted);padding-left:20px;font-style:italic;">${escapeHtml(r.summary)}</td></tr>` : ''}
+                    ${r.summary ? `<tr class="row-${statusClass}"><td colspan="4" style="font-size:0.75rem;color:var(--text-muted);padding-left:20px;font-style:italic;">${escapeHtml(r.summary)}</td></tr>` : ''}
                 `;
             }).join('');
 
             const issuesList = results
                 .filter(r => r.overall_status !== 'PASS')
-                .map(r => {
-                    const issues = [
-                        ...(r.content_issues || []),
-                        ...(r.thinking_issues || []),
-                        ...(r.language_issues || [])
-                    ];
-                    return issues.map(i => `Turn ${r.turn}: ${i}`);
-                })
-                .flat();
+                .map(r => `Turn ${r.turn}: ${r.summary || 'Language mismatch'}`);
 
             const html = `
                 <div class="check-result">
-                    <h4>Intermediate Turns Analysis (${turns.length} turns)</h4>
+                    <h4>Intermediate Turns - Language Check (${turns.length} turns)</h4>
+                    <p style="font-size:0.8rem;color:var(--text-muted);margin-bottom:8px;">Expected language: <strong>${expectedLang.toUpperCase()}</strong></p>
                     <table class="results-table" style="width:100%;border-collapse:collapse;margin-bottom:12px;">
                         <thead>
                             <tr style="background:var(--bg-tertiary);">
                                 <th style="padding:8px;text-align:left;">Turn</th>
-                                <th style="padding:8px;text-align:center;">Content</th>
-                                <th style="padding:8px;text-align:center;">Thinking</th>
-                                <th style="padding:8px;text-align:center;">Language</th>
+                                <th style="padding:8px;text-align:center;">Thinking Lang</th>
+                                <th style="padding:8px;text-align:center;">Response Lang</th>
                                 <th style="padding:8px;text-align:center;">Status</th>
                             </tr>
                         </thead>
@@ -2877,7 +2869,7 @@ Respond in JSON:
                         </div>
                     ` : ''}
                     <div style="font-size:0.7rem;color:var(--text-muted);margin-top:8px;">
-                        <strong>Legend:</strong> Content=prompt addressed, Thinking=step-by-step analysis, Language=correct language (⚠=warning only)
+                        <strong>Legend:</strong> ✓=correct language, ✗=wrong language
                     </div>
                 </div>
             `;
