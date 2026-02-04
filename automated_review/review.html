@@ -2191,13 +2191,28 @@ Example: "rapporto tra maiuscoli e minuscoli" → PASS (the query IS asking for 
    - change_case:*_letter with case:"upper" → query must ask for uppercase first/last letter (maiuscola)
    - change_case:*_letter with case:"lower" → query must ask for lowercase first/last letter (minuscola)
    - Example: "terminare il documento con un carattere speciale" for change_case:last_letter + case:special = PASS
-6. **CRITICAL - SEMANTIC MATCHING FOR LLM_JUDGE:**
+6. **CRITICAL - STRICT SEMANTIC MATCHING FOR LLM_JUDGE:**
    - The llm_judge content is in ENGLISH but the user query may be in ANY language
    - You MUST perform SEMANTIC matching, not textual matching
    - If the query asks for the SAME THING in a different language, it's a PASS
    - Example: llm_judge="professional quality" + query="qualità professionale" = PASS
    - Example: llm_judge="business analysis" + query="analisi aziendale" = PASS
    - Focus on the MEANING, not the exact words
+
+   **CRITICAL - NO EXTRA REQUIREMENTS ALLOWED:**
+   - The llm_judge content must match EXACTLY what was requested - nothing more, nothing less!
+   - If llm_judge contains ADDITIONAL requirements NOT present in the user query → FAIL
+   - The llm_judge should ONLY confirm what was literally asked, not add extra criteria
+   - Example FAIL: Query asks "verificando la conformità normativa" (verify regulatory compliance)
+     llm_judge="Is the document compliant with regulatory requirements AND ready to be applied?"
+     Status: FAIL - "ready to be applied" was NOT requested in the query!
+     Correct would be: "Is the document compliant with regulatory requirements?"
+   - Example FAIL: Query asks "check grammar"
+     llm_judge="Is the grammar correct and the style professional?"
+     Status: FAIL - "style professional" was NOT asked for!
+   - Example PASS: Query asks "verificando la conformità normativa"
+     llm_judge="Is the document compliant with regulatory requirements?"
+     Status: PASS - matches exactly what was asked
 7. **IMPORTANT - keywords:frequency CONSTRAINT:**
    - This checks if the QUERY INSTRUCTS to use a word X times, NOT if the word appears X times in the query
    - If query says "la parola X deve comparire esattamente Y volte" → PASS (the query IS requesting this!)
@@ -2238,26 +2253,45 @@ For EACH constraint:
 1. ALL instructions from the INSTRUCTIONS list above
 2. ALL items from the LLM_JUDGE list above
 
-For LLM_JUDGE items, check if the USER QUERY SEMANTICALLY requests what the llm_judge evaluates.
+For LLM_JUDGE items, you must perform a TWO-WAY check:
+1. Does the user query REQUEST what the llm_judge evaluates? (if not → FAIL)
+2. Does the llm_judge contain EXTRA requirements NOT in the query? (if yes → FAIL)
+
 IMPORTANT: The query may be in a DIFFERENT LANGUAGE than the llm_judge (which is in English).
-Accept TRANSLATIONS as valid - if the meaning is the same, it's a PASS even if the words are different.
+Accept TRANSLATIONS as valid - if the meaning is the same, it's valid.
 
-## CRITICAL - QUOTE EXTRACTION IS MANDATORY:
+## CRITICAL - EXACT SCOPE MATCHING FOR LLM_JUDGE:
+The llm_judge content should reflect EXACTLY and ONLY what the user query asks for.
+
 When evaluating llm_judge items:
-1. FIRST: Find the part of the user query that relates to the llm_judge content
-2. SECOND: Copy that EXACT text as the quote
-3. THIRD: Decide PASS or FAIL based on whether the meaning matches
+1. FIRST: Identify what the user query SPECIFICALLY requests (the exact verification/check asked)
+2. SECOND: Check if the llm_judge content matches that request
+3. THIRD: Check if the llm_judge adds ANY extra requirements not in the query → FAIL if yes!
 
-If status is PASS, you MUST have found text in the query - copy that text as the quote!
+**FAIL CONDITIONS:**
+- llm_judge asks for something NOT mentioned in query → FAIL
+- llm_judge has extra criteria beyond what was requested → FAIL
+- llm_judge combines the request with additional checks → FAIL
+
+**EXAMPLES:**
+- Query: "verificando la conformità normativa" (verify regulatory compliance)
+  - llm_judge: "Is the document compliant with regulatory requirements?" → PASS ✓
+  - llm_judge: "Is the document compliant AND ready to be applied?" → FAIL ✗ (extra: "ready to be applied")
+  - llm_judge: "Is the document compliant AND formally correct?" → FAIL ✗ (extra: "formally correct")
+
+- Query: "check that the text is professional"
+  - llm_judge: "Is the text professional?" → PASS ✓
+  - llm_judge: "Is the text professional and engaging?" → FAIL ✗ (extra: "engaging")
+
+## QUOTE EXTRACTION:
+If status is PASS, copy the EXACT text from the query that proves the match.
 - Example: llm_judge content="practical recommendations"
 - User query (Italian): "...voglio consigli pratici per il weekend..."
-- Quote: "voglio consigli pratici per il weekend" ← COPY THE ACTUAL TEXT
-- Status: PASS (semantic match)
-
-NEVER return "NOT FOUND" if you're giving PASS - if you found a semantic match, you found text to quote!
+- Quote: "voglio consigli pratici per il weekend"
+- Status: PASS (exact semantic match, no extras)
 
 Respond with JSON containing ALL constraints (both instructions AND llm_judge):
-{"constraints":[{"id":"instruction_id or llm_judge uid","type":"instruction|llm_judge","status":"PASS|FAIL","quote":"EXACT text from query that proves it (REQUIRED for PASS)","reason":"why pass or fail"}],"issues":["list of constraints that are HIDDEN (not explicit in query)"]}`;
+{"constraints":[{"id":"instruction_id or llm_judge uid","type":"instruction|llm_judge","status":"PASS|FAIL","quote":"EXACT text from query (REQUIRED for PASS)","reason":"why pass or fail - for llm_judge FAIL, specify if 'NOT_REQUESTED' or 'EXTRA_REQUIREMENTS: [list extras]'"}],"issues":["list of constraints that are HIDDEN (not explicit in query)"]}`;
 
             try {
                 const result = await callAPI(provider, apiKey, prompt);
