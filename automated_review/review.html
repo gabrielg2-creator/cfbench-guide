@@ -2140,6 +2140,21 @@ Examples: "Above 1000" → min:1000,max:null | "50-100" → min:50,max:100`;
                         desc += `MUST mention ${position} character case requirement: "${inst.case}"`;
                     }
                 }
+                // Handle punctuation constraints
+                else if (inst.instruction_id && inst.instruction_id.startsWith('punctuation:')) {
+                    const puncType = inst.instruction_id.split(':')[1];
+                    if (puncType === 'end_rule' && inst.end_phrase) {
+                        desc += `MUST mention ending sentences/phrases with "${inst.end_phrase}" (Italian: "chiudi/termina le frasi con ${inst.end_phrase}")`;
+                    } else if (puncType === 'start_rule' && inst.start_phrase) {
+                        desc += `MUST mention starting sentences/phrases with "${inst.start_phrase}"`;
+                    } else if (inst.end_phrase) {
+                        desc += `MUST mention punctuation rule: end with "${inst.end_phrase}"`;
+                    } else if (inst.start_phrase) {
+                        desc += `MUST mention punctuation rule: start with "${inst.start_phrase}"`;
+                    } else {
+                        desc += `Check if punctuation rule "${puncType}" is mentioned`;
+                    }
+                }
                 else desc += `Check if explicitly requested in query`;
                 return desc;
             }).join('\n');
@@ -2697,7 +2712,7 @@ Respond with JSON: {"semantic_failed":N,"llm_judge_failed":N,"details":[{"id":"i
                     model: 'gpt-5-nano',
                     messages: [{ role: 'user', content: prompt }],
                     temperature: 0.1,
-                    max_tokens: 2000
+                    max_completion_tokens: 2000
                 })
             });
 
@@ -3184,7 +3199,7 @@ Respond in JSON:
                 ? 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions'
                 : 'https://api.openai.com/v1/chat/completions';
 
-            const model = provider === 'gemini' ? 'gemini-2.5-flash-lite' : 'gpt-5-nano';
+            const model = provider === 'gemini' ? 'gemini-2.5-flash-lite' : 'gpt-5-mini';
 
             const response = await fetch(url, {
                 method: 'POST',
